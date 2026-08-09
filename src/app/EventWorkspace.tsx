@@ -46,11 +46,10 @@ export function EventWorkspace({ user }: { user: User }) {
   }
 
   useEffect(() => {
-    Promise.all([
-      api<{ event: EventRecord; role: string }>(`/api/events/${eventId}`),
-      api<{ forms: CfpForm[] }>(`/api/events/${eventId}/forms`),
-    ]).then(([eventResult, formResult]) => {
-      setEvent(eventResult.event); setRole(eventResult.role); setForms(formResult.forms); setSelectedId(formResult.forms[0]?.id);
+    api<{ event: EventRecord; role: string }>(`/api/events/${eventId}`).then(async (eventResult) => {
+      if (eventResult.role === "speaker") { window.location.replace(`/app/events/${eventId}/speaker`); return; }
+      if (eventResult.role === "reviewer") { window.location.replace(`/app/events/${eventId}/reviews`); return; }
+      setEvent(eventResult.event); setRole(eventResult.role); const formResult = await api<{ forms: CfpForm[] }>(`/api/events/${eventId}/forms`); setForms(formResult.forms); setSelectedId(formResult.forms[0]?.id);
     }).catch((error: Error) => setFeedback({ kind: "error", message: error.message })).finally(() => setLoading(false));
   }, [eventId]);
 
@@ -148,7 +147,7 @@ export function EventWorkspace({ user }: { user: User }) {
       <div className="event-identity"><small>{event?.organizationName}</small><strong>{event?.name ?? "Event"}</strong><span>{event?.status}</span></div>
       <nav className="event-nav" aria-label="Event workspace">
         <a className="active" href="#cfp"><FileInput size={18} /> Call for proposals</a>
-        <a href={`/app/events/${eventId}/submissions`}><UsersRound size={18} /> Submissions</a><a href={`/app/events/${eventId}/reviews`}><CheckCircle2 size={18} /> Reviews</a><span><UsersRound size={18} /> Speakers</span><span><CalendarClock size={18} /> Agenda</span>
+        <a href={`/app/events/${eventId}/submissions`}><UsersRound size={18} /> Submissions</a><a href={`/app/events/${eventId}/reviews`}><CheckCircle2 size={18} /> Reviews</a><a href={`/app/events/${eventId}/speakers`}><UsersRound size={18} /> Speakers</a><span><CalendarClock size={18} /> Agenda</span>
       </nav>
       <div className="sidebar-user"><span>{user.name}</span><small>{user.email}</small></div>
     </aside>

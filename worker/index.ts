@@ -7,6 +7,7 @@ import organizationRoutes from "./routes/organizations";
 import eventRoutes from "./routes/events";
 import publicRoutes from "./routes/public";
 import reviewRoutes from "./routes/reviews";
+import speakerRoutes from "./routes/speakers";
 
 type Variables = { requestId: string };
 
@@ -29,7 +30,7 @@ app.use(
       scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "data:"],
-      frameSrc: ["https://challenges.cloudflare.com"],
+      frameSrc: ["https://challenges.cloudflare.com", "https://www.youtube.com", "https://player.vimeo.com", "https://docs.google.com"],
       frameAncestors: ["'none'"],
     },
     referrerPolicy: "strict-origin-when-cross-origin",
@@ -63,6 +64,7 @@ app.route("/api/organizations", organizationRoutes);
 app.route("/api/events", eventRoutes);
 app.route("/api/public", publicRoutes);
 app.route("/api/reviews", reviewRoutes);
+app.route("/api/speakers", speakerRoutes);
 
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {
