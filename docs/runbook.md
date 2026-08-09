@@ -11,7 +11,7 @@ This runbook covers the production service at `programloom.com` and `app.program
 - Workers AI supplies advisory review and content assistance. Human confirmation remains required.
 - Turnstile protects anonymous authentication, CFP, and speaker-interest writes.
 - Resend sends from `ProgramLoom <notifications@mail.programloom.com>`.
-- Airtable base `apppAC5fPzvR1bwdm` contains the twelve `PL` business-data tables for Airtable-authoritative workspaces.
+- Airtable base `apppAC5fPzvR1bwdm` contains the seventeen `PL` business-data tables for Airtable-authoritative workspaces.
 - PostHog receives explicit product events only. Operational errors stay in structured Cloudflare logs and Workers Observability.
 
 ## Local verification
@@ -74,3 +74,9 @@ The authoritative upstream kit is `swyx/killmysaas-evals` at the commit recorded
 ## Event template recovery
 
 Event creation from reusable configuration is synchronous and records an `event_creation_operations` row. A successful operation links the new event and source provenance. A failed operation must have a null target event, a failure code, and no event with its `creation_operation_id`; this proves cleanup completed. Investigate the correlated `event_templates` structured log, fix the configuration or service problem, and create again from a fresh preview. Never manually reuse copied external IDs. 6. Record only nonsensitive results and artifact paths in the evaluation matrix. Revoke evaluator sessions after submission.
+
+## Organizer search operations
+
+The command palette is available from every authenticated route through the visible Search control or Command/Ctrl+K. Search logs contain the request ID, caller ID, authorized event count, result count, query length, and duration; they intentionally omit the query and result contents. PostHog records palette opening, selected entity type/rank bucket, and quick-action identifier only.
+
+If search is slow, filter Cloudflare Observability on `service=organizer_search` and compare duration with the caller's authorized-event count. Requests cap input at 100 characters, event scope at 100, organization scope at 50, entity candidates at bounded windows, and the final response at 50. Do not add query text to logs while diagnosing. A recent destination that is no longer authorized disappears automatically because every read resolves the source record again.

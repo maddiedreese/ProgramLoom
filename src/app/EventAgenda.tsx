@@ -173,6 +173,12 @@ export function EventAgenda({ user }: { user: User }) {
       )
       .finally(() => setLoading(false));
   }, [eventId]);
+  useEffect(() => {
+    if (!items.length || !window.location.hash) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    target?.scrollIntoView({ block: "center" });
+    target?.focus({ preventScroll: true });
+  }, [items]);
 
   async function act(operation: () => Promise<unknown>, message: string) {
     setBusy(true);
@@ -392,7 +398,11 @@ export function EventAgenda({ user }: { user: User }) {
             </div>
             <div className="agenda-list">
               {scheduled.map((item) => (
-                <article key={item.id}>
+                <article
+                  id={`agenda-item-${item.id}`}
+                  tabIndex={-1}
+                  key={item.id}
+                >
                   <time>
                     {new Intl.DateTimeFormat("en-US", {
                       weekday: "short",
@@ -424,6 +434,8 @@ export function EventAgenda({ user }: { user: User }) {
             {items.map((item) => (
               <form
                 className="agenda-placement"
+                id={`agenda-placement-${item.id}`}
+                tabIndex={-1}
                 onSubmit={(event) => place(item, event)}
                 key={item.id}
               >
@@ -516,7 +528,11 @@ export function EventAgenda({ user }: { user: User }) {
                 <Plus size={14} /> Add track
               </button>
             </form>
-            <section className="operations-card">
+            <section
+              className="operations-card"
+              id="accepted-sessions"
+              tabIndex={-1}
+            >
               <FileInput size={20} />
               <h2>Accepted sessions</h2>
               {availableSessions.map((session) => (

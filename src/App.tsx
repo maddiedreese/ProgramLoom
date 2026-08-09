@@ -20,6 +20,7 @@ import { EventReviews } from "./app/EventReviews";
 import { EventAgenda } from "./app/EventAgenda";
 import { EventWidgets } from "./app/EventWidgets";
 import { EventCommunications } from "./app/EventCommunications";
+import { CommandPalette } from "./app/CommandPalette";
 import { PublicWidgetPage } from "./app/PublicWidgetPage";
 
 const LazyCRMPage = lazy(() =>
@@ -395,47 +396,55 @@ function AuthenticatedPage({
       </main>
     );
   if (!session.user) return <Navigate to="/login" replace />;
-  if (page === "team") return <TeamPage user={session.user} />;
-  if (page === "event") return <EventWorkspace user={session.user} />;
-  if (page === "submissions") return <EventSubmissions user={session.user} />;
-  if (page === "reviews") return <EventReviews user={session.user} />;
-  if (page === "speakers")
-    return (
+  let content;
+  if (page === "team") content = <TeamPage user={session.user} />;
+  else if (page === "event") content = <EventWorkspace user={session.user} />;
+  else if (page === "submissions")
+    content = <EventSubmissions user={session.user} />;
+  else if (page === "reviews") content = <EventReviews user={session.user} />;
+  else if (page === "speakers")
+    content = (
       <Suspense fallback={<LoadingRoute label="Loading speaker operations…" />}>
         <LazyEventSpeakers user={session.user} />
       </Suspense>
     );
-  if (page === "content")
-    return (
+  else if (page === "content")
+    content = (
       <Suspense fallback={<LoadingRoute label="Loading content workspace…" />}>
         <LazyEventContent user={session.user} />
       </Suspense>
     );
-  if (page === "agenda") return <EventAgenda user={session.user} />;
-  if (page === "widgets") return <EventWidgets user={session.user} />;
-  if (page === "communications")
-    return <EventCommunications user={session.user} />;
-  if (page === "calendar")
-    return (
+  else if (page === "agenda") content = <EventAgenda user={session.user} />;
+  else if (page === "widgets") content = <EventWidgets user={session.user} />;
+  else if (page === "communications")
+    content = <EventCommunications user={session.user} />;
+  else if (page === "calendar")
+    content = (
       <Suspense fallback={<LoadingRoute label="Loading calendar lifecycle…" />}>
         <LazyEventCalendar user={session.user} />
       </Suspense>
     );
-  if (page === "control-room")
-    return (
+  else if (page === "control-room")
+    content = (
       <Suspense fallback={<LoadingRoute label="Loading the Control Room…" />}>
         <LazyEventControlRoom user={session.user} />
       </Suspense>
     );
-  if (page === "crm")
-    return (
+  else if (page === "crm")
+    content = (
       <Suspense
         fallback={<LoadingRoute label="Loading the speaker network…" />}
       >
         <LazyCRMPage user={session.user} />
       </Suspense>
     );
-  return <Dashboard user={session.user} />;
+  else content = <Dashboard user={session.user} />;
+  return (
+    <>
+      <CommandPalette />
+      {content}
+    </>
+  );
 }
 
 function PublicCfpAlias() {

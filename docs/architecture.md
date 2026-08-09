@@ -29,6 +29,8 @@ Issue ownership is the only Control Room-specific durable state. Resolving an it
 
 Reusable event configuration is represented by event-scoped program settings and immutable template snapshots. Materialization regenerates every internal and public identifier and translates deadlines relative to the new event start. A durable creation operation records source, selected domains, warnings, and provenance. Large copies use bounded D1 batches; any failure cascade-removes the new event and its audit rows before the operation is retained as failed. Operational, historical, personal, file, calendar, integration-secret, and external-ID tables are outside the snapshot boundary by construction.
 
+Organizer search is a bounded server-side federation over indexed domain tables, not a replicated global index. The Worker first derives the caller's effective organization and event roles, then runs entity-specific queries that enforce reviewer assignment, speaker identity, publication, blind-review, and private-field boundaries before ranking. Exact, prefix, word-prefix, contained, contextual, and limited fuzzy matches are ordered deterministically. Recent destinations are durable D1 preferences capped at twenty per user and are reauthorized against their source record every time they are read or written.
+
 ## Trust boundaries
 
 - Organizer registration is public and protected by verified email and Turnstile.

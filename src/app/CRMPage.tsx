@@ -171,10 +171,16 @@ function slugHeader(value: string) {
 }
 
 export function CRMPage({ user }: { user: User }) {
+  const initialQuery = new URLSearchParams(window.location.search);
+  const addSpeakerEventId = initialQuery.get("eventId") ?? "";
+  const requestedContactId = initialQuery.get("contact") ?? "";
+  const opensSpeakerHandoff =
+    initialQuery.get("action") === "add-speaker" && Boolean(addSpeakerEventId);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState("");
-  const [activeTab, setActiveTab] =
-    useState<(typeof tabs)[number][0]>("dashboard");
+  const [activeTab, setActiveTab] = useState<(typeof tabs)[number][0]>(
+    opensSpeakerHandoff ? "directory" : "dashboard",
+  );
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -203,7 +209,9 @@ export function CRMPage({ user }: { user: User }) {
   const [detail, setDetail] = useState<Record<string, unknown>>();
   const [pipelineDetail, setPipelineDetail] =
     useState<Record<string, unknown>>();
-  const [modal, setModal] = useState<string>();
+  const [modal, setModal] = useState<string | undefined>(
+    opensSpeakerHandoff ? "handoff" : undefined,
+  );
   const [feedback, setFeedback] = useState<Feedback>();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -326,6 +334,14 @@ export function CRMPage({ user }: { user: User }) {
     setDetail(result);
     setModal("contact");
   }
+
+  useEffect(() => {
+    if (!organizationId || !requestedContactId || opensSpeakerHandoff) return;
+    setActiveTab("directory");
+    openContact(requestedContactId).catch((error: Error) =>
+      setFeedback({ kind: "error", message: error.message }),
+    );
+  }, [organizationId, requestedContactId]);
 
   async function openCard(cardId: string) {
     setPipelineDetail(
@@ -609,6 +625,7 @@ export function CRMPage({ user }: { user: User }) {
             selected.includes(contact.id),
           )}
           events={events}
+          defaultEventId={addSpeakerEventId}
           busy={busy}
           close={() => setModal(undefined)}
           handoff={async (contactId, eventId) => {
@@ -2059,16 +2076,19 @@ function OutreachModal({
 function HandoffModal({
   contacts,
   events,
+  defaultEventId,
   busy,
   close,
   handoff,
 }: {
   contacts: Contact[];
   events: EventRecord[];
+  defaultEventId?: string;
   busy: boolean;
   close: () => void;
   handoff: (contactId: string, eventId: string) => void;
 }) {
+  const [targetEventId, setTargetEventId] = useState(defaultEventId ?? "");
   return (
     <Modal
       title="Add speaker to event"
@@ -2095,7 +2115,12 @@ function HandoffModal({
         </label>
         <label>
           Target event
-          <select name="eventId" required>
+          <select
+            name="eventId"
+            required
+            value={targetEventId}
+            onChange={(event) => setTargetEventId(event.target.value)}
+          >
             <option value="">Choose event</option>
             {events.map((event) => (
               <option key={event.id} value={event.id}>

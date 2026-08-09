@@ -18,6 +18,7 @@ import calendarRoutes from "./routes/calendar";
 import controlRoomRoutes from "./routes/control-room";
 import submissionWorkspaceRoutes from "./routes/submission-workspace";
 import eventTemplateRoutes from "./routes/event-templates";
+import searchRoutes from "./routes/search";
 import {
   beginAirtableReconciliation,
   dispatchPendingAirtableOutbox,
@@ -150,6 +151,7 @@ app.route("/api/calendar", calendarRoutes);
 app.route("/api/control-room", controlRoomRoutes);
 app.route("/api/submission-workspace", submissionWorkspaceRoutes);
 app.route("/api/event-templates", eventTemplateRoutes);
+app.route("/api/search", searchRoutes);
 
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);

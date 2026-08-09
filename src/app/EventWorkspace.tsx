@@ -108,6 +108,9 @@ function toLocalInput(value: string | null) {
 
 export function EventWorkspace({ user }: { user: User }) {
   const { eventId = "" } = useParams();
+  const requestedFormId = new URLSearchParams(window.location.search).get(
+    "form",
+  );
   const [event, setEvent] = useState<EventRecord>();
   const [role, setRole] = useState<string>();
   const [forms, setForms] = useState<CfpForm[]>([]);
@@ -148,7 +151,11 @@ export function EventWorkspace({ user }: { user: User }) {
           api<{ tracks: Track[] }>(`/api/events/${eventId}/tracks`),
         ]);
         setForms(formResult.forms);
-        setSelectedId(formResult.forms[0]?.id);
+        setSelectedId(
+          formResult.forms.some((form) => form.id === requestedFormId)
+            ? (requestedFormId ?? formResult.forms[0]?.id)
+            : formResult.forms[0]?.id,
+        );
         setTracks(trackResult.tracks);
       })
       .catch((error: Error) =>

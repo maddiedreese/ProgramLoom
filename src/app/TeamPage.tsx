@@ -43,6 +43,10 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function TeamPage({ user }: { user: User }) {
+  const query = new URLSearchParams(window.location.search);
+  const requestedOrganizationId = query.get("organization") ?? "";
+  const requestedEventId = query.get("eventId") ?? "";
+  const requestedRole = query.get("invite");
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState("");
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -50,7 +54,7 @@ export function TeamPage({ user }: { user: User }) {
   const [eventRoles, setEventRoles] = useState<EventRole[]>([]);
   const [invitations, setInvitations] = useState<PendingInvite[]>([]);
   const [role, setRole] = useState<"admin" | "reviewer" | "speaker">(
-    "reviewer",
+    requestedRole === "speaker" ? "speaker" : "reviewer",
   );
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -63,7 +67,11 @@ export function TeamPage({ user }: { user: User }) {
     api<{ organizations: Organization[] }>("/api/organizations")
       .then(({ organizations: items }) => {
         setOrganizations(items);
-        setOrganizationId(items[0]?.id ?? "");
+        setOrganizationId(
+          items.some((item) => item.id === requestedOrganizationId)
+            ? requestedOrganizationId
+            : (items[0]?.id ?? ""),
+        );
       })
       .catch((error: Error) =>
         setFeedback({ kind: "error", message: error.message }),
@@ -96,6 +104,12 @@ export function TeamPage({ user }: { user: User }) {
       )
       .finally(() => setLoading(false));
   }, [organizationId]);
+  useEffect(() => {
+    if (!members.length || !window.location.hash) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    target?.scrollIntoView({ block: "center" });
+    target?.focus({ preventScroll: true });
+  }, [members]);
 
   async function invite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -202,7 +216,12 @@ export function TeamPage({ user }: { user: User }) {
                 </div>
               </div>
               {members.map((member) => (
-                <article className="person-row" key={member.id}>
+                <article
+                  className="person-row"
+                  id={`member-${member.id}`}
+                  tabIndex={-1}
+                  key={member.id}
+                >
                   <div className="avatar">
                     {member.name.slice(0, 1).toUpperCase()}
                   </div>
@@ -223,7 +242,7 @@ export function TeamPage({ user }: { user: User }) {
                 </article>
               ))}
             </section>
-            <aside className="invite-panel">
+            <aside className="invite-panel" id="invite-member">
               <Mail />
               <h2>Invite someone</h2>
               <p>
@@ -233,7 +252,15 @@ export function TeamPage({ user }: { user: User }) {
               <form onSubmit={invite}>
                 <label>
                   Email
-                  <input name="email" type="email" required />
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    autoFocus={
+                      requestedRole === "reviewer" ||
+                      requestedRole === "speaker"
+                    }
+                  />
                 </label>
                 <label>
                   Role
@@ -251,7 +278,11 @@ export function TeamPage({ user }: { user: User }) {
                 {role !== "admin" && (
                   <label>
                     Event
-                    <select name="eventId" required>
+                    <select
+                      name="eventId"
+                      required
+                      defaultValue={requestedEventId}
+                    >
                       <option value="">Choose an event</option>
                       {events.map((item) => (
                         <option value={item.id} key={item.id}>

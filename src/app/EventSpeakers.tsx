@@ -280,6 +280,16 @@ function SpeakerPortal({
       setFeedback({ kind: "error", message: error.message }),
     );
   }, [eventId]);
+  useEffect(() => {
+    if (
+      (!profile && !tasks.length && !resources.length) ||
+      !window.location.hash
+    )
+      return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    target?.scrollIntoView({ block: "center" });
+    target?.focus({ preventScroll: true });
+  }, [profile, resources, tasks]);
   async function saveProfile(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     if (!profile) return;
@@ -671,7 +681,11 @@ function SpeakerPortal({
         <div className="resource-list">
           {resources.length ? (
             resources.map((resource) => (
-              <article key={resource.id}>
+              <article
+                id={`resource-${resource.id}`}
+                tabIndex={-1}
+                key={resource.id}
+              >
                 <h2>{resource.title}</h2>
                 <SanitizedResource html={resource.bodyHtml} />
               </article>
@@ -840,6 +854,16 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       setFeedback({ kind: "error", message: error.message }),
     );
   }, [eventId]);
+  useEffect(() => {
+    if (
+      (!speakers.length && !tasks.length && !resources.length) ||
+      !window.location.hash
+    )
+      return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    target?.scrollIntoView({ block: "center" });
+    target?.focus({ preventScroll: true });
+  }, [resources, speakers, tasks]);
   async function createTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -1003,7 +1027,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       )}
       <section className="speaker-roster">
         {speakers.map((speaker) => (
-          <article key={speaker.id}>
+          <article id={`speaker-${speaker.id}`} tabIndex={-1} key={speaker.id}>
             <div className="speaker-avatar">
               {speaker.firstName[0]}
               {speaker.lastName[0]}
@@ -1041,6 +1065,35 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             >
               <Mail size={14} /> Communication timeline
             </a>
+          </article>
+        ))}
+      </section>
+      <section
+        className="file-review-list"
+        aria-label="Configured onboarding tasks"
+      >
+        <h2>Configured onboarding tasks</h2>
+        {tasks.map((task) => (
+          <article id={`task-${task.id}`} tabIndex={-1} key={task.id}>
+            <span>
+              <strong>{task.title}</strong>
+              <small>{task.description || "No description"}</small>
+            </span>
+          </article>
+        ))}
+      </section>
+      <section className="file-review-list" aria-label="Speaker resources">
+        <h2>Speaker resources</h2>
+        {resources.map((resource) => (
+          <article
+            id={`resource-${resource.id}`}
+            tabIndex={-1}
+            key={resource.id}
+          >
+            <span>
+              <strong>{resource.title}</strong>
+              <small>{resource.publishedAt ? "Published" : "Draft"}</small>
+            </span>
           </article>
         ))}
       </section>

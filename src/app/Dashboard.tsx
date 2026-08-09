@@ -86,7 +86,14 @@ export function Dashboard({ user }: { user: User }) {
     api<{ organizations: Organization[] }>("/api/organizations")
       .then(({ organizations: items }) => {
         setOrganizations(items);
-        setSelectedId(items[0]?.id);
+        const requested = new URLSearchParams(window.location.search).get(
+          "organization",
+        );
+        setSelectedId(
+          items.some((item) => item.id === requested)
+            ? (requested ?? items[0]?.id)
+            : items[0]?.id,
+        );
       })
       .catch((error: Error) =>
         setFeedback({ kind: "error", message: error.message }),

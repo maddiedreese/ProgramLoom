@@ -133,6 +133,9 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function EventContent({ user }: { user: User }) {
   const { eventId = "" } = useParams();
+  const requestedFileId = new URLSearchParams(window.location.search).get(
+    "file",
+  );
   const [event, setEvent] = useState<EventRecord>();
   const [role, setRole] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -144,7 +147,7 @@ export function EventContent({ user }: { user: User }) {
   const [fileUploadsEnabled, setFileUploadsEnabled] = useState(true);
   const [tab, setTab] = useState<
     "deliverables" | "sessions" | "speakers" | "files"
-  >("deliverables");
+  >(requestedFileId ? "files" : "deliverables");
   const [filter, setFilter] = useState("all");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [editingSession, setEditingSession] = useState<Session>();
@@ -360,6 +363,14 @@ export function EventContent({ user }: { user: User }) {
     );
     setFileDetail(detail);
   }
+  useEffect(() => {
+    if (!requestedFileId || selectedFile) return;
+    const target = files.find((file) => file.id === requestedFileId);
+    if (target)
+      openFile(target).catch((error: Error) =>
+        setFeedback({ kind: "error", message: error.message }),
+      );
+  }, [files, requestedFileId, selectedFile]);
   async function addComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFile) return;

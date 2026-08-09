@@ -108,13 +108,20 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function EventCommunications({ user }: { user: User }) {
   const { eventId = "" } = useParams();
+  const initialQuery = useMemo(
+    () => new URLSearchParams(window.location.search),
+    [],
+  );
+  const requestedMessageId = initialQuery.get("message") ?? "";
   const submissionBulk = useMemo(
     () =>
       new URLSearchParams(window.location.search).get("submissionBulk") ?? "",
     [],
   );
   const [overview, setOverview] = useState<Overview>();
-  const [tab, setTab] = useState<"outbox" | "compose" | "templates">("outbox");
+  const [tab, setTab] = useState<"outbox" | "compose" | "templates">(
+    initialQuery.get("compose") === "1" ? "compose" : "outbox",
+  );
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
@@ -193,6 +200,13 @@ export function EventCommunications({ user }: { user: User }) {
     filters.search,
     filters.speaker,
   ]);
+
+  useEffect(() => {
+    if (!requestedMessageId || !overview?.messages.length) return;
+    const target = document.getElementById(`message-${requestedMessageId}`);
+    target?.scrollIntoView({ block: "center" });
+    target?.focus({ preventScroll: true });
+  }, [overview?.messages, requestedMessageId]);
 
   useEffect(() => {
     if (!selectedTemplate) return;
@@ -674,7 +688,13 @@ export function EventCommunications({ user }: { user: User }) {
                 <span>Actions</span>
               </div>
               {overview?.messages.map((message) => (
-                <div className="outbox-row" role="row" key={message.id}>
+                <div
+                  className="outbox-row"
+                  role="row"
+                  id={`message-${message.id}`}
+                  tabIndex={-1}
+                  key={message.id}
+                >
                   <span>
                     <strong>
                       {message.recipientName || message.recipientEmail}
