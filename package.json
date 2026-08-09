@@ -9,17 +9,18 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "WRANGLER_LOG_PATH=.wrangler.log vite",
+    "build": "tsc -b && WRANGLER_LOG_PATH=.wrangler.log vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "npm run build && WRANGLER_LOG_PATH=.wrangler.log wrangler deploy",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run test && npm run build",
     "cf:types": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply programloom-production --local",
-    "db:migrate:remote": "wrangler d1 migrations apply programloom-production --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply programloom-production --remote",
+    "airtable:provision": "node scripts/provision-airtable.mjs --apply"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",

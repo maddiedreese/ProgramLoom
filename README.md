@@ -18,6 +18,8 @@ npm run dev
 
 Never commit `.env.local` or `.dev.vars`. See `docs/architecture.md` for the system design and `SECURITY.md` for vulnerability reporting.
 
+Production secrets are uploaded individually with `zsh scripts/push-cloudflare-secrets.zsh`; the script validates presence and never prints values.
+
 ## Quality checks
 
 ```bash

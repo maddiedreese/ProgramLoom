@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import type { Env } from "./env";
+import { HttpError } from "./lib/authz";
 import authRoutes from "./routes/auth";
+import organizationRoutes from "./routes/organizations";
 
 type Variables = { requestId: string };
 
@@ -19,12 +21,13 @@ app.use(
   secureHeaders({
     contentSecurityPolicy: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "https://*.posthog.com", "https://*.sentry.io"],
+      connectSrc: ["'self'", "https://challenges.cloudflare.com", "https://*.posthog.com", "https://*.sentry.io"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "data:"],
-      frameAncestors: ["'self'", "https:"],
+      frameSrc: ["https://challenges.cloudflare.com"],
+      frameAncestors: ["'none'"],
     },
     referrerPolicy: "strict-origin-when-cross-origin",
   }),
@@ -53,6 +56,7 @@ app.get("/api/meta", (context) =>
 );
 
 app.route("/api/auth", authRoutes);
+app.route("/api/organizations", organizationRoutes);
 
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {
@@ -65,6 +69,9 @@ app.notFound(async (context) => {
 });
 
 app.onError((error, context) => {
+  if (error instanceof HttpError) {
+    return context.json({ error: { code: error.code, message: error.message }, requestId: context.get("requestId") }, error.status);
+  }
   console.error(JSON.stringify({ level: "error", requestId: context.get("requestId"), message: error.message }));
   return context.json(
     { error: { code: "internal_error", message: "Something went wrong." }, requestId: context.get("requestId") },

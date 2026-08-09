@@ -2,6 +2,7 @@ import { Turnstile } from "@marsidev/react-turnstile";
 import { ArrowRight, CalendarRange, Check, GalleryVerticalEnd, Sparkles, UsersRound } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { Dashboard } from "./app/Dashboard";
 
 const capabilities = [
   { icon: GalleryVerticalEnd, title: "Shape the program", body: "Collect proposals with conditional forms, route reviews, and make decisions with confidence." },
@@ -13,6 +14,10 @@ function Wordmark() {
   return <span className="wordmark"><span aria-hidden="true" className="mark">PL</span>ProgramLoom</span>;
 }
 
+function applicationHref(path: string) {
+  return ["localhost", "127.0.0.1"].includes(window.location.hostname) ? path : `https://app.programloom.com${path}`;
+}
+
 function MarketingPage() {
   return (
     <div className="site-shell">
@@ -21,8 +26,8 @@ function MarketingPage() {
         <nav aria-label="Primary navigation">
           <a href="#product">Product</a>
           <a href="#principles">Why ProgramLoom</a>
-          <Link className="button button-small button-ghost" to="/login">Sign in</Link>
-          <Link className="button button-small" to="/register">Start free</Link>
+          <a className="button button-small button-ghost" href={applicationHref("/login")}>Sign in</a>
+          <a className="button button-small" href={applicationHref("/register")}>Start free</a>
         </nav>
       </header>
       <main id="main-content">
@@ -31,7 +36,7 @@ function MarketingPage() {
           <h1>Weave every moving part into one remarkable program.</h1>
           <p className="hero-copy">Proposals, reviews, speakers, content, schedules, and public pages—connected from the first submission to showtime.</p>
           <div className="hero-actions">
-            <Link className="button button-large" to="/register">Build your first event <ArrowRight size={18} /></Link>
+            <a className="button button-large" href={applicationHref("/register")}>Build your first event <ArrowRight size={18} /></a>
             <a className="text-link" href="https://github.com/maddiedreese/SaaS">Open-source on GitHub</a>
           </div>
           <div className="proof-row" aria-label="Product principles">
@@ -140,16 +145,7 @@ function AppHome() {
   }, []);
   if (session.loading) return <main id="main-content" className="loading-page" aria-busy="true">Loading your workspace…</main>;
   if (!session.user) return <Navigate to="/login" replace />;
-  return (
-    <main id="main-content" className="app-empty-state">
-      <Wordmark />
-      <div>
-        <p className="kicker">Signed in as {session.user.email}</p>
-        <h1>Welcome, {session.user.name.split(" ")[0]}.</h1>
-        <p>Your secure ProgramLoom account is ready. Workspace onboarding is the next build slice.</p>
-      </div>
-    </main>
-  );
+  return <Dashboard user={session.user} />;
 }
 
 export function App() {

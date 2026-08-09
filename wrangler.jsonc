@@ -5,6 +5,10 @@
   "compatibility_date": "2026-08-08",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  "routes": [
+    { "pattern": "programloom.com", "custom_domain": true },
+    { "pattern": "app.programloom.com", "custom_domain": true }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
@@ -29,8 +33,10 @@
     ]
   },
   "vars": {
-    "APP_ENV": "development",
-    "APP_URL": "http://localhost:5173",
-    "MARKETING_URL": "http://localhost:5173"
+    "APP_ENV": "production",
+    "APP_URL": "https://app.programloom.com",
+    "MARKETING_URL": "https://programloom.com",
+    "EMAIL_FROM": "ProgramLoom <notifications@mail.programloom.com>",
+    "EMAIL_REPLY_TO": "notifications@mail.programloom.com"
   }
 }
