@@ -10,6 +10,7 @@ import {
   GripVertical,
   Layers3,
   LoaderCircle,
+  Mail,
   Plus,
   Send,
   Settings2,
@@ -514,6 +515,9 @@ export function EventWorkspace({ user }: { user: User }) {
           </a>
           <a href={`/app/events/${eventId}/agenda`}>
             <CalendarClock size={18} /> Agenda
+          </a>
+          <a href={`/app/events/${eventId}/communications`}>
+            <Mail size={18} /> Communications
           </a>
         </nav>
         <SidebarUser user={user} />

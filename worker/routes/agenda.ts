@@ -4,6 +4,8 @@ import { z } from "zod";
 import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
+import { syncAgendaCalendarInvitations } from "../lib/calendarLifecycle";
+import { logOperationalEvent, safeOperationalError } from "../lib/operations";
 
 type Variables = { requestId: string };
 type AgendaItem = {
@@ -120,7 +122,7 @@ async function placementConflicts(
   db: D1Database,
   eventId: string,
   item: AgendaItem,
-  roomId: string,
+  roomId: string | null,
   startsAt: string,
   endsAt: string,
 ) {
@@ -141,7 +143,7 @@ async function placementConflicts(
       roomId: string | null;
     }>();
   for (const other of overlapping.results) {
-    if (other.roomId === roomId)
+    if (roomId && other.roomId === roomId)
       conflicts.push({
         type: "room",
         message: `${other.title} already uses this room.`,
@@ -328,14 +330,11 @@ router.patch(
         "agenda_item_not_found",
         "Agenda item not found.",
       );
-    if (
-      (input.startsAt === null) !== (input.endsAt === null) ||
-      (input.startsAt === null) !== (input.roomId === null)
-    )
+    if ((input.startsAt === null) !== (input.endsAt === null))
       throw new HttpError(
         400,
         "incomplete_placement",
-        "A placement needs a room, start, and end—or all three cleared.",
+        "A placement needs both a start and end, or both must be cleared. A room may be assigned later.",
       );
     if (input.startsAt && input.endsAt) {
       if (input.endsAt <= input.startsAt)
@@ -345,6 +344,7 @@ router.patch(
           "The end must be after the start.",
         );
       if (
+        input.roomId &&
         !(await db
           .prepare("SELECT id FROM rooms WHERE id=? AND event_id=?")
           .bind(input.roomId, eventId)
@@ -359,7 +359,7 @@ router.patch(
         db,
         eventId,
         item,
-        input.roomId!,
+        input.roomId,
         input.startsAt,
         input.endsAt,
       );
@@ -398,7 +398,37 @@ router.patch(
         requestId: context.get("requestId"),
       }),
     ]);
-    return context.json({ item: { id: item.id, ...input } });
+    let calendar;
+    let calendarError: string | undefined;
+    try {
+      calendar = await syncAgendaCalendarInvitations(context.env, {
+        eventId,
+        agendaItemId: item.id,
+        actorUserId: access.user.id,
+        correlationId: context.get("requestId"),
+        action: input.startsAt
+          ? item.startsAt
+            ? "material_change"
+            : "placement"
+          : "cancellation",
+      });
+    } catch (error) {
+      calendarError =
+        "The agenda changed, but calendar delivery needs organizer attention.";
+      logOperationalEvent("error", {
+        operation: "calendar_agenda_sync_failed",
+        requestId: context.get("requestId"),
+        eventId,
+        entityType: "agenda_item",
+        entityId: item.id,
+        message: safeOperationalError(error),
+      });
+    }
+    return context.json({
+      item: { id: item.id, ...input },
+      calendar,
+      calendarError,
+    });
   },
 );
 
@@ -555,10 +585,35 @@ router.post(
         requestId: context.get("requestId"),
       }).run();
     }
+    let calendarFailures = 0;
+    if (input.apply) {
+      for (const placement of placements) {
+        try {
+          await syncAgendaCalendarInvitations(context.env, {
+            eventId,
+            agendaItemId: placement.itemId,
+            actorUserId: access.user.id,
+            correlationId: context.get("requestId"),
+            action: "placement",
+          });
+        } catch (error) {
+          calendarFailures += 1;
+          logOperationalEvent("error", {
+            operation: "calendar_assisted_sync_failed",
+            requestId: context.get("requestId"),
+            eventId,
+            entityType: "agenda_item",
+            entityId: placement.itemId,
+            message: safeOperationalError(error),
+          });
+        }
+      }
+    }
     return context.json({
       placements,
       unscheduledCount: unscheduled.length,
       applied: input.apply,
+      calendarFailures,
     });
   },
 );
@@ -624,7 +679,35 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       requestId: context.get("requestId"),
     }),
   ]);
-  return context.json({ published: total.count });
+  const items = await db
+    .prepare(
+      "SELECT id FROM agenda_items WHERE event_id=? ORDER BY id LIMIT 1000",
+    )
+    .bind(eventId)
+    .all<{ id: string }>();
+  let calendarFailures = 0;
+  for (const item of items.results) {
+    try {
+      await syncAgendaCalendarInvitations(context.env, {
+        eventId,
+        agendaItemId: item.id,
+        actorUserId: access.user.id,
+        correlationId: context.get("requestId"),
+        action: "publication",
+      });
+    } catch (error) {
+      calendarFailures += 1;
+      logOperationalEvent("error", {
+        operation: "calendar_publication_sync_failed",
+        requestId: context.get("requestId"),
+        eventId,
+        entityType: "agenda_item",
+        entityId: item.id,
+        message: safeOperationalError(error),
+      });
+    }
+  }
+  return context.json({ published: total.count, calendarFailures });
 });
 
 export default router;

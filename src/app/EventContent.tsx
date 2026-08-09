@@ -251,13 +251,14 @@ export function EventContent({ user }: { user: User }) {
   }
   async function sendReminders() {
     await run(async () => {
-      const result = await api<{ sent: number; attempted: number }>(
-        `/api/content/admin/events/${eventId}/reminders`,
-        { method: "POST" },
-      );
+      const result = await api<{
+        queued: number;
+        prepared: number;
+        attempted: number;
+      }>(`/api/content/admin/events/${eventId}/reminders`, { method: "POST" });
       setFeedback({
         kind: "success",
-        message: `${result.sent} of ${result.attempted} reminder emails sent.`,
+        message: `${result.queued} of ${result.attempted} reminders queued${result.prepared ? `; ${result.prepared} remain prepared for retry in Communications` : ""}.`,
       });
     }, "Reminders processed.");
   }

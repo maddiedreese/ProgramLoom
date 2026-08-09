@@ -6,7 +6,12 @@ import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
 import { randomToken, sha256 } from "../lib/crypto";
-import { sendDeliverablesReminder } from "../lib/email";
+import {
+  enqueueCommunication,
+  prepareCommunicationStatement,
+} from "../lib/communications";
+import { renderSimpleTransactionalEmail } from "../lib/email";
+import { domainEventStatement } from "../lib/operations";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -572,7 +577,7 @@ router.post("/admin/events/:eventId/reminders", async (context) => {
      FROM speaker_task_assignments a JOIN onboarding_tasks t ON t.id=a.task_id
      JOIN speaker_profiles sp ON sp.id=a.speaker_id JOIN events e ON e.id=t.event_id
      WHERE t.event_id=? AND t.task_type='file_request' AND a.status NOT IN ('complete','submitted')
-     ORDER BY sp.id,t.due_at,t.title`,
+     ORDER BY sp.id,t.due_at,t.title LIMIT 500`,
     )
     .bind(eventId)
     .all<Record<string, string | null>>();
@@ -599,18 +604,67 @@ router.post("/admin/events/:eventId/reminders", async (context) => {
   const batchId = crypto.randomUUID();
   const deliveries = [];
   for (const [speakerId, group] of grouped) {
+    const messageId = crypto.randomUUID();
+    const outstanding = group.outstanding.map((item) =>
+      item.dueAt
+        ? `${item.title} — due ${new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(item.dueAt))}`
+        : item.title,
+    );
+    const rendered = renderSimpleTransactionalEmail({
+      recipientName: group.name,
+      paragraphs: [
+        `The ${group.eventName} program team is waiting on the following items:`,
+        outstanding.join("\n"),
+        "Open your speaker workspace to upload files or complete the related tasks.",
+      ],
+      actionLabel: "Open speaker workspace",
+      actionUrl: `${context.env.APP_URL}/app/events/${eventId}/speaker`,
+    });
+    await db.batch([
+      prepareCommunicationStatement(db, {
+        id: messageId,
+        organizationId: access.organizationId,
+        eventId,
+        category: "content_reminder",
+        recipientEmail: group.email,
+        recipientName: group.name,
+        subject: `Outstanding program items for ${group.eventName}`,
+        bodyHtml: rendered.html,
+        bodyText: rendered.text,
+        entityType: "speaker",
+        entityId: speakerId,
+        metadata: { batchId, outstandingCount: outstanding.length },
+        idempotencyKey: `content-reminder/${batchId}/${speakerId}`,
+        preparedBy: access.user.id,
+        correlationId: context.get("requestId"),
+      }),
+      domainEventStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        eventType: "communication.content_reminder_prepared",
+        entityType: "speaker",
+        entityId: speakerId,
+        actorUserId: access.user.id,
+        payload: { messageId, batchId, outstandingCount: outstanding.length },
+        correlationId: context.get("requestId"),
+      }),
+    ]);
     try {
-      const providerId = await sendDeliverablesReminder(context.env, {
-        ...group,
-        portalLink: `${context.env.APP_URL}/app/events/${eventId}/speaker`,
-        batchId,
-      });
-      deliveries.push({ speakerId, status: "sent", providerId });
-    } catch (error) {
+      const result = await enqueueCommunication(
+        context.env,
+        messageId,
+        context.get("requestId"),
+      );
       deliveries.push({
         speakerId,
-        status: "failed",
-        error: error instanceof Error ? error.message : "Send failed.",
+        messageId,
+        status: result.queued ? "queued" : "prepared",
+      });
+    } catch {
+      deliveries.push({
+        speakerId,
+        messageId,
+        status: "prepared",
       });
     }
   }
@@ -618,7 +672,7 @@ router.post("/admin/events/:eventId/reminders", async (context) => {
     organizationId: access.organizationId,
     eventId,
     actorUserId: access.user.id,
-    action: "content.reminders_sent",
+    action: "content.reminders_prepared",
     entityType: "event",
     entityId: eventId,
     after: { batchId, deliveries },
@@ -627,7 +681,8 @@ router.post("/admin/events/:eventId/reminders", async (context) => {
   return context.json({
     batchId,
     attempted: deliveries.length,
-    sent: deliveries.filter((item) => item.status === "sent").length,
+    queued: deliveries.filter((item) => item.status === "queued").length,
+    prepared: deliveries.filter((item) => item.status === "prepared").length,
     deliveries,
   });
 });

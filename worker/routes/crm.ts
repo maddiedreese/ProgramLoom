@@ -9,7 +9,12 @@ import {
   normalizeSlug,
   requireOrganizationRole,
 } from "../lib/authz";
-import { sendCrmOutreach } from "../lib/email";
+import {
+  enqueueCommunication,
+  prepareCommunicationStatement,
+} from "../lib/communications";
+import { renderSimpleTransactionalEmail } from "../lib/email";
+import { domainEventStatement } from "../lib/operations";
 import { verifyTurnstile } from "../lib/turnstile";
 
 type Variables = { requestId: string };
@@ -109,6 +114,7 @@ const handoffSchema = z.object({
 });
 const outreachSchema = z.object({
   contactIds: z.array(z.string().uuid()).min(1).max(100),
+  eventId: z.string().uuid(),
   templateId: z.string().uuid().nullable().optional(),
   replyTo: z.email().nullable().optional(),
   subject: z.string().trim().min(3).max(180),
@@ -1563,6 +1569,16 @@ router.post(
     ]);
     const input = context.req.valid("json");
     const db = database(context.env);
+    const event = await db
+      .prepare("SELECT id,name FROM events WHERE id=? AND organization_id=?")
+      .bind(input.eventId, organizationId)
+      .first<{ id: string; name: string }>();
+    if (!event)
+      throw new HttpError(
+        404,
+        "event_not_found",
+        "Choose an event from this workspace for the outreach campaign.",
+      );
     const contacts = await db
       .prepare(
         `SELECT id,email,first_name AS firstName,last_name AS lastName,company FROM crm_contacts WHERE organization_id=? AND id IN (${input.contactIds.map(() => "?").join(",")})`,
@@ -1578,18 +1594,21 @@ router.post(
     const campaignId = crypto.randomUUID();
     const recipientRows = contacts.results.map((contact) => ({
       id: crypto.randomUUID(),
+      messageId: crypto.randomUUID(),
       contact,
       subject: personalize(input.subject, contact),
       body: personalize(input.body, contact),
     }));
+    const correlationId = context.get("requestId");
     await db.batch([
       db
         .prepare(
-          "INSERT INTO crm_email_campaigns(id,organization_id,template_id,subject,body,reply_to,recipient_count,status,sent_by) VALUES(?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO crm_email_campaigns(id,organization_id,event_id,template_id,subject,body,reply_to,recipient_count,status,sent_by) VALUES(?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(
           campaignId,
           organizationId,
+          input.eventId,
           input.templateId ?? null,
           input.subject,
           input.body,
@@ -1601,7 +1620,7 @@ router.post(
       ...recipientRows.map((row) =>
         db
           .prepare(
-            "INSERT INTO crm_email_recipients(id,campaign_id,contact_id,recipient_email,recipient_name,rendered_subject,rendered_body,status) VALUES(?,?,?,?,?,?,?,'queued')",
+            "INSERT INTO crm_email_recipients(id,campaign_id,contact_id,recipient_email,recipient_name,rendered_subject,rendered_body,status,communication_message_id) VALUES(?,?,?,?,?,?,?,'queued',?)",
           )
           .bind(
             row.id,
@@ -1611,68 +1630,83 @@ router.post(
             `${row.contact.firstName} ${row.contact.lastName}`,
             row.subject,
             row.body,
+            row.messageId,
           ),
       ),
-    ]);
-    let sent = 0;
-    for (const row of recipientRows) {
-      try {
-        const providerId = await sendCrmOutreach(context.env, {
-          email: String(row.contact.email),
-          name: String(row.contact.firstName),
-          subject: row.subject,
-          body: row.body,
-          replyTo: input.replyTo,
-          campaignId,
+      ...recipientRows.map((row) => {
+        const rendered = renderSimpleTransactionalEmail({
+          recipientName: String(row.contact.firstName),
+          paragraphs: row.body.split("\n").filter(Boolean),
         });
-        await db
-          .prepare(
-            "UPDATE crm_email_recipients SET provider_id=?,status='sent',sent_at=CURRENT_TIMESTAMP WHERE id=?",
-          )
-          .bind(providerId, row.id)
-          .run();
-        sent += 1;
-      } catch (error) {
-        await db
-          .prepare(
-            "UPDATE crm_email_recipients SET status='failed',last_error=? WHERE id=?",
-          )
-          .bind(
-            error instanceof Error ? error.message : "Delivery failed",
-            row.id,
-          )
-          .run();
-      }
-    }
-    const status =
-      sent === recipientRows.length ? "sent" : sent ? "partial" : "failed";
-    await db.batch([
-      db
-        .prepare(
-          "UPDATE crm_email_campaigns SET status=?,completed_at=CURRENT_TIMESTAMP WHERE id=?",
-        )
-        .bind(status, campaignId),
-      auditStatement(db, {
+        return prepareCommunicationStatement(db, {
+          id: row.messageId,
+          organizationId,
+          eventId: input.eventId,
+          category: "crm_outreach",
+          recipientEmail: String(row.contact.email),
+          recipientName: `${row.contact.firstName} ${row.contact.lastName}`,
+          replyTo: input.replyTo,
+          subject: row.subject,
+          bodyHtml: rendered.html,
+          bodyText: rendered.text,
+          entityType: "crm_contact",
+          entityId: String(row.contact.id),
+          metadata: { campaignId, recipientId: row.id },
+          idempotencyKey: `crm-outreach/${campaignId}/${row.id}`,
+          preparedBy: user.id,
+          correlationId,
+        });
+      }),
+      domainEventStatement(db, {
         organizationId,
-        actorUserId: user.id,
-        action: "crm.outreach.sent",
+        eventId: input.eventId,
+        eventType: "crm.outreach_prepared",
         entityType: "crm_campaign",
         entityId: campaignId,
-        after: { recipients: recipientRows.length, sent, status },
-        requestId: context.get("requestId"),
+        actorUserId: user.id,
+        payload: { recipientCount: recipientRows.length },
+        correlationId,
+      }),
+      auditStatement(db, {
+        organizationId,
+        eventId: input.eventId,
+        actorUserId: user.id,
+        action: "crm.outreach_prepared",
+        entityType: "crm_campaign",
+        entityId: campaignId,
+        after: { recipients: recipientRows.length },
+        requestId: correlationId,
       }),
     ]);
+    let queued = 0;
+    for (const row of recipientRows) {
+      try {
+        if (
+          (
+            await enqueueCommunication(
+              context.env,
+              row.messageId,
+              correlationId,
+            )
+          ).queued
+        )
+          queued += 1;
+      } catch {
+        // Prepared records remain visible in Communications for retry.
+      }
+    }
     return context.json(
       {
         campaign: {
           id: campaignId,
-          status,
+          eventId: input.eventId,
+          status: "sending",
           recipientCount: recipientRows.length,
-          sent,
-          failed: recipientRows.length - sent,
+          queued,
+          prepared: recipientRows.length - queued,
         },
       },
-      status === "failed" ? 503 : 201,
+      201,
     );
   },
 );

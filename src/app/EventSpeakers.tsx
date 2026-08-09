@@ -8,6 +8,7 @@ import {
   Files,
   Inbox,
   LoaderCircle,
+  Mail,
   MessageSquare,
   Plus,
   Save,
@@ -1034,6 +1035,12 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
                 files
               </span>
             </div>
+            <a
+              className="speaker-communication-link"
+              href={`/app/events/${eventId}/communications?speaker=${speaker.id}`}
+            >
+              <Mail size={14} /> Communication timeline
+            </a>
           </article>
         ))}
       </section>

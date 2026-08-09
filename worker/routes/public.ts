@@ -3,13 +3,119 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env";
 import { database, HttpError } from "../lib/authz";
+import {
+  enqueueCommunication,
+  prepareCommunicationStatement,
+} from "../lib/communications";
 import { randomToken, sha256 } from "../lib/crypto";
-import { sendSubmissionConfirmation } from "../lib/email";
+import { renderSimpleTransactionalEmail } from "../lib/email";
 import { verifyTurnstile } from "../lib/turnstile";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const route = "/cfp/:organizationSlug/:eventSlug/:formSlug";
+const actionResolveSchema = z.object({
+  token: z.string().min(32).max(200),
+});
+
+router.post(
+  "/actions/submission-edit/resolve",
+  zValidator("json", actionResolveSchema),
+  async (context) => {
+    const db = database(context.env);
+    const input = context.req.valid("json");
+    const token = await db
+      .prepare(
+        `SELECT t.id,t.organization_id AS organizationId,t.event_id AS eventId,
+                t.entity_id AS submissionId,t.expires_at AS expiresAt,
+                s.status,f.edit_closes_at AS editClosesAt,f.slug AS formSlug,
+                e.slug AS eventSlug,o.slug AS organizationSlug
+         FROM communication_action_tokens t JOIN submissions s ON s.id=t.entity_id
+         JOIN cfp_forms f ON f.id=s.form_id JOIN events e ON e.id=s.event_id
+         JOIN organizations o ON o.id=e.organization_id
+         WHERE t.token_hash=? AND t.action_type='submission_edit'
+           AND t.entity_type='submission' AND t.used_at IS NULL LIMIT 1`,
+      )
+      .bind(await sha256(input.token))
+      .first<{
+        id: string;
+        organizationId: string;
+        eventId: string;
+        submissionId: string;
+        expiresAt: string;
+        status: string;
+        editClosesAt: string | null;
+        formSlug: string;
+        eventSlug: string;
+        organizationSlug: string;
+      }>();
+    const now = new Date().toISOString();
+    if (!token || token.expiresAt <= now)
+      throw new HttpError(
+        410,
+        "action_link_expired",
+        "This private action link is invalid or has expired.",
+      );
+    if (
+      ["accepted", "declined", "withdrawn"].includes(token.status) ||
+      (token.editClosesAt && token.editClosesAt <= now)
+    )
+      throw new HttpError(
+        409,
+        "submission_locked",
+        "This proposal can no longer be edited.",
+      );
+    const rawEditToken = randomToken();
+    const consumed = await db.batch([
+      db
+        .prepare(
+          "UPDATE communication_action_tokens SET used_at=? WHERE id=? AND used_at IS NULL",
+        )
+        .bind(now, token.id),
+      db
+        .prepare(
+          `UPDATE submissions SET edit_token_hash=?,updated_at=?
+           WHERE id=? AND event_id=? AND EXISTS (
+             SELECT 1 FROM communication_action_tokens WHERE id=? AND used_at=?
+           )`,
+        )
+        .bind(
+          await sha256(rawEditToken),
+          now,
+          token.submissionId,
+          token.eventId,
+          token.id,
+          now,
+        ),
+    ]);
+    if (!consumed[1].meta.changes)
+      throw new HttpError(
+        410,
+        "action_link_used",
+        "This private action link has already been used.",
+      );
+    await db
+      .prepare(
+        `INSERT INTO audit_events
+          (id,organization_id,event_id,action,entity_type,entity_id,after_json,request_id)
+         VALUES(?,?,?,'communication_action.submission_edit_resolved','submission',?,?,?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        token.organizationId,
+        token.eventId,
+        token.submissionId,
+        JSON.stringify({ actionTokenId: token.id }),
+        context.get("requestId"),
+      )
+      .run();
+    context.header("cache-control", "no-store");
+    return context.json({
+      destination: `/c/${token.organizationSlug}/${token.eventSlug}/${token.formSlug}`,
+      editToken: rawEditToken,
+    });
+  },
+);
 
 const submissionSchema = z
   .object({
@@ -570,7 +676,7 @@ router.post(
       )
       .run();
     const editLink = `${context.env.MARKETING_URL}/c/${context.req.param("organizationSlug")}/${form.eventSlug}/${form.slug}#edit=${encodeURIComponent(rawEditToken!)}`;
-    let emailSent = false;
+    let emailQueued = false;
     if (
       status === "pending" &&
       previousStatus !== "pending" &&
@@ -578,52 +684,65 @@ router.post(
     ) {
       const emailId = crypto.randomUUID();
       const idempotencyKey = `submission-confirmation/${submissionId}`;
-      await db
-        .prepare(
-          "INSERT OR IGNORE INTO email_messages (id, organization_id, event_id, template_key, recipient_email, recipient_name, subject, body_html, idempotency_key) VALUES (?, ?, ?, 'submission_confirmation', ?, ?, ?, ?, ?)",
-        )
-        .bind(
-          emailId,
-          form.organizationId,
-          form.eventId,
-          input.submitter.email,
-          input.submitter.name,
-          form.confirmationSubject ||
-            `We received your proposal for ${form.eventName}`,
-          form.confirmationBody || "Submission confirmation",
+      const subject =
+        form.confirmationSubject ||
+        `We received your proposal for ${form.eventName}`;
+      const intro =
+        form.confirmationBody ||
+        `Thanks for sharing your idea with the ${form.eventName} program team.`;
+      const rendered = renderSimpleTransactionalEmail({
+        recipientName: input.submitter.name,
+        paragraphs: [
+          intro,
+          `${title || form.name} is now in the review queue.`,
+          "Keep this private link safe. Editing may close at the organizer’s deadline.",
+        ],
+        actionLabel: "Review or edit proposal",
+        actionUrl: editLink,
+      });
+      await db.batch([
+        prepareCommunicationStatement(db, {
+          id: emailId,
+          organizationId: form.organizationId,
+          eventId: form.eventId,
+          category: "submission_confirmation",
+          recipientEmail: input.submitter.email,
+          recipientName: input.submitter.name,
+          subject,
+          bodyHtml: rendered.html,
+          bodyText: rendered.text,
+          entityType: "submission",
+          entityId: submissionId,
+          sensitiveExpiresAt:
+            form.editClosesAt ??
+            new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString(),
+          metadata: { formId: form.id },
           idempotencyKey,
-        )
-        .run();
-      try {
-        const providerId = await sendSubmissionConfirmation(context.env, {
-          email: input.submitter.email,
-          name: input.submitter.name,
-          eventName: form.eventName,
-          formName: form.name,
-          submissionTitle: title,
-          subject: form.confirmationSubject,
-          body: form.confirmationBody,
-          editLink,
-          idempotencyKey,
-        });
-        await db
+          correlationId: context.get("requestId"),
+        }),
+        db
           .prepare(
-            "UPDATE email_messages SET status = 'sent', provider_id = ?, sent_at = ?, updated_at = ? WHERE idempotency_key = ?",
-          )
-          .bind(providerId, now, now, idempotencyKey)
-          .run();
-        emailSent = true;
-      } catch (error) {
-        await db
-          .prepare(
-            "UPDATE email_messages SET status = 'failed', last_error = ?, updated_at = ? WHERE idempotency_key = ?",
+            `INSERT INTO domain_events
+                (id,organization_id,event_id,event_type,entity_type,entity_id,payload_json,correlation_id)
+               VALUES(?,?,?,'communication.confirmation_prepared','submission',?,'{}',?)`,
           )
           .bind(
-            error instanceof Error ? error.message : "Unknown email failure",
-            now,
-            idempotencyKey,
-          )
-          .run();
+            crypto.randomUUID(),
+            form.organizationId,
+            form.eventId,
+            submissionId,
+            context.get("requestId"),
+          ),
+      ]);
+      try {
+        const queued = await enqueueCommunication(
+          context.env,
+          emailId,
+          context.get("requestId"),
+        );
+        emailQueued = queued.queued;
+      } catch {
+        // The durable prepared record remains visible in the outbox for safe retry.
       }
     }
     return context.json(
@@ -631,7 +750,8 @@ router.post(
         submission: { id: submissionId, status, title, updatedAt: now },
         editToken: rawEditToken,
         editLink,
-        emailSent,
+        emailQueued,
+        emailSent: false,
       },
       input.editToken ? 200 : 201,
     );

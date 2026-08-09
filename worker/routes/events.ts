@@ -10,7 +10,12 @@ import {
   requireEventRole,
 } from "../lib/authz";
 import { randomToken, sha256 } from "../lib/crypto";
-import { sendDecision } from "../lib/email";
+import {
+  enqueueCommunication,
+  prepareCommunicationStatement,
+} from "../lib/communications";
+import { renderSimpleTransactionalEmail } from "../lib/email";
+import { domainEventStatement } from "../lib/operations";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -149,9 +154,17 @@ const conditionSchema = z
 const submissionStatusSchema = z.object({
   status: z.enum(["pending", "accepted_queue", "decline_queue", "withdrawn"]),
 });
+const decisionStageSchema = z.object({
+  state: z.enum([
+    "none",
+    "acceptance_staged",
+    "waitlist_staged",
+    "rejection_staged",
+  ]),
+});
 const decisionSchema = z.object({
   submissionIds: z.array(z.string().uuid()).min(1).max(25),
-  decision: z.enum(["accepted", "declined"]),
+  decision: z.enum(["accepted", "waitlisted", "declined"]),
   subject: z.string().trim().min(3).max(180),
   body: z.string().trim().min(10).max(10000),
 });
@@ -906,8 +919,15 @@ router.get("/:eventId/submissions", async (context) => {
   const clauses = ["s.event_id = ?"];
   const values: unknown[] = [eventId];
   if (status && status !== "all") {
-    clauses.push("s.status = ?");
-    values.push(status);
+    if (status === "waitlist_queue") {
+      clauses.push("s.decision_state = 'waitlist_staged'");
+    } else if (status === "waitlisted") {
+      clauses.push("s.decision_state = 'waitlisted'");
+    } else {
+      clauses.push("s.status = ?");
+      values.push(status);
+      if (status === "pending") clauses.push("s.decision_state='none'");
+    }
   }
   if (formId) {
     clauses.push("s.form_id = ?");
@@ -921,6 +941,7 @@ router.get("/:eventId/submissions", async (context) => {
   const submissions = await database(context.env)
     .prepare(
       `SELECT s.id, s.form_id AS formId, f.name AS formName, s.title, s.abstract, s.status,
+            s.decision_state AS decisionState,
             s.submitted_at AS submittedAt, s.updated_at AS updatedAt,
             p.name AS submitterName, p.email AS submitterEmail, p.organization AS submitterOrganization,
             COUNT(DISTINCT ra.id) AS reviewCount, COUNT(DISTINCT CASE WHEN r.submitted_at IS NOT NULL THEN r.id END) AS completedReviewCount,
@@ -936,17 +957,29 @@ router.get("/:eventId/submissions", async (context) => {
     .all();
   const counts = await database(context.env)
     .prepare(
-      "SELECT status, COUNT(*) AS count FROM submissions WHERE event_id = ? GROUP BY status",
+      "SELECT status,decision_state AS decisionState,COUNT(*) AS count FROM submissions WHERE event_id=? GROUP BY status,decision_state",
     )
     .bind(eventId)
     .all();
   return context.json({
     submissions: submissions.results,
-    counts: Object.fromEntries(
-      counts.results.map((row: Record<string, unknown>) => [
-        String(row.status),
-        Number(row.count),
-      ]),
+    counts: counts.results.reduce<Record<string, number>>(
+      (result, row: Record<string, unknown>) => {
+        const decisionState = String(row.decisionState);
+        const key =
+          decisionState === "waitlist_staged"
+            ? "waitlist_queue"
+            : decisionState === "waitlisted"
+              ? "waitlisted"
+              : String(row.status);
+        if (
+          !(String(row.status) === "pending" && decisionState !== "none") ||
+          ["waitlist_staged", "waitlisted"].includes(decisionState)
+        )
+          result[key] = (result[key] ?? 0) + Number(row.count);
+        return result;
+      },
+      {},
     ),
   });
 });
@@ -958,7 +991,7 @@ router.get("/:eventId/submissions/:submissionId", async (context) => {
   const submission = await db
     .prepare(
       `SELECT s.id, s.form_id AS formId, f.name AS formName, s.title, s.abstract, s.format,
-            s.duration_minutes AS durationMinutes, s.status, s.answers_json AS answersJson,
+            s.duration_minutes AS durationMinutes, s.status,s.decision_state AS decisionState,
             s.submitted_at AS submittedAt, s.created_at AS createdAt, s.updated_at AS updatedAt
      FROM submissions s JOIN cfp_forms f ON f.id = s.form_id WHERE s.id = ? AND s.event_id = ?`,
     )
@@ -1012,9 +1045,11 @@ router.patch(
     const { status } = context.req.valid("json");
     const db = database(context.env);
     const current = await db
-      .prepare("SELECT status FROM submissions WHERE id = ? AND event_id = ?")
+      .prepare(
+        "SELECT status,decision_state AS decisionState FROM submissions WHERE id = ? AND event_id = ?",
+      )
       .bind(submissionId, eventId)
-      .first<{ status: string }>();
+      .first<{ status: string; decisionState: string }>();
     if (!current)
       throw new HttpError(404, "submission_not_found", "Submission not found.");
     if (["accepted", "declined", "withdrawn"].includes(current.status))
@@ -1026,12 +1061,26 @@ router.patch(
     if (current.status === status)
       return context.json({ submission: { id: submissionId, status } });
     const now = new Date().toISOString();
+    const decisionState =
+      status === "accepted_queue"
+        ? "acceptance_staged"
+        : status === "decline_queue"
+          ? "rejection_staged"
+          : "none";
     await db.batch([
       db
         .prepare(
-          "UPDATE submissions SET status = ?, updated_at = ? WHERE id = ?",
+          `UPDATE submissions SET status=?,decision_state=?,decision_staged_at=?,
+             decision_staged_by=?,updated_at=? WHERE id=?`,
         )
-        .bind(status, now, submissionId),
+        .bind(
+          status,
+          decisionState,
+          decisionState === "none" ? null : now,
+          decisionState === "none" ? null : access.user.id,
+          now,
+          submissionId,
+        ),
       auditStatement(db, {
         organizationId: access.organizationId,
         eventId,
@@ -1045,6 +1094,104 @@ router.patch(
     ]);
     return context.json({
       submission: { id: submissionId, status, updatedAt: now },
+    });
+  },
+);
+
+router.patch(
+  "/:eventId/submissions/:submissionId/decision",
+  zValidator("json", decisionStageSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const submissionId = context.req.param("submissionId");
+    const { state } = context.req.valid("json");
+    const db = database(context.env);
+    const current = await db
+      .prepare(
+        "SELECT status,decision_state AS decisionState FROM submissions WHERE id=? AND event_id=?",
+      )
+      .bind(submissionId, eventId)
+      .first<{ status: string; decisionState: string }>();
+    if (!current)
+      throw new HttpError(404, "submission_not_found", "Submission not found.");
+    if (["accepted", "declined", "withdrawn"].includes(current.status))
+      throw new HttpError(
+        409,
+        "decision_final",
+        "This proposal has a final status and cannot be restaged.",
+      );
+    if (current.decisionState === state)
+      return context.json({
+        submission: { id: submissionId, decisionState: state },
+      });
+    const legacyStatus =
+      state === "acceptance_staged"
+        ? "accepted_queue"
+        : state === "rejection_staged"
+          ? "decline_queue"
+          : "pending";
+    const now = new Date().toISOString();
+    await db.batch([
+      db
+        .prepare(
+          `UPDATE submissions SET status=?,decision_state=?,decision_staged_at=?,
+             decision_staged_by=?,decision_message_id=NULL,updated_at=? WHERE id=?`,
+        )
+        .bind(
+          legacyStatus,
+          state,
+          state === "none" ? null : now,
+          state === "none" ? null : access.user.id,
+          now,
+          submissionId,
+        ),
+      db
+        .prepare(
+          `INSERT INTO submission_decision_history
+            (id,organization_id,event_id,submission_id,from_state,to_state,changed_by)
+           VALUES(?,?,?,?,?,?,?)`,
+        )
+        .bind(
+          crypto.randomUUID(),
+          access.organizationId,
+          eventId,
+          submissionId,
+          current.decisionState,
+          state,
+          access.user.id,
+        ),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "decision.staged",
+        entityType: "submission",
+        entityId: submissionId,
+        before: { decisionState: current.decisionState },
+        after: { decisionState: state, legacyStatus },
+        requestId: context.get("requestId"),
+      }),
+      domainEventStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        eventType: "decision.staged",
+        entityType: "submission",
+        entityId: submissionId,
+        actorUserId: access.user.id,
+        payload: { from: current.decisionState, to: state },
+        correlationId: context.get("requestId"),
+      }),
+    ]);
+    return context.json({
+      submission: {
+        id: submissionId,
+        status: legacyStatus,
+        decisionState: state,
+        updatedAt: now,
+      },
     });
   },
 );
@@ -1073,13 +1220,17 @@ router.post(
     const placeholders = input.submissionIds.map(() => "?").join(",");
     const submissions = await db
       .prepare(
-        `SELECT s.id, s.title, s.status, p.email, p.name, p.organization FROM submissions s JOIN submission_people p ON p.submission_id = s.id AND p.role = 'primary' WHERE s.event_id = ? AND s.id IN (${placeholders})`,
+        `SELECT s.id,s.title,s.status,s.decision_state AS decisionState,
+                p.email,p.name,p.organization
+         FROM submissions s JOIN submission_people p ON p.submission_id=s.id AND p.role='primary'
+         WHERE s.event_id=? AND s.id IN (${placeholders})`,
       )
       .bind(eventId, ...input.submissionIds)
       .all<{
         id: string;
         title: string;
         status: string;
+        decisionState: string;
         email: string;
         name: string;
         organization: string | null;
@@ -1090,27 +1241,33 @@ router.post(
         "invalid_submissions",
         "Every submission must belong to this event and have a primary submitter.",
       );
-    const expectedQueue =
-      input.decision === "accepted" ? "accepted_queue" : "decline_queue";
+    const expectedState =
+      input.decision === "accepted"
+        ? "acceptance_staged"
+        : input.decision === "waitlisted"
+          ? "waitlist_staged"
+          : "rejection_staged";
     const invalid = submissions.results.filter(
-      (submission) => submission.status !== expectedQueue,
+      (submission) => submission.decisionState !== expectedState,
     );
     if (invalid.length)
       throw new HttpError(
         409,
         "decision_queue_mismatch",
-        `Move every proposal into the ${expectedQueue.replace("_", " ")} before sending.`,
+        `Stage every proposal for ${input.decision} before sending.`,
       );
     const results: {
       submissionId: string;
       email: string;
-      status: "sent" | "failed" | "already_sent";
+      status: "queued" | "prepared" | "already_sent";
       error?: string;
     }[] = [];
     for (const submission of submissions.results) {
       const idempotencyKey = `${eventId}/${submission.id}/${input.decision}`;
       const existing = await db
-        .prepare("SELECT status FROM email_messages WHERE idempotency_key = ?")
+        .prepare(
+          "SELECT status FROM communication_messages WHERE idempotency_key = ?",
+        )
         .bind(idempotencyKey)
         .first<{ status: string }>();
       if (existing?.status && existing.status !== "failed") {
@@ -1170,134 +1327,159 @@ router.post(
         }
       }
       const messageId = crypto.randomUUID();
-      await db
-        .prepare(
-          "INSERT INTO email_messages (id, organization_id, event_id, template_key, recipient_email, recipient_name, subject, body_html, idempotency_key, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued') ON CONFLICT (idempotency_key) DO UPDATE SET subject=excluded.subject, body_html=excluded.body_html, status='queued', last_error=NULL, updated_at=CURRENT_TIMESTAMP",
-        )
-        .bind(
-          messageId,
-          event.organizationId,
+      const rendered = renderSimpleTransactionalEmail({
+        recipientName: submission.name,
+        paragraphs: body.split("\n").filter(Boolean),
+        actionLabel: portalLink ? "Open speaker portal" : undefined,
+        actionUrl: portalLink,
+      });
+      const now = new Date().toISOString();
+      const deliveryStatements: D1PreparedStatement[] = [
+        prepareCommunicationStatement(db, {
+          id: messageId,
+          organizationId: event.organizationId,
           eventId,
-          `decision_${input.decision}`,
-          submission.email,
-          submission.name,
+          category:
+            input.decision === "accepted"
+              ? "decision_acceptance"
+              : input.decision === "waitlisted"
+                ? "decision_waitlist"
+                : "decision_rejection",
+          recipientEmail: submission.email,
+          recipientName: submission.name,
           subject,
-          body,
+          bodyHtml: rendered.html,
+          bodyText: rendered.text,
+          entityType: "submission",
+          entityId: submission.id,
+          sensitiveExpiresAt: portalLink
+            ? new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString()
+            : undefined,
+          metadata: {
+            decision: input.decision,
+            invitationId: invitationId ?? null,
+          },
           idempotencyKey,
-        )
-        .run();
-      try {
-        const providerId = await sendDecision(context.env, {
-          email: submission.email,
-          name: submission.name,
-          eventName: event.name,
-          sessionTitle: submission.title,
-          decision: input.decision,
-          subject,
-          body,
-          portalLink,
-          idempotencyKey,
-        });
-        const now = new Date().toISOString();
-        const deliveryStatements: D1PreparedStatement[] = [
+          preparedBy: access.user.id,
+          correlationId: context.get("requestId"),
+        }),
+        db
+          .prepare(
+            `UPDATE submissions SET status=?,decision_state=?,decision_message_id=?,
+               updated_at=? WHERE id=?`,
+          )
+          .bind(
+            input.decision === "waitlisted" ? "pending" : input.decision,
+            input.decision === "declined" ? "rejected" : input.decision,
+            messageId,
+            now,
+            submission.id,
+          ),
+        db
+          .prepare(
+            `INSERT INTO submission_decision_history
+              (id,organization_id,event_id,submission_id,from_state,to_state,message_id,changed_by)
+             VALUES(?,?,?,?,?,?,?,?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            event.organizationId,
+            eventId,
+            submission.id,
+            submission.decisionState,
+            input.decision === "declined" ? "rejected" : input.decision,
+            messageId,
+            access.user.id,
+          ),
+        auditStatement(db, {
+          organizationId: event.organizationId,
+          eventId,
+          actorUserId: access.user.id,
+          action: `decision.${input.decision}_queued`,
+          entityType: "submission",
+          entityId: submission.id,
+          after: { messageId, decision: input.decision },
+          requestId: context.get("requestId"),
+        }),
+        domainEventStatement(db, {
+          organizationId: event.organizationId,
+          eventId,
+          eventType: `decision.${input.decision}`,
+          entityType: "submission",
+          entityId: submission.id,
+          actorUserId: access.user.id,
+          payload: { messageId },
+          correlationId: context.get("requestId"),
+        }),
+      ];
+      if (input.decision === "accepted") {
+        const nameParts = submission.name.trim().split(/\s+/);
+        const speakerId = crypto.randomUUID();
+        deliveryStatements.push(
           db
             .prepare(
-              "UPDATE email_messages SET status='sent', provider_id=?, sent_at=?, updated_at=? WHERE idempotency_key=?",
+              "INSERT INTO speaker_profiles (id, organization_id, email, first_name, last_name, company, portal_status) VALUES (?, ?, ?, ?, ?, ?, 'invited') ON CONFLICT (organization_id, email) DO UPDATE SET portal_status=CASE WHEN portal_status='not_invited' THEN 'invited' ELSE portal_status END, updated_at=CURRENT_TIMESTAMP",
             )
-            .bind(providerId, now, now, idempotencyKey),
+            .bind(
+              speakerId,
+              event.organizationId,
+              submission.email,
+              nameParts[0] || submission.name,
+              nameParts.slice(1).join(" ") || "—",
+              submission.organization,
+            ),
           db
-            .prepare("UPDATE submissions SET status=?, updated_at=? WHERE id=?")
-            .bind(input.decision, now, submission.id),
-          auditStatement(db, {
-            organizationId: event.organizationId,
-            eventId,
-            actorUserId: access.user.id,
-            action: `decision.${input.decision}_sent`,
-            entityType: "submission",
-            entityId: submission.id,
-            after: { recipient: submission.email, providerId },
-            requestId: context.get("requestId"),
-          }),
-        ];
-        if (input.decision === "accepted") {
-          const nameParts = submission.name.trim().split(/\s+/);
-          const speakerId = crypto.randomUUID();
-          deliveryStatements.push(
-            db
-              .prepare(
-                "INSERT INTO speaker_profiles (id, organization_id, email, first_name, last_name, company, portal_status) VALUES (?, ?, ?, ?, ?, ?, 'invited') ON CONFLICT (organization_id, email) DO UPDATE SET portal_status=CASE WHEN portal_status='not_invited' THEN 'invited' ELSE portal_status END, updated_at=CURRENT_TIMESTAMP",
-              )
-              .bind(
-                speakerId,
-                event.organizationId,
-                submission.email,
-                nameParts[0] || submission.name,
-                nameParts.slice(1).join(" ") || "—",
-                submission.organization,
-              ),
-            db
-              .prepare(
-                "INSERT INTO session_speakers (submission_id, speaker_id, role) SELECT ?, id, 'speaker' FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE ON CONFLICT (submission_id, speaker_id) DO NOTHING",
-              )
-              .bind(submission.id, event.organizationId, submission.email),
-            db
-              .prepare(
-                "INSERT OR IGNORE INTO event_speakers(event_id,speaker_id,source,added_by) SELECT ?,id,'accepted_submission',? FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE",
-              )
-              .bind(
-                eventId,
-                access.user.id,
-                event.organizationId,
-                submission.email,
-              ),
-            db
-              .prepare(
-                "INSERT INTO crm_contacts(id,organization_id,speaker_profile_id,email,first_name,last_name,company,bio,tags_json,source) SELECT ?,organization_id,id,email,first_name,last_name,company,bio,'[]','accepted_session' FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE ON CONFLICT(organization_id,email) DO UPDATE SET speaker_profile_id=excluded.speaker_profile_id,first_name=excluded.first_name,last_name=excluded.last_name,company=excluded.company,bio=COALESCE(excluded.bio,crm_contacts.bio),updated_at=CURRENT_TIMESTAMP",
-              )
-              .bind(
-                crypto.randomUUID(),
-                event.organizationId,
-                submission.email,
-              ),
-            db
-              .prepare(
-                "INSERT INTO speaker_task_assignments (task_id, speaker_id) SELECT task.id, speaker.id FROM onboarding_tasks task JOIN speaker_profiles speaker ON speaker.organization_id=? AND speaker.email=? COLLATE NOCASE WHERE task.event_id=? ON CONFLICT (task_id,speaker_id) DO NOTHING",
-              )
-              .bind(event.organizationId, submission.email, eventId),
-          );
-        }
-        await db.batch(deliveryStatements);
-        results.push({
-          submissionId: submission.id,
-          email: submission.email,
-          status: "sent",
-        });
-      } catch (error) {
-        if (invitationId)
-          await db
-            .prepare("UPDATE invitations SET revoked_at=? WHERE id=?")
-            .bind(new Date().toISOString(), invitationId)
-            .run();
-        const message =
-          error instanceof Error ? error.message : "Unknown delivery failure";
-        await db
-          .prepare(
-            "UPDATE email_messages SET status='failed', last_error=?, updated_at=CURRENT_TIMESTAMP WHERE idempotency_key=?",
-          )
-          .bind(message, idempotencyKey)
-          .run();
-        results.push({
-          submissionId: submission.id,
-          email: submission.email,
-          status: "failed",
-          error: message,
-        });
+            .prepare(
+              "INSERT INTO session_speakers (submission_id, speaker_id, role) SELECT ?, id, 'speaker' FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE ON CONFLICT (submission_id, speaker_id) DO NOTHING",
+            )
+            .bind(submission.id, event.organizationId, submission.email),
+          db
+            .prepare(
+              "INSERT OR IGNORE INTO event_speakers(event_id,speaker_id,source,added_by) SELECT ?,id,'accepted_submission',? FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE",
+            )
+            .bind(
+              eventId,
+              access.user.id,
+              event.organizationId,
+              submission.email,
+            ),
+          db
+            .prepare(
+              "INSERT INTO crm_contacts(id,organization_id,speaker_profile_id,email,first_name,last_name,company,bio,tags_json,source) SELECT ?,organization_id,id,email,first_name,last_name,company,bio,'[]','accepted_session' FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE ON CONFLICT(organization_id,email) DO UPDATE SET speaker_profile_id=excluded.speaker_profile_id,first_name=excluded.first_name,last_name=excluded.last_name,company=excluded.company,bio=COALESCE(excluded.bio,crm_contacts.bio),updated_at=CURRENT_TIMESTAMP",
+            )
+            .bind(crypto.randomUUID(), event.organizationId, submission.email),
+          db
+            .prepare(
+              "INSERT INTO speaker_task_assignments (task_id, speaker_id) SELECT task.id, speaker.id FROM onboarding_tasks task JOIN speaker_profiles speaker ON speaker.organization_id=? AND speaker.email=? COLLATE NOCASE WHERE task.event_id=? ON CONFLICT (task_id,speaker_id) DO NOTHING",
+            )
+            .bind(event.organizationId, submission.email, eventId),
+        );
       }
+      await db.batch(deliveryStatements);
+      let queued = false;
+      try {
+        queued = (
+          await enqueueCommunication(
+            context.env,
+            messageId,
+            context.get("requestId"),
+          )
+        ).queued;
+      } catch {
+        // The prepared message remains in the outbox for organizer retry.
+      }
+      results.push({
+        submissionId: submission.id,
+        email: submission.email,
+        status: queued ? "queued" : "prepared",
+      });
     }
     return context.json({
       results,
-      sent: results.filter((item) => item.status === "sent").length,
-      failed: results.filter((item) => item.status === "failed").length,
+      queued: results.filter((item) => item.status === "queued").length,
+      prepared: results.filter((item) => item.status === "prepared").length,
+      alreadySent: results.filter((item) => item.status === "already_sent")
+        .length,
     });
   },
 );

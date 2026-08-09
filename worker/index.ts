@@ -13,6 +13,8 @@ import widgetRoutes from "./routes/widgets";
 import crmRoutes from "./routes/crm";
 import integrationRoutes from "./routes/integrations";
 import contentRoutes from "./routes/content";
+import communicationRoutes from "./routes/communications";
+import calendarRoutes from "./routes/calendar";
 import {
   beginAirtableReconciliation,
   dispatchPendingAirtableOutbox,
@@ -22,6 +24,11 @@ import {
   reconcileAirtableOrganizations,
   refreshAirtableWebhook,
 } from "./lib/airtable";
+import {
+  dispatchScheduledCommunications,
+  processCommunication,
+  type CommunicationJob,
+} from "./lib/communications";
 
 type Variables = { requestId: string };
 
@@ -134,6 +141,8 @@ app.route("/api/widgets", widgetRoutes);
 app.route("/api/crm", crmRoutes);
 app.route("/api/integrations", integrationRoutes);
 app.route("/api/content", contentRoutes);
+app.route("/api/communications", communicationRoutes);
+app.route("/api/calendar", calendarRoutes);
 
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);
@@ -193,14 +202,20 @@ app.onError((error, context) => {
 
 type ProgramLoomJob =
   | { kind: "airtable_outbox"; outboxId: string }
-  | { kind: "airtable_reconcile" };
+  | { kind: "airtable_reconcile" }
+  | CommunicationJob;
 
 const worker: ExportedHandler<Env, ProgramLoomJob> = {
   fetch: app.fetch,
   async queue(batch, env) {
     for (const message of batch.messages) {
       try {
-        if (message.body.kind === "airtable_outbox")
+        if (message.body.kind === "communication_send") {
+          const result = await processCommunication(env, message.body);
+          if (result.retry) message.retry({ delaySeconds: 60 });
+          else message.ack();
+          continue;
+        } else if (message.body.kind === "airtable_outbox")
           await processAirtableOutbox(env, message.body.outboxId);
         else {
           await beginAirtableReconciliation(env);
@@ -225,6 +240,11 @@ const worker: ExportedHandler<Env, ProgramLoomJob> = {
     context.waitUntil(
       observeOperation("airtable_outbox_dispatch", () =>
         dispatchPendingAirtableOutbox(env),
+      ),
+    );
+    context.waitUntil(
+      observeOperation("communication_dispatch", () =>
+        dispatchScheduledCommunications(env),
       ),
     );
     if (event.cron === "0 3 * * *")

@@ -365,6 +365,12 @@ export function EventAgenda({ user }: { user: User }) {
           >
             Publish agenda
           </button>
+          <a
+            className="button button-ghost"
+            href={`/app/events/${eventId}/calendar`}
+          >
+            Calendar lifecycle
+          </a>
         </header>
         {feedback && (
           <div className={`form-status form-status-${feedback.kind}`}>

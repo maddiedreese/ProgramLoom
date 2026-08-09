@@ -33,6 +33,7 @@ type Submission = {
   title: string;
   abstract: string;
   status: string;
+  decisionState: string;
   submittedAt: string | null;
   updatedAt: string;
   submitterName: string;
@@ -97,8 +98,10 @@ const filters = [
   { key: "all", label: "All" },
   { key: "pending", label: "In review" },
   { key: "accepted_queue", label: "Accept queue" },
+  { key: "waitlist_queue", label: "Waitlist" },
   { key: "decline_queue", label: "Decline queue" },
   { key: "accepted", label: "Accepted" },
+  { key: "waitlisted", label: "Waitlisted" },
   { key: "declined", label: "Declined" },
   { key: "draft", label: "Drafts" },
 ];
@@ -211,6 +214,36 @@ export function EventSubmissions({ user }: { user: User }) {
       setBusy(false);
     }
   }
+  async function changeDecision(
+    state:
+      "none" | "acceptance_staged" | "waitlist_staged" | "rejection_staged",
+  ) {
+    if (!selected) return;
+    setBusy(true);
+    setFeedback(undefined);
+    try {
+      const result = await api<{
+        submission: { status: string; decisionState: string };
+      }>(`/api/events/${eventId}/submissions/${selected.id}/decision`, {
+        method: "PATCH",
+        body: JSON.stringify({ state }),
+      });
+      setSelected({
+        ...selected,
+        status: result.submission.status ?? selected.status,
+        decisionState: result.submission.decisionState,
+      });
+      await load();
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Could not stage the decision.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function generateAssessment() {
     if (!selected || !rounds.length) return;
     setBusy(true);
@@ -282,27 +315,40 @@ export function EventSubmissions({ user }: { user: User }) {
     setBusy(true);
     setFeedback(undefined);
     const data = new FormData(formEvent.currentTarget);
-    const decision = filter === "accepted_queue" ? "accepted" : "declined";
+    const decision =
+      filter === "accepted_queue"
+        ? "accepted"
+        : filter === "waitlist_queue"
+          ? "waitlisted"
+          : "declined";
     try {
-      const result = await api<{ sent: number; failed: number }>(
-        `/api/events/${eventId}/decisions/send`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            submissionIds: decisionSelection,
-            decision,
-            subject: data.get("subject"),
-            body: data.get("body"),
-          }),
-        },
-      );
+      const result = await api<{
+        queued: number;
+        prepared: number;
+        alreadySent: number;
+      }>(`/api/events/${eventId}/decisions/send`, {
+        method: "POST",
+        body: JSON.stringify({
+          submissionIds: decisionSelection,
+          decision,
+          subject: data.get("subject"),
+          body: data.get("body"),
+        }),
+      });
       setComposingDecision(false);
       await load();
-      setFeedback(
-        result.failed
-          ? `${result.sent} messages sent; ${result.failed} failed and remain queued.`
-          : `${result.sent} decision message${result.sent === 1 ? "" : "s"} sent and recorded.`,
-      );
+      const details = [
+        result.queued
+          ? `${result.queued} queued for durable delivery`
+          : undefined,
+        result.prepared
+          ? `${result.prepared} prepared for retry in Communications`
+          : undefined,
+        result.alreadySent
+          ? `${result.alreadySent} already recorded`
+          : undefined,
+      ].filter(Boolean);
+      setFeedback(`${details.join("; ")}.`);
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : "Could not send decisions.",
@@ -311,7 +357,10 @@ export function EventSubmissions({ user }: { user: User }) {
       setBusy(false);
     }
   }
-  const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  const total = Object.entries(counts).reduce(
+    (sum, [key, value]) => sum + (key === "waitlist_queue" ? 0 : value),
+    0,
+  );
   if (loading)
     return (
       <main className="loading-page" aria-busy="true">
@@ -367,10 +416,16 @@ export function EventSubmissions({ user }: { user: User }) {
               without losing context.
             </p>
           </div>
-          {["accepted_queue", "decline_queue"].includes(filter) &&
-          submissions.length ? (
+          {["accepted_queue", "waitlist_queue", "decline_queue"].includes(
+            filter,
+          ) && submissions.length ? (
             <button className="button" onClick={openDecisionComposer}>
-              Send {filter === "accepted_queue" ? "acceptances" : "declines"}
+              Send{" "}
+              {filter === "accepted_queue"
+                ? "acceptances"
+                : filter === "waitlist_queue"
+                  ? "waitlist notices"
+                  : "declines"}
             </button>
           ) : (
             <div className="submission-total">
@@ -505,23 +560,36 @@ export function EventSubmissions({ user }: { user: User }) {
             <div className="decision-strip">
               <button
                 className={
-                  selected.status === "accepted_queue" ? "selected accept" : ""
+                  selected.decisionState === "acceptance_staged"
+                    ? "selected accept"
+                    : ""
                 }
-                onClick={() => changeStatus("accepted_queue")}
+                onClick={() => changeDecision("acceptance_staged")}
                 disabled={busy}
               >
                 <ThumbsUp size={16} /> Accept queue
               </button>
               <button
                 className={
-                  selected.status === "decline_queue" ? "selected decline" : ""
+                  selected.decisionState === "waitlist_staged" ? "selected" : ""
                 }
-                onClick={() => changeStatus("decline_queue")}
+                onClick={() => changeDecision("waitlist_staged")}
+                disabled={busy}
+              >
+                <Clock3 size={16} /> Waitlist
+              </button>
+              <button
+                className={
+                  selected.decisionState === "rejection_staged"
+                    ? "selected decline"
+                    : ""
+                }
+                onClick={() => changeDecision("rejection_staged")}
                 disabled={busy}
               >
                 <ThumbsDown size={16} /> Decline queue
               </button>
-              <button onClick={() => changeStatus("pending")} disabled={busy}>
+              <button onClick={() => changeDecision("none")} disabled={busy}>
                 Clear
               </button>
             </div>
@@ -616,7 +684,11 @@ export function EventSubmissions({ user }: { user: User }) {
                 <p className="kicker">Final delivery</p>
                 <h2>
                   Send{" "}
-                  {filter === "accepted_queue" ? "acceptances" : "declines"}
+                  {filter === "accepted_queue"
+                    ? "acceptances"
+                    : filter === "waitlist_queue"
+                      ? "waitlist notices"
+                      : "declines"}
                 </h2>
               </div>
               <button
@@ -661,7 +733,9 @@ export function EventSubmissions({ user }: { user: User }) {
                   defaultValue={
                     filter === "accepted_queue"
                       ? "{{session_title}} is accepted for {{event_name}}"
-                      : "An update on {{session_title}} for {{event_name}}"
+                      : filter === "waitlist_queue"
+                        ? "A waitlist update for {{session_title}}"
+                        : "An update on {{session_title}} for {{event_name}}"
                   }
                   required
                 />
@@ -674,7 +748,9 @@ export function EventSubmissions({ user }: { user: User }) {
                   defaultValue={
                     filter === "accepted_queue"
                       ? "We’re delighted to accept {{session_title}} for {{event_name}}.\nPlease use your speaker portal to complete your profile and upcoming tasks."
-                      : "Thank you for submitting {{session_title}} to {{event_name}}.\nAfter careful review, we’re unable to include it in this program. We appreciate the work you shared with us."
+                      : filter === "waitlist_queue"
+                        ? "Your proposal, {{session_title}}, is currently on the {{event_name}} waitlist.\nWe’ll contact you as soon as program space changes."
+                        : "Thank you for submitting {{session_title}} to {{event_name}}.\nAfter careful review, we’re unable to include it in this program. We appreciate the work you shared with us."
                   }
                   required
                 />

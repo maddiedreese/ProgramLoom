@@ -1,5 +1,80 @@
 import type { Env } from "../env";
 
+export type TransactionalEmail = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  idempotencyKey: string;
+  replyTo?: string | null;
+  category: string;
+  attachments?: Array<{
+    filename: string;
+    content: string;
+    contentType?: string;
+  }>;
+};
+
+export async function sendTransactionalEmail(
+  env: Env,
+  message: TransactionalEmail,
+): Promise<string> {
+  if (env.APP_ENV === "test") return "test-provider-id";
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM)
+    throw new Error("Transactional email is not configured.");
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "content-type": "application/json",
+      "user-agent": "ProgramLoom/0.1 (+https://programloom.com)",
+      "idempotency-key": message.idempotencyKey,
+    },
+    body: JSON.stringify({
+      from: env.EMAIL_FROM,
+      to: [message.to],
+      reply_to: message.replyTo ?? env.EMAIL_REPLY_TO,
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+      attachments: message.attachments?.map(({ filename, content }) => ({
+        filename,
+        content,
+      })),
+      tags: [{ name: "message_type", value: message.category.slice(0, 256) }],
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Email provider rejected the request (${response.status}).`,
+    );
+  }
+  const result = (await response.json()) as { id?: string };
+  if (!result.id)
+    throw new Error("Email provider did not return a message ID.");
+  return result.id;
+}
+
+export function renderSimpleTransactionalEmail(input: {
+  recipientName: string;
+  paragraphs: string[];
+  actionLabel?: string;
+  actionUrl?: string;
+}) {
+  const body = input.paragraphs
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join("");
+  const action =
+    input.actionLabel && input.actionUrl
+      ? `<p style="margin:28px 0"><a href="${escapeHtml(input.actionUrl)}" style="display:inline-block;background:#315c45;color:white;text-decoration:none;padding:14px 18px;border-radius:8px;font-weight:700">${escapeHtml(input.actionLabel)}</a></p>`
+      : "";
+  return {
+    html: `<!doctype html><html><body style="margin:0;background:#f4f1e8;color:#20241f;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:40px 24px"><div style="font-size:20px;font-weight:700;margin-bottom:34px">ProgramLoom</div><div style="background:#fffdf6;border:1px solid #d9d5ca;border-radius:14px;padding:32px"><p>Hi ${escapeHtml(input.recipientName)},</p>${body}${action}</div></div></body></html>`,
+    text: `Hi ${input.recipientName},\n\n${input.paragraphs.filter(Boolean).join("\n\n")}${input.actionLabel && input.actionUrl ? `\n\n${input.actionLabel}: ${input.actionUrl}` : ""}`,
+  };
+}
+
 type MagicLinkMessage = {
   email: string;
   name?: string;
@@ -74,6 +149,7 @@ export async function sendMagicLink(
     headers: {
       authorization: `Bearer ${env.RESEND_API_KEY}`,
       "content-type": "application/json",
+      "user-agent": "ProgramLoom/0.1 (+https://programloom.com)",
       "idempotency-key": `auth/${await stableMessageKey(message.email, message.magicLink)}`,
     },
     body: JSON.stringify({
@@ -91,13 +167,11 @@ export async function sendMagicLink(
   });
 
   if (!response.ok) {
-    const detail = await response.text();
     console.error(
       JSON.stringify({
         level: "error",
         service: "resend",
         status: response.status,
-        detail: detail.slice(0, 500),
       }),
     );
     throw new Error("The sign-in email could not be sent.");
@@ -118,6 +192,7 @@ export async function sendInvitation(
     headers: {
       authorization: `Bearer ${env.RESEND_API_KEY}`,
       "content-type": "application/json",
+      "user-agent": "ProgramLoom/0.1 (+https://programloom.com)",
       "idempotency-key": `invite/${await stableMessageKey(message.email, message.inviteLink)}`,
     },
     body: JSON.stringify({
@@ -131,13 +206,11 @@ export async function sendInvitation(
     }),
   });
   if (!response.ok) {
-    const detail = await response.text();
     console.error(
       JSON.stringify({
         level: "error",
         service: "resend",
         status: response.status,
-        detail: detail.slice(0, 500),
       }),
     );
     throw new Error("The invitation email could not be sent.");
@@ -366,7 +439,7 @@ function renderInvitationHtml(message: InvitationMessage): string {
   return `<!doctype html><html><body style="margin:0;background:#f4f1e8;color:#20241f;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:40px 24px"><div style="font-size:20px;font-weight:700;margin-bottom:34px">ProgramLoom</div><div style="background:#fffdf6;border:1px solid #d9d5ca;border-radius:14px;padding:32px"><p>Hello,</p><p><strong>${escapeHtml(message.inviterName)}</strong> invited you to join ${scope} as a <strong>${escapeHtml(message.role)}</strong>.</p><p style="margin:28px 0"><a href="${escapeHtml(message.inviteLink)}" style="display:inline-block;background:#315c45;color:white;text-decoration:none;padding:14px 18px;border-radius:8px;font-weight:700">Accept invitation</a></p><p style="font-size:13px;color:#63675f">This link expires in 7 days and can be used once. If you were not expecting this invitation, you can ignore it.</p></div></div></body></html>`;
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value.replace(
     /[&<>'"]/g,
     (character) =>

@@ -5,6 +5,7 @@ export interface Env {
   EMAIL_FROM?: string;
   EMAIL_REPLY_TO?: string;
   RESEND_API_KEY?: string;
+  RESEND_WEBHOOK_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;
   AIRTABLE_ACCESS_TOKEN?: string;
   AIRTABLE_BASE_ID?: string;

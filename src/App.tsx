@@ -19,6 +19,7 @@ import { EventSubmissions } from "./app/EventSubmissions";
 import { EventReviews } from "./app/EventReviews";
 import { EventAgenda } from "./app/EventAgenda";
 import { EventWidgets } from "./app/EventWidgets";
+import { EventCommunications } from "./app/EventCommunications";
 import { PublicWidgetPage } from "./app/PublicWidgetPage";
 
 const LazyCRMPage = lazy(() =>
@@ -28,6 +29,16 @@ const LazyEventContent = lazy(() =>
   import("./app/EventContent").then(({ EventContent }) => ({
     default: EventContent,
   })),
+);
+const LazyEventCalendar = lazy(() =>
+  import("./app/EventCalendar").then(({ EventCalendar }) => ({
+    default: EventCalendar,
+  })),
+);
+const LazySubmissionEditAction = lazy(() =>
+  import("./app/SubmissionEditActionPage").then(
+    ({ SubmissionEditActionPage }) => ({ default: SubmissionEditActionPage }),
+  ),
 );
 const LazyEventSpeakers = lazy(() =>
   import("./app/EventSpeakers").then(({ EventSpeakers }) => ({
@@ -355,6 +366,8 @@ function AuthenticatedPage({
     | "content"
     | "agenda"
     | "widgets"
+    | "communications"
+    | "calendar"
     | "crm";
 }) {
   const [session, setSession] = useState<{
@@ -394,6 +407,14 @@ function AuthenticatedPage({
     );
   if (page === "agenda") return <EventAgenda user={session.user} />;
   if (page === "widgets") return <EventWidgets user={session.user} />;
+  if (page === "communications")
+    return <EventCommunications user={session.user} />;
+  if (page === "calendar")
+    return (
+      <Suspense fallback={<LoadingRoute label="Loading calendar lifecycle…" />}>
+        <LazyEventCalendar user={session.user} />
+      </Suspense>
+    );
   if (page === "crm")
     return (
       <Suspense
@@ -453,6 +474,14 @@ export function App() {
         }
       />
       <Route path="/embed/:publicKey" element={<PublicWidgetPage />} />
+      <Route
+        path="/action/submission-edit"
+        element={
+          <Suspense fallback={<LoadingRoute label="Opening proposal…" />}>
+            <LazySubmissionEditAction />
+          </Suspense>
+        }
+      />
       <Route path="/app" element={<AuthenticatedPage page="dashboard" />} />
       <Route path="/dashboard" element={<Navigate to="/app" replace />} />
       <Route path="/admin" element={<Navigate to="/app" replace />} />
@@ -490,6 +519,14 @@ export function App() {
       <Route
         path="/app/events/:eventId/widgets"
         element={<AuthenticatedPage page="widgets" />}
+      />
+      <Route
+        path="/app/events/:eventId/communications"
+        element={<AuthenticatedPage page="communications" />}
+      />
+      <Route
+        path="/app/events/:eventId/calendar"
+        element={<AuthenticatedPage page="calendar" />}
       />
       <Route path="*" element={<MarketingPage />} />
     </Routes>

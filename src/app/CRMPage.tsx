@@ -580,6 +580,7 @@ export function CRMPage({ user }: { user: User }) {
           contacts={allContacts.filter((contact) =>
             selected.includes(contact.id),
           )}
+          events={events}
           busy={busy}
           close={() => setModal(undefined)}
           send={async (payload) => {
@@ -590,7 +591,7 @@ export function CRMPage({ user }: { user: User }) {
                     method: "POST",
                     body: JSON.stringify(payload),
                   }),
-                "Outreach sent and recorded in email history.",
+                "Outreach prepared for durable delivery and recorded in email history.",
               )
             ) {
               captureProductEvent("crm_outreach_sent", {
@@ -1931,11 +1932,13 @@ function EnrollModal({
 
 function OutreachModal({
   contacts,
+  events,
   busy,
   close,
   send,
 }: {
   contacts: Contact[];
+  events: EventRecord[];
   busy: boolean;
   close: () => void;
   send: (payload: Record<string, unknown>) => void;
@@ -1968,6 +1971,7 @@ function OutreachModal({
             event.preventDefault();
             send({
               contactIds: contacts.map((contact) => contact.id),
+              eventId: new FormData(event.currentTarget).get("eventId"),
               subject,
               body,
               replyTo: new FormData(event.currentTarget).get("replyTo") || null,
@@ -1981,6 +1985,19 @@ function OutreachModal({
               </span>
             ))}
           </div>
+          <label>
+            Associated event
+            <select name="eventId" required defaultValue="">
+              <option value="" disabled>
+                Choose an event
+              </option>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             Replies sent to
             <input name="replyTo" type="email" placeholder="team@example.com" />
