@@ -1,5 +1,7 @@
+import { Turnstile } from "@marsidev/react-turnstile";
 import { ArrowRight, CalendarRange, Check, GalleryVerticalEnd, Sparkles, UsersRound } from "lucide-react";
-import { Link, Route, Routes } from "react-router-dom";
+import { type FormEvent, useEffect, useState } from "react";
+import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 const capabilities = [
   { icon: GalleryVerticalEnd, title: "Shape the program", body: "Collect proposals with conditional forms, route reviews, and make decisions with confidence." },
@@ -67,6 +69,38 @@ function MarketingPage() {
 
 function EntryPage({ mode }: { mode: "login" | "register" }) {
   const registering = mode === "register";
+  const [turnstileToken, setTurnstileToken] = useState<string>();
+  const [status, setStatus] = useState<{ kind: "error" | "success"; message: string }>();
+  const [submitting, setSubmitting] = useState(false);
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    setStatus(undefined);
+    const data = new FormData(event.currentTarget);
+    try {
+      const response = await fetch("/api/auth/request", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: data.get("email"),
+          name: registering ? data.get("name") : undefined,
+          mode,
+          turnstileToken,
+        }),
+      });
+      const result = await response.json() as { message?: string; error?: { message?: string } };
+      if (!response.ok) throw new Error(result.error?.message ?? "We could not send the secure link.");
+      setStatus({ kind: "success", message: result.message ?? "Check your inbox for a secure link." });
+      event.currentTarget.reset();
+    } catch (error) {
+      setStatus({ kind: "error", message: error instanceof Error ? error.message : "Something went wrong." });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <main id="main-content" className="entry-layout">
       <section className="entry-aside">
@@ -79,10 +113,12 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
         <div className="entry-card">
           <p className="kicker">{registering ? "Create an organizer account" : "Sign in securely"}</p>
           <h2 id="entry-title">{registering ? "Start with your work email" : "Continue to ProgramLoom"}</h2>
-          <form>
+          <form onSubmit={submit}>
             {registering && <label>Full name<input autoComplete="name" name="name" required /></label>}
             <label>Email address<input autoComplete="email" name="email" type="email" required /></label>
-            <button className="button button-large" type="submit">Email me a secure link <ArrowRight size={18} /></button>
+            {turnstileSiteKey && <Turnstile siteKey={turnstileSiteKey} onSuccess={setTurnstileToken} onExpire={() => setTurnstileToken(undefined)} options={{ theme: "light" }} />}
+            {status && <div className={`form-status form-status-${status.kind}`} role={status.kind === "error" ? "alert" : "status"}>{status.message}</div>}
+            <button className="button button-large" type="submit" disabled={submitting || Boolean(turnstileSiteKey && !turnstileToken)}>{submitting ? "Sending…" : "Email me a secure link"} {!submitting && <ArrowRight size={18} />}</button>
           </form>
           <p className="form-note">Passwordless sign-in. Links expire after 15 minutes.</p>
           <p>{registering ? "Already have an account?" : "New to ProgramLoom?"} <Link className="text-link" to={registering ? "/login" : "/register"}>{registering ? "Sign in" : "Start free"}</Link></p>
@@ -92,6 +128,30 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
   );
 }
 
+type SessionUser = { id: string; email: string; name: string };
+
+function AppHome() {
+  const [session, setSession] = useState<{ loading: boolean; user: SessionUser | null }>({ loading: true, user: null });
+  useEffect(() => {
+    fetch("/api/auth/session", { credentials: "same-origin" })
+      .then((response) => response.json())
+      .then((result: { user: SessionUser | null }) => setSession({ loading: false, user: result.user }))
+      .catch(() => setSession({ loading: false, user: null }));
+  }, []);
+  if (session.loading) return <main id="main-content" className="loading-page" aria-busy="true">Loading your workspace…</main>;
+  if (!session.user) return <Navigate to="/login" replace />;
+  return (
+    <main id="main-content" className="app-empty-state">
+      <Wordmark />
+      <div>
+        <p className="kicker">Signed in as {session.user.email}</p>
+        <h1>Welcome, {session.user.name.split(" ")[0]}.</h1>
+        <p>Your secure ProgramLoom account is ready. Workspace onboarding is the next build slice.</p>
+      </div>
+    </main>
+  );
+}
+
 export function App() {
-  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="*" element={<MarketingPage />} /></Routes>;
+  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/app" element={<AppHome />} /><Route path="*" element={<MarketingPage />} /></Routes>;
 }

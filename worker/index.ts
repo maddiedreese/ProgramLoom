@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import type { Env } from "./env";
+import authRoutes from "./routes/auth";
 
 type Variables = { requestId: string };
 
@@ -50,6 +51,8 @@ app.get("/api/meta", (context) =>
     },
   }),
 );
+
+app.route("/api/auth", authRoutes);
 
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {
