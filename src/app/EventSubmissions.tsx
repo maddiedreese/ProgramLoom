@@ -1,26 +1,105 @@
-import { ArrowLeft, Bot, CheckCircle2, ChevronRight, Clock3, FileInput, Inbox, LoaderCircle, Search, Sparkles, ThumbsDown, ThumbsUp, UsersRound, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Bot,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  FileInput,
+  Files,
+  Inbox,
+  LoaderCircle,
+  Search,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  UsersRound,
+  X,
+} from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 type User = { id: string; email: string; name: string };
-type EventRecord = { id: string; organizationName: string; name: string; status: string };
-type Submission = { id: string; formId: string; formName: string; title: string; abstract: string; status: string; submittedAt: string | null; updatedAt: string; submitterName: string; submitterEmail: string; submitterOrganization: string | null; reviewCount: number; completedReviewCount: number; averageScore: number | null };
-type SubmissionDetail = Submission & { answers: Record<string, unknown>; createdAt: string };
-type Field = { fieldKey: string; label: string; fieldType: string; section: string; position: number };
-type Person = { id: string; name: string; email: string; role: string; organization: string | null };
+type EventRecord = {
+  id: string;
+  organizationName: string;
+  name: string;
+  status: string;
+};
+type Submission = {
+  id: string;
+  formId: string;
+  formName: string;
+  title: string;
+  abstract: string;
+  status: string;
+  submittedAt: string | null;
+  updatedAt: string;
+  submitterName: string;
+  submitterEmail: string;
+  submitterOrganization: string | null;
+  reviewCount: number;
+  completedReviewCount: number;
+  averageScore: number | null;
+};
+type SubmissionDetail = Submission & {
+  answers: Record<string, unknown>;
+  createdAt: string;
+};
+type Field = {
+  fieldKey: string;
+  label: string;
+  fieldType: string;
+  section: string;
+  position: number;
+};
+type Person = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  organization: string | null;
+};
 type ReviewRound = { id: string; name: string; status: string };
-type AiAssessment = { id: string; roundId: string; roundName: string; model: string; score: number; effectiveScore: number; reasoning: string; strengths: string[]; risks: string[]; createdAt: string; overriddenScore: number | null; overrideReason: string | null; overriddenByName: string | null };
+type AiAssessment = {
+  id: string;
+  roundId: string;
+  roundName: string;
+  model: string;
+  score: number;
+  effectiveScore: number;
+  reasoning: string;
+  strengths: string[];
+  risks: string[];
+  createdAt: string;
+  overriddenScore: number | null;
+  overrideReason: string | null;
+  overriddenByName: string | null;
+};
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, { credentials: "same-origin", ...init, headers: { "content-type": "application/json", ...init?.headers } });
-  const result = await response.json() as T & { error?: { message?: string } };
-  if (!response.ok) throw new Error(result.error?.message ?? "The request could not be completed.");
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    ...init,
+    headers: { "content-type": "application/json", ...init?.headers },
+  });
+  const result = (await response.json()) as T & {
+    error?: { message?: string };
+  };
+  if (!response.ok)
+    throw new Error(
+      result.error?.message ?? "The request could not be completed.",
+    );
   return result;
 }
 
 const filters = [
-  { key: "all", label: "All" }, { key: "pending", label: "In review" }, { key: "accepted_queue", label: "Accept queue" },
-  { key: "decline_queue", label: "Decline queue" }, { key: "accepted", label: "Accepted" }, { key: "declined", label: "Declined" }, { key: "draft", label: "Drafts" },
+  { key: "all", label: "All" },
+  { key: "pending", label: "In review" },
+  { key: "accepted_queue", label: "Accept queue" },
+  { key: "decline_queue", label: "Decline queue" },
+  { key: "accepted", label: "Accepted" },
+  { key: "declined", label: "Declined" },
+  { key: "draft", label: "Drafts" },
 ];
 
 export function EventSubmissions({ user }: { user: User }) {
@@ -42,39 +121,582 @@ export function EventSubmissions({ user }: { user: User }) {
   const [decisionSelection, setDecisionSelection] = useState<string[]>([]);
 
   async function load() {
-    const parameters = new URLSearchParams(); if (filter !== "all") parameters.set("status", filter); if (query.trim()) parameters.set("query", query.trim());
-    try { const result = await api<{ submissions: Submission[]; counts: Record<string, number> }>(`/api/events/${eventId}/submissions?${parameters}`); setSubmissions(result.submissions); setCounts(result.counts); }
-    catch (error) { setFeedback(error instanceof Error ? error.message : "Could not load submissions."); }
+    const parameters = new URLSearchParams();
+    if (filter !== "all") parameters.set("status", filter);
+    if (query.trim()) parameters.set("query", query.trim());
+    try {
+      const result = await api<{
+        submissions: Submission[];
+        counts: Record<string, number>;
+      }>(`/api/events/${eventId}/submissions?${parameters}`);
+      setSubmissions(result.submissions);
+      setCounts(result.counts);
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : "Could not load submissions.",
+      );
+    }
   }
-  useEffect(() => { Promise.all([api<{ event: EventRecord }>(`/api/events/${eventId}`), api<{ submissions: Submission[]; counts: Record<string, number> }>(`/api/events/${eventId}/submissions`), api<{ rounds: ReviewRound[] }>(`/api/reviews/events/${eventId}`)]).then(([eventResult, result, reviewResult]) => { setEvent(eventResult.event); setSubmissions(result.submissions); setCounts(result.counts); setRounds(reviewResult.rounds); }).catch((error: Error) => setFeedback(error.message)).finally(() => setLoading(false)); }, [eventId]);
-  useEffect(() => { if (!loading) { const timer = window.setTimeout(load, 220); return () => window.clearTimeout(timer); } }, [filter, query]);
+  useEffect(() => {
+    Promise.all([
+      api<{ event: EventRecord }>(`/api/events/${eventId}`),
+      api<{ submissions: Submission[]; counts: Record<string, number> }>(
+        `/api/events/${eventId}/submissions`,
+      ),
+      api<{ rounds: ReviewRound[] }>(`/api/reviews/events/${eventId}`),
+    ])
+      .then(([eventResult, result, reviewResult]) => {
+        setEvent(eventResult.event);
+        setSubmissions(result.submissions);
+        setCounts(result.counts);
+        setRounds(reviewResult.rounds);
+      })
+      .catch((error: Error) => setFeedback(error.message))
+      .finally(() => setLoading(false));
+  }, [eventId]);
+  useEffect(() => {
+    if (!loading) {
+      const timer = window.setTimeout(load, 220);
+      return () => window.clearTimeout(timer);
+    }
+  }, [filter, query]);
 
   async function openSubmission(id: string) {
-    setBusy(true); setFeedback(undefined);
-    try { const [result, aiResult] = await Promise.all([api<{ submission: SubmissionDetail; fields: Field[]; people: Person[] }>(`/api/events/${eventId}/submissions/${id}`), api<{ assessments: AiAssessment[] }>(`/api/reviews/events/${eventId}/submissions/${id}/ai-assessments`)]); setSelected(result.submission); setFields(result.fields); setPeople(result.people); setAssessments(aiResult.assessments); }
-    catch (error) { setFeedback(error instanceof Error ? error.message : "Could not open the submission."); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setFeedback(undefined);
+    try {
+      const [result, aiResult] = await Promise.all([
+        api<{
+          submission: SubmissionDetail;
+          fields: Field[];
+          people: Person[];
+        }>(`/api/events/${eventId}/submissions/${id}`),
+        api<{ assessments: AiAssessment[] }>(
+          `/api/reviews/events/${eventId}/submissions/${id}/ai-assessments`,
+        ),
+      ]);
+      setSelected(result.submission);
+      setFields(result.fields);
+      setPeople(result.people);
+      setAssessments(aiResult.assessments);
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Could not open the submission.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
   async function changeStatus(status: string) {
-    if (!selected) return; setBusy(true); setFeedback(undefined);
-    try { await api(`/api/events/${eventId}/submissions/${selected.id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }); setSelected({ ...selected, status }); await load(); }
-    catch (error) { setFeedback(error instanceof Error ? error.message : "Could not update the decision queue."); }
-    finally { setBusy(false); }
+    if (!selected) return;
+    setBusy(true);
+    setFeedback(undefined);
+    try {
+      await api(`/api/events/${eventId}/submissions/${selected.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      setSelected({ ...selected, status });
+      await load();
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Could not update the decision queue.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
-  async function generateAssessment() { if (!selected || !rounds.length) return; setBusy(true); setFeedback(undefined); try { const result = await api<{ assessment: AiAssessment }>(`/api/reviews/events/${eventId}/submissions/${selected.id}/ai-assessments`, { method: "POST", body: JSON.stringify({ roundId: rounds[0].id }) }); setAssessments((current) => [result.assessment, ...current]); } catch (error) { setFeedback(error instanceof Error ? error.message : "Could not generate the advisory assessment."); } finally { setBusy(false); } }
-  async function overrideAssessment(assessment: AiAssessment) { if (!selected) return; const score = Number(window.prompt("Human override score (0–100)", String(assessment.effectiveScore))); if (!Number.isFinite(score)) return; const reason = window.prompt("Why are you overriding this advisory score?"); if (!reason) return; setBusy(true); try { const result = await api<{ assessment: { effectiveScore: number; overrideReason: string } }>(`/api/reviews/events/${eventId}/submissions/${selected.id}/ai-assessments/${assessment.id}/override`, { method: "PATCH", body: JSON.stringify({ score, reason }) }); setAssessments((current) => current.map((item) => item.id === assessment.id ? { ...item, effectiveScore: result.assessment.effectiveScore, overriddenScore: result.assessment.effectiveScore, overrideReason: result.assessment.overrideReason } : item)); } catch (error) { setFeedback(error instanceof Error ? error.message : "Could not override the assessment."); } finally { setBusy(false); } }
-  function openDecisionComposer() { setDecisionSelection(submissions.map((submission) => submission.id)); setComposingDecision(true); }
-  async function sendDecisions(formEvent: FormEvent<HTMLFormElement>) { formEvent.preventDefault(); if (!decisionSelection.length) return; setBusy(true); setFeedback(undefined); const data = new FormData(formEvent.currentTarget); const decision = filter === "accepted_queue" ? "accepted" : "declined"; try { const result = await api<{ sent: number; failed: number }>(`/api/events/${eventId}/decisions/send`, { method: "POST", body: JSON.stringify({ submissionIds: decisionSelection, decision, subject: data.get("subject"), body: data.get("body") }) }); setComposingDecision(false); await load(); setFeedback(result.failed ? `${result.sent} messages sent; ${result.failed} failed and remain queued.` : `${result.sent} decision message${result.sent === 1 ? "" : "s"} sent and recorded.`); } catch (error) { setFeedback(error instanceof Error ? error.message : "Could not send decisions."); } finally { setBusy(false); } }
+  async function generateAssessment() {
+    if (!selected || !rounds.length) return;
+    setBusy(true);
+    setFeedback(undefined);
+    try {
+      const result = await api<{ assessment: AiAssessment }>(
+        `/api/reviews/events/${eventId}/submissions/${selected.id}/ai-assessments`,
+        { method: "POST", body: JSON.stringify({ roundId: rounds[0].id }) },
+      );
+      setAssessments((current) => [result.assessment, ...current]);
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Could not generate the advisory assessment.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function overrideAssessment(assessment: AiAssessment) {
+    if (!selected) return;
+    const score = Number(
+      window.prompt(
+        "Human override score (0–100)",
+        String(assessment.effectiveScore),
+      ),
+    );
+    if (!Number.isFinite(score)) return;
+    const reason = window.prompt("Why are you overriding this advisory score?");
+    if (!reason) return;
+    setBusy(true);
+    try {
+      const result = await api<{
+        assessment: { effectiveScore: number; overrideReason: string };
+      }>(
+        `/api/reviews/events/${eventId}/submissions/${selected.id}/ai-assessments/${assessment.id}/override`,
+        { method: "PATCH", body: JSON.stringify({ score, reason }) },
+      );
+      setAssessments((current) =>
+        current.map((item) =>
+          item.id === assessment.id
+            ? {
+                ...item,
+                effectiveScore: result.assessment.effectiveScore,
+                overriddenScore: result.assessment.effectiveScore,
+                overrideReason: result.assessment.overrideReason,
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Could not override the assessment.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  function openDecisionComposer() {
+    setDecisionSelection(submissions.map((submission) => submission.id));
+    setComposingDecision(true);
+  }
+  async function sendDecisions(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!decisionSelection.length) return;
+    setBusy(true);
+    setFeedback(undefined);
+    const data = new FormData(formEvent.currentTarget);
+    const decision = filter === "accepted_queue" ? "accepted" : "declined";
+    try {
+      const result = await api<{ sent: number; failed: number }>(
+        `/api/events/${eventId}/decisions/send`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            submissionIds: decisionSelection,
+            decision,
+            subject: data.get("subject"),
+            body: data.get("body"),
+          }),
+        },
+      );
+      setComposingDecision(false);
+      await load();
+      setFeedback(
+        result.failed
+          ? `${result.sent} messages sent; ${result.failed} failed and remain queued.`
+          : `${result.sent} decision message${result.sent === 1 ? "" : "s"} sent and recorded.`,
+      );
+    } catch (error) {
+      setFeedback(
+        error instanceof Error ? error.message : "Could not send decisions.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
-  if (loading) return <main className="loading-page" aria-busy="true"><LoaderCircle className="spin" /> Loading submissions…</main>;
-  return <div className="event-workspace">
-    <aside className="event-sidebar"><a className="wordmark" href="/"><span aria-hidden="true" className="mark">PL</span>ProgramLoom</a><a className="back-link" href="/app"><ArrowLeft size={15} /> All events</a><div className="event-identity"><small>{event?.organizationName}</small><strong>{event?.name}</strong><span>{event?.status}</span></div><nav className="event-nav" aria-label="Event workspace"><a href={`/app/events/${eventId}`}><FileInput size={18} /> Call for proposals</a><a className="active" href={`/app/events/${eventId}/submissions`}><Inbox size={18} /> Submissions</a><a href={`/app/events/${eventId}/reviews`}><CheckCircle2 size={18} /> Reviews</a><a href={`/app/events/${eventId}/speakers`}><UsersRound size={18} /> Speakers</a><a href={`/app/events/${eventId}/agenda`}><Clock3 size={18} /> Agenda</a></nav><div className="sidebar-user"><span>{user.name}</span><small>{user.email}</small></div></aside>
-    <main id="main-content" className="event-main submissions-main"><header className="event-heading"><div><p className="kicker">Program intake</p><h1>Submissions</h1><p>Review the pipeline, open every answer, and prepare decisions without losing context.</p></div>{["accepted_queue", "decline_queue"].includes(filter) && submissions.length ? <button className="button" onClick={openDecisionComposer}>Send {filter === "accepted_queue" ? "acceptances" : "declines"}</button> : <div className="submission-total"><strong>{total}</strong><span>Total proposals</span></div>}</header>
-      {feedback && <div className="form-status form-status-error" role="alert">{feedback}</div>}
-      <div className="submission-controls"><div className="submission-filters" role="tablist" aria-label="Submission status">{filters.map((item) => <button role="tab" aria-selected={filter === item.key} className={filter === item.key ? "active" : ""} onClick={() => setFilter(item.key)} key={item.key}>{item.label}<span>{item.key === "all" ? total : counts[item.key] ?? 0}</span></button>)}</div><label className="submission-search"><Search size={16} /><span className="sr-only">Search submissions</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Title, speaker, or email" /></label></div>
-      <section className="submission-table" aria-label="Submissions"><div className="submission-table-head"><span>Proposal</span><span>Submitter</span><span>Reviews</span><span>Status</span><span /></div>{submissions.length ? submissions.map((submission) => <button className="submission-row" onClick={() => openSubmission(submission.id)} key={submission.id}><span><strong>{submission.title || "Untitled draft"}</strong><small>{submission.formName}</small></span><span><strong>{submission.submitterName}</strong><small>{submission.submitterOrganization || submission.submitterEmail}</small></span><span><strong>{submission.averageScore ?? "—"}</strong><small>{submission.completedReviewCount}/{submission.reviewCount} complete</small></span><span><em className={`submission-status status-${submission.status}`}>{submission.status.replaceAll("_", " ")}</em></span><ChevronRight size={17} /></button>) : <div className="submission-empty"><Inbox size={30} /><h2>No matching proposals</h2><p>New public submissions will appear here immediately.</p></div>}</section>
-    </main>
-    {selected && <div className="detail-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(undefined); }}><aside className="submission-detail" aria-label="Submission details"><header><div><small>{selected.formName}</small><h2>{selected.title || "Untitled proposal"}</h2></div><button className="plain-icon" onClick={() => setSelected(undefined)} aria-label="Close"><X size={19} /></button></header><div className="detail-speakers">{people.map((person) => <div key={person.id}><span>{person.name.slice(0, 1).toUpperCase()}</span><div><strong>{person.name}</strong><small>{person.email}{person.organization ? ` · ${person.organization}` : ""}</small></div></div>)}</div><div className="decision-strip"><button className={selected.status === "accepted_queue" ? "selected accept" : ""} onClick={() => changeStatus("accepted_queue")} disabled={busy}><ThumbsUp size={16} /> Accept queue</button><button className={selected.status === "decline_queue" ? "selected decline" : ""} onClick={() => changeStatus("decline_queue")} disabled={busy}><ThumbsDown size={16} /> Decline queue</button><button onClick={() => changeStatus("pending")} disabled={busy}>Clear</button></div><div className="detail-answers">{fields.map((field) => <section key={field.fieldKey}><small>{field.label}</small><div>{Array.isArray(selected.answers[field.fieldKey]) ? (selected.answers[field.fieldKey] as unknown[]).join(", ") : typeof selected.answers[field.fieldKey] === "boolean" ? (selected.answers[field.fieldKey] ? "Yes" : "No") : String(selected.answers[field.fieldKey] ?? "—")}</div></section>)}</div><section className="ai-assessment-section"><div className="ai-heading"><div><Bot size={19} /><span><strong>Advisory AI assessment</strong><small>Transparent input to human review—not an acceptance decision.</small></span></div><button className="button button-small" onClick={generateAssessment} disabled={busy || !rounds.length}><Sparkles size={14} /> Assess</button></div>{assessments.map((assessment) => <article className="ai-assessment" key={assessment.id}><div><strong>{assessment.effectiveScore}</strong><span>/100</span>{assessment.overriddenScore !== null && <em>Human override</em>}</div><section><small>{assessment.roundName}</small><p>{assessment.reasoning}</p>{assessment.strengths.length > 0 && <ul>{assessment.strengths.map((item) => <li key={item}>{item}</li>)}</ul>}{assessment.risks.length > 0 && <div className="ai-risks">Risks: {assessment.risks.join(" · ")}</div>}{assessment.overrideReason && <div className="ai-override-reason">Override rationale: {assessment.overrideReason}</div>}<button onClick={() => overrideAssessment(assessment)}>Override with human judgment</button></section></article>)}{!assessments.length && <p className="ai-empty">Generate an optional advisory assessment after configuring a review round.</p>}</section></aside></div>}
-    {composingDecision && <div className="modal-backdrop"><section className="decision-composer"><header><div><p className="kicker">Final delivery</p><h2>Send {filter === "accepted_queue" ? "acceptances" : "declines"}</h2></div><button className="plain-icon" onClick={() => setComposingDecision(false)} aria-label="Close"><X size={18} /></button></header><p>Messages are personalized, sent through ProgramLoom’s verified mail domain, and recorded per recipient. Failed deliveries stay in the queue.</p><div className="decision-recipients">{submissions.map((submission) => <label key={submission.id}><input type="checkbox" checked={decisionSelection.includes(submission.id)} onChange={(event) => setDecisionSelection((current) => event.target.checked ? [...current, submission.id] : current.filter((id) => id !== submission.id))} /><span><strong>{submission.submitterName}</strong><small>{submission.title}</small></span></label>)}</div><form onSubmit={sendDecisions}><label>Subject<input name="subject" defaultValue={filter === "accepted_queue" ? "{{session_title}} is accepted for {{event_name}}" : "An update on {{session_title}} for {{event_name}}"} required /></label><label>Message<textarea name="body" rows={8} defaultValue={filter === "accepted_queue" ? "We’re delighted to accept {{session_title}} for {{event_name}}.\nPlease use your speaker portal to complete your profile and upcoming tasks." : "Thank you for submitting {{session_title}} to {{event_name}}.\nAfter careful review, we’re unable to include it in this program. We appreciate the work you shared with us."} required /></label><p className="template-help">Available: {'{{name}}'}, {'{{event_name}}'}, {'{{session_title}}'}</p><button className="button button-large" disabled={busy || !decisionSelection.length}>{busy ? "Sending…" : `Send ${decisionSelection.length} message${decisionSelection.length === 1 ? "" : "s"}`}</button></form></section></div>}
-  </div>;
+  if (loading)
+    return (
+      <main className="loading-page" aria-busy="true">
+        <LoaderCircle className="spin" /> Loading submissions…
+      </main>
+    );
+  return (
+    <div className="event-workspace">
+      <aside className="event-sidebar">
+        <a className="wordmark" href="/">
+          <span aria-hidden="true" className="mark">
+            PL
+          </span>
+          ProgramLoom
+        </a>
+        <a className="back-link" href="/app">
+          <ArrowLeft size={15} /> All events
+        </a>
+        <div className="event-identity">
+          <small>{event?.organizationName}</small>
+          <strong>{event?.name}</strong>
+          <span>{event?.status}</span>
+        </div>
+        <nav className="event-nav" aria-label="Event workspace">
+          <a href={`/app/events/${eventId}`}>
+            <FileInput size={18} /> Call for proposals
+          </a>
+          <a className="active" href={`/app/events/${eventId}/submissions`}>
+            <Inbox size={18} /> Submissions
+          </a>
+          <a href={`/app/events/${eventId}/reviews`}>
+            <CheckCircle2 size={18} /> Reviews
+          </a>
+          <a href={`/app/events/${eventId}/speakers`}>
+            <UsersRound size={18} /> Speakers
+          </a>
+          <a href={`/app/events/${eventId}/content`}>
+            <Files size={18} /> Content
+          </a>
+          <a href={`/app/events/${eventId}/agenda`}>
+            <Clock3 size={18} /> Agenda
+          </a>
+        </nav>
+        <div className="sidebar-user">
+          <span>{user.name}</span>
+          <small>{user.email}</small>
+        </div>
+      </aside>
+      <main id="main-content" className="event-main submissions-main">
+        <header className="event-heading">
+          <div>
+            <p className="kicker">Program intake</p>
+            <h1>Submissions</h1>
+            <p>
+              Review the pipeline, open every answer, and prepare decisions
+              without losing context.
+            </p>
+          </div>
+          {["accepted_queue", "decline_queue"].includes(filter) &&
+          submissions.length ? (
+            <button className="button" onClick={openDecisionComposer}>
+              Send {filter === "accepted_queue" ? "acceptances" : "declines"}
+            </button>
+          ) : (
+            <div className="submission-total">
+              <strong>{total}</strong>
+              <span>Total proposals</span>
+            </div>
+          )}
+        </header>
+        {feedback && (
+          <div className="form-status form-status-error" role="alert">
+            {feedback}
+          </div>
+        )}
+        <div className="submission-controls">
+          <div
+            className="submission-filters"
+            role="tablist"
+            aria-label="Submission status"
+          >
+            {filters.map((item) => (
+              <button
+                role="tab"
+                aria-selected={filter === item.key}
+                className={filter === item.key ? "active" : ""}
+                onClick={() => setFilter(item.key)}
+                key={item.key}
+              >
+                {item.label}
+                <span>
+                  {item.key === "all" ? total : (counts[item.key] ?? 0)}
+                </span>
+              </button>
+            ))}
+          </div>
+          <label className="submission-search">
+            <Search size={16} />
+            <span className="sr-only">Search submissions</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Title, speaker, or email"
+            />
+          </label>
+        </div>
+        <section className="submission-table" aria-label="Submissions">
+          <div className="submission-table-head">
+            <span>Proposal</span>
+            <span>Submitter</span>
+            <span>Reviews</span>
+            <span>Status</span>
+            <span />
+          </div>
+          {submissions.length ? (
+            submissions.map((submission) => (
+              <button
+                className="submission-row"
+                onClick={() => openSubmission(submission.id)}
+                key={submission.id}
+              >
+                <span>
+                  <strong>{submission.title || "Untitled draft"}</strong>
+                  <small>{submission.formName}</small>
+                </span>
+                <span>
+                  <strong>{submission.submitterName}</strong>
+                  <small>
+                    {submission.submitterOrganization ||
+                      submission.submitterEmail}
+                  </small>
+                </span>
+                <span>
+                  <strong>{submission.averageScore ?? "—"}</strong>
+                  <small>
+                    {submission.completedReviewCount}/{submission.reviewCount}{" "}
+                    complete
+                  </small>
+                </span>
+                <span>
+                  <em
+                    className={`submission-status status-${submission.status}`}
+                  >
+                    {submission.status.replaceAll("_", " ")}
+                  </em>
+                </span>
+                <ChevronRight size={17} />
+              </button>
+            ))
+          ) : (
+            <div className="submission-empty">
+              <Inbox size={30} />
+              <h2>No matching proposals</h2>
+              <p>New public submissions will appear here immediately.</p>
+            </div>
+          )}
+        </section>
+      </main>
+      {selected && (
+        <div
+          className="detail-backdrop"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setSelected(undefined);
+          }}
+        >
+          <aside className="submission-detail" aria-label="Submission details">
+            <header>
+              <div>
+                <small>{selected.formName}</small>
+                <h2>{selected.title || "Untitled proposal"}</h2>
+              </div>
+              <button
+                className="plain-icon"
+                onClick={() => setSelected(undefined)}
+                aria-label="Close"
+              >
+                <X size={19} />
+              </button>
+            </header>
+            <div className="detail-speakers">
+              {people.map((person) => (
+                <div key={person.id}>
+                  <span>{person.name.slice(0, 1).toUpperCase()}</span>
+                  <div>
+                    <strong>{person.name}</strong>
+                    <small>
+                      {person.email}
+                      {person.organization ? ` · ${person.organization}` : ""}
+                    </small>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="decision-strip">
+              <button
+                className={
+                  selected.status === "accepted_queue" ? "selected accept" : ""
+                }
+                onClick={() => changeStatus("accepted_queue")}
+                disabled={busy}
+              >
+                <ThumbsUp size={16} /> Accept queue
+              </button>
+              <button
+                className={
+                  selected.status === "decline_queue" ? "selected decline" : ""
+                }
+                onClick={() => changeStatus("decline_queue")}
+                disabled={busy}
+              >
+                <ThumbsDown size={16} /> Decline queue
+              </button>
+              <button onClick={() => changeStatus("pending")} disabled={busy}>
+                Clear
+              </button>
+            </div>
+            <div className="detail-answers">
+              {fields.map((field) => (
+                <section key={field.fieldKey}>
+                  <small>{field.label}</small>
+                  <div>
+                    {Array.isArray(selected.answers[field.fieldKey])
+                      ? (selected.answers[field.fieldKey] as unknown[]).join(
+                          ", ",
+                        )
+                      : typeof selected.answers[field.fieldKey] === "boolean"
+                        ? selected.answers[field.fieldKey]
+                          ? "Yes"
+                          : "No"
+                        : String(selected.answers[field.fieldKey] ?? "—")}
+                  </div>
+                </section>
+              ))}
+            </div>
+            <section className="ai-assessment-section">
+              <div className="ai-heading">
+                <div>
+                  <Bot size={19} />
+                  <span>
+                    <strong>Advisory AI assessment</strong>
+                    <small>
+                      Transparent input to human review—not an acceptance
+                      decision.
+                    </small>
+                  </span>
+                </div>
+                <button
+                  className="button button-small"
+                  onClick={generateAssessment}
+                  disabled={busy || !rounds.length}
+                >
+                  <Sparkles size={14} /> Assess
+                </button>
+              </div>
+              {assessments.map((assessment) => (
+                <article className="ai-assessment" key={assessment.id}>
+                  <div>
+                    <strong>{assessment.effectiveScore}</strong>
+                    <span>/100</span>
+                    {assessment.overriddenScore !== null && (
+                      <em>Human override</em>
+                    )}
+                  </div>
+                  <section>
+                    <small>{assessment.roundName}</small>
+                    <p>{assessment.reasoning}</p>
+                    {assessment.strengths.length > 0 && (
+                      <ul>
+                        {assessment.strengths.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {assessment.risks.length > 0 && (
+                      <div className="ai-risks">
+                        Risks: {assessment.risks.join(" · ")}
+                      </div>
+                    )}
+                    {assessment.overrideReason && (
+                      <div className="ai-override-reason">
+                        Override rationale: {assessment.overrideReason}
+                      </div>
+                    )}
+                    <button onClick={() => overrideAssessment(assessment)}>
+                      Override with human judgment
+                    </button>
+                  </section>
+                </article>
+              ))}
+              {!assessments.length && (
+                <p className="ai-empty">
+                  Generate an optional advisory assessment after configuring a
+                  review round.
+                </p>
+              )}
+            </section>
+          </aside>
+        </div>
+      )}
+      {composingDecision && (
+        <div className="modal-backdrop">
+          <section className="decision-composer">
+            <header>
+              <div>
+                <p className="kicker">Final delivery</p>
+                <h2>
+                  Send{" "}
+                  {filter === "accepted_queue" ? "acceptances" : "declines"}
+                </h2>
+              </div>
+              <button
+                className="plain-icon"
+                onClick={() => setComposingDecision(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <p>
+              Messages are personalized, sent through ProgramLoom’s verified
+              mail domain, and recorded per recipient. Failed deliveries stay in
+              the queue.
+            </p>
+            <div className="decision-recipients">
+              {submissions.map((submission) => (
+                <label key={submission.id}>
+                  <input
+                    type="checkbox"
+                    checked={decisionSelection.includes(submission.id)}
+                    onChange={(event) =>
+                      setDecisionSelection((current) =>
+                        event.target.checked
+                          ? [...current, submission.id]
+                          : current.filter((id) => id !== submission.id),
+                      )
+                    }
+                  />
+                  <span>
+                    <strong>{submission.submitterName}</strong>
+                    <small>{submission.title}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <form onSubmit={sendDecisions}>
+              <label>
+                Subject
+                <input
+                  name="subject"
+                  defaultValue={
+                    filter === "accepted_queue"
+                      ? "{{session_title}} is accepted for {{event_name}}"
+                      : "An update on {{session_title}} for {{event_name}}"
+                  }
+                  required
+                />
+              </label>
+              <label>
+                Message
+                <textarea
+                  name="body"
+                  rows={8}
+                  defaultValue={
+                    filter === "accepted_queue"
+                      ? "We’re delighted to accept {{session_title}} for {{event_name}}.\nPlease use your speaker portal to complete your profile and upcoming tasks."
+                      : "Thank you for submitting {{session_title}} to {{event_name}}.\nAfter careful review, we’re unable to include it in this program. We appreciate the work you shared with us."
+                  }
+                  required
+                />
+              </label>
+              <p className="template-help">
+                Available: {"{{name}}"}, {"{{event_name}}"},{" "}
+                {"{{session_title}}"}
+              </p>
+              <button
+                className="button button-large"
+                disabled={busy || !decisionSelection.length}
+              >
+                {busy
+                  ? "Sending…"
+                  : `Send ${decisionSelection.length} message${decisionSelection.length === 1 ? "" : "s"}`}
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }

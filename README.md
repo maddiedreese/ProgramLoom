@@ -4,7 +4,9 @@ ProgramLoom is an open-source event program workspace connecting calls for propo
 
 ## Status
 
-Active development for the Kill My SaaS competition. The repository is not yet production-ready.
+Production alpha for the Kill My SaaS competition. The live service is available at [programloom.com](https://programloom.com) with the organizer application at [app.programloom.com](https://app.programloom.com).
+
+ProgramLoom currently includes configurable CFPs, multi-round human and AI-assisted review, scoped speaker/reviewer portals, speaker onboarding and content collection, immutable R2 file versions, comments and approvals, latest-only ZIP distribution, conflict-aware agenda scheduling, five public widget types, a cross-event speaker CRM, Airtable-authoritative workspaces, Resend transactional email, PostHog product analytics, and Cloudflare structured observability.
 
 ## Local development
 
@@ -24,6 +26,8 @@ Production secrets are uploaded individually with `zsh scripts/push-cloudflare-s
 
 ```bash
 npm run check
+npm run smoke:crm
+npm run smoke:content
 ```
 
 ## License

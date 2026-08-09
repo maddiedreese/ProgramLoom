@@ -5,6 +5,7 @@ import {
   Code2,
   ExternalLink,
   FileInput,
+  Files,
   Inbox,
   LoaderCircle,
   Pencil,
@@ -162,6 +163,9 @@ export function EventWidgets({ user }: { user: User }) {
           </a>
           <a href={`/app/events/${eventId}/speakers`}>
             <UsersRound size={18} /> Speakers
+          </a>
+          <a href={`/app/events/${eventId}/content`}>
+            <Files size={18} /> Content
           </a>
           <a href={`/app/events/${eventId}/agenda`}>
             <CheckCircle2 size={18} /> Agenda

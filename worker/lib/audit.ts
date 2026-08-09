@@ -7,6 +7,7 @@ type AuditInput = {
   action: string;
   entityType: string;
   entityId: string;
+  before?: unknown;
   after?: unknown;
   requestId?: string;
 };
@@ -14,8 +15,8 @@ type AuditInput = {
 export function auditStatement(db: D1Database, input: AuditInput): D1PreparedStatement {
   return db.prepare(
     `INSERT INTO audit_events
-      (id, organization_id, event_id, actor_user_id, action, entity_type, entity_id, after_json, request_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, organization_id, event_id, actor_user_id, action, entity_type, entity_id, before_json, after_json, request_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     crypto.randomUUID(),
     input.organizationId,
@@ -24,6 +25,7 @@ export function auditStatement(db: D1Database, input: AuditInput): D1PreparedSta
     input.action,
     input.entityType,
     input.entityId,
+    input.before === undefined ? null : JSON.stringify(input.before),
     input.after === undefined ? null : JSON.stringify(input.after),
     input.requestId ?? null,
   );

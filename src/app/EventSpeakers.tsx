@@ -5,13 +5,16 @@ import {
   Clock3,
   Download,
   FileInput,
+  Files,
   Inbox,
   LoaderCircle,
+  MessageSquare,
   Plus,
   Save,
   Upload,
   UserRound,
   UsersRound,
+  X,
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -65,6 +68,9 @@ type Resource = {
 };
 type SpeakerFile = {
   id: string;
+  taskId?: string | null;
+  submissionId?: string | null;
+  sessionTitle?: string | null;
   speakerId?: string;
   speakerName?: string;
   purpose: string;
@@ -72,6 +78,24 @@ type SpeakerFile = {
   filename: string | null;
   sizeBytes: number | null;
   versionNumber: number | null;
+  versionCount?: number;
+};
+type SpeakerFileDetail = {
+  versions: Array<{
+    id: string;
+    filename: string;
+    sizeBytes: number;
+    versionNumber: number;
+    createdAt: string;
+    uploadedByName: string;
+    isCurrent: boolean;
+  }>;
+  comments: Array<{
+    id: string;
+    body: string;
+    authorName: string;
+    createdAt: string;
+  }>;
 };
 type TaskAssignment = {
   taskId: string;
@@ -184,6 +208,9 @@ function EventChrome({
           <a className="active" href={`/app/events/${eventId}/speakers`}>
             <UsersRound size={18} /> Speakers
           </a>
+          <a href={`/app/events/${eventId}/content`}>
+            <Files size={18} /> Content
+          </a>
           <a href={`/app/events/${eventId}/agenda`}>
             <Clock3 size={18} /> Agenda
           </a>
@@ -256,6 +283,8 @@ function SpeakerPortal({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [files, setFiles] = useState<SpeakerFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<SpeakerFile>();
+  const [fileDetail, setFileDetail] = useState<SpeakerFileDetail>();
   const [tab, setTab] = useState<"home" | "profile" | "resources" | "files">(
     "home",
   );
@@ -392,6 +421,40 @@ function SpeakerPortal({
       setBusy(false);
     }
   }
+  async function openFile(file: SpeakerFile) {
+    setSelectedFile(file);
+    setFileDetail(
+      await api<SpeakerFileDetail>(
+        `/api/speakers/events/${eventId}/files/${file.id}`,
+      ),
+    );
+  }
+  async function addFileComment(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    if (!selectedFile) return;
+    const form = new FormData(formEvent.currentTarget);
+    setBusy(true);
+    try {
+      await api(
+        `/api/speakers/events/${eventId}/files/${selectedFile.id}/comments`,
+        { method: "POST", body: JSON.stringify({ body: form.get("body") }) },
+      );
+      setFileDetail(
+        await api<SpeakerFileDetail>(
+          `/api/speakers/events/${eventId}/files/${selectedFile.id}`,
+        ),
+      );
+      formEvent.currentTarget.reset();
+      setFeedback({ kind: "success", message: "Comment added." });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Could not comment.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
   if (!profile)
     return (
       <div className="workspace-loading">
@@ -475,8 +538,15 @@ function SpeakerPortal({
                     </small>
                   </div>
                   {!["submitted", "complete"].includes(task.status ?? "") && (
-                    <button onClick={() => submitTask(task)} disabled={busy}>
-                      Submit
+                    <button
+                      onClick={() =>
+                        task.taskType === "file_request"
+                          ? setTab("files")
+                          : submitTask(task)
+                      }
+                      disabled={busy}
+                    >
+                      {task.taskType === "file_request" ? "Upload" : "Submit"}
                     </button>
                   )}
                 </div>
@@ -655,8 +725,9 @@ function SpeakerPortal({
                   <span>
                     <strong>{file.purpose}</strong>
                     <small>
+                      {file.sessionTitle ? `${file.sessionTitle} · ` : ""}
                       {file.filename
-                        ? `${file.filename} · Version ${file.versionNumber}`
+                        ? `${file.filename} · ${file.versionCount ?? file.versionNumber} version${(file.versionCount ?? file.versionNumber) === 1 ? "" : "s"}`
                         : "Waiting for upload"}
                     </small>
                   </span>
@@ -666,12 +737,12 @@ function SpeakerPortal({
                 </em>
                 <div>
                   {file.filename && (
-                    <a
+                    <button
                       className="button button-ghost button-small"
-                      href={`/api/speakers/events/${eventId}/files/${file.id}/download`}
+                      onClick={() => openFile(file)}
                     >
-                      <Download size={14} /> Download
-                    </a>
+                      <MessageSquare size={14} /> Versions & comments
+                    </button>
                   )}
                   <label className="button button-small">
                     <Upload size={14} />{" "}
@@ -695,6 +766,75 @@ function SpeakerPortal({
               <h2>No file requests yet</h2>
             </div>
           )}
+        </div>
+      )}
+      {selectedFile && fileDetail && (
+        <div className="detail-backdrop">
+          <aside className="content-detail file-detail">
+            <header>
+              <div>
+                <small>{selectedFile.sessionTitle}</small>
+                <h2>{selectedFile.filename || selectedFile.purpose}</h2>
+              </div>
+              <button
+                className="plain-icon"
+                onClick={() => {
+                  setSelectedFile(undefined);
+                  setFileDetail(undefined);
+                }}
+              >
+                <X />
+              </button>
+            </header>
+            <section className="revision-list">
+              <h3>File versions</h3>
+              {fileDetail.versions.map((version) => (
+                <article key={version.id}>
+                  <div>
+                    <strong>
+                      Version {version.versionNumber}{" "}
+                      {version.isCurrent && <em>Latest</em>}
+                    </strong>
+                    <span>{version.uploadedByName}</span>
+                    <small>
+                      {new Date(version.createdAt).toLocaleString()}
+                    </small>
+                  </div>
+                  <a
+                    href={`/api/speakers/events/${eventId}/files/${selectedFile.id}/versions/${version.id}/download`}
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                </article>
+              ))}
+            </section>
+            <section className="comment-thread">
+              <h3>
+                <MessageSquare size={17} /> Comments
+              </h3>
+              {fileDetail.comments.map((comment) => (
+                <article key={comment.id}>
+                  <strong>{comment.authorName}</strong>
+                  <small>{new Date(comment.createdAt).toLocaleString()}</small>
+                  <p>{comment.body}</p>
+                </article>
+              ))}
+              <form onSubmit={addFileComment}>
+                <label>
+                  Add a comment
+                  <textarea
+                    name="body"
+                    rows={3}
+                    required
+                    placeholder="Draft deck — final version coming Friday."
+                  />
+                </label>
+                <button className="button button-small" disabled={busy}>
+                  Add comment
+                </button>
+              </form>
+            </section>
+          </aside>
         </div>
       )}
     </>

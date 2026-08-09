@@ -24,6 +24,11 @@ import { PublicWidgetPage } from "./app/PublicWidgetPage";
 const LazyCRMPage = lazy(() =>
   import("./app/CRMPage").then(({ CRMPage }) => ({ default: CRMPage })),
 );
+const LazyEventContent = lazy(() =>
+  import("./app/EventContent").then(({ EventContent }) => ({
+    default: EventContent,
+  })),
+);
 const LazyPublicInterestPage = lazy(() =>
   import("./app/PublicInterestPage").then(({ PublicInterestPage }) => ({
     default: PublicInterestPage,
@@ -318,6 +323,7 @@ function AuthenticatedPage({
     | "submissions"
     | "reviews"
     | "speakers"
+    | "content"
     | "agenda"
     | "widgets"
     | "crm";
@@ -346,6 +352,12 @@ function AuthenticatedPage({
   if (page === "submissions") return <EventSubmissions user={session.user} />;
   if (page === "reviews") return <EventReviews user={session.user} />;
   if (page === "speakers") return <EventSpeakers user={session.user} />;
+  if (page === "content")
+    return (
+      <Suspense fallback={<LoadingRoute label="Loading content workspace…" />}>
+        <LazyEventContent user={session.user} />
+      </Suspense>
+    );
   if (page === "agenda") return <EventAgenda user={session.user} />;
   if (page === "widgets") return <EventWidgets user={session.user} />;
   if (page === "crm")
@@ -401,6 +413,10 @@ export function App() {
       <Route
         path="/app/events/:eventId/speaker"
         element={<AuthenticatedPage page="speakers" />}
+      />
+      <Route
+        path="/app/events/:eventId/content"
+        element={<AuthenticatedPage page="content" />}
       />
       <Route
         path="/app/events/:eventId/agenda"

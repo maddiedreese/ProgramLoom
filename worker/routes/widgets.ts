@@ -61,19 +61,27 @@ async function widgetData(db: D1Database, eventId: string) {
       .all(),
     db
       .prepare(
-        `SELECT s.id,s.title,s.abstract,s.format,s.duration_minutes AS durationMinutes,MIN(st.track_id) AS trackId,GROUP_CONCAT(DISTINCT sp.id) AS speakerIds,GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames FROM submissions s LEFT JOIN submission_tracks st ON st.submission_id=s.id LEFT JOIN session_speakers ss ON ss.submission_id=s.id LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id WHERE s.event_id=? AND s.status='accepted' GROUP BY s.id ORDER BY s.title`,
+        `SELECT s.id,s.title,s.abstract,s.format,s.duration_minutes AS durationMinutes,MIN(st.track_id) AS trackId,GROUP_CONCAT(DISTINCT sp.id) AS speakerIds,GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames FROM submissions s JOIN session_content_state cs ON cs.submission_id=s.id AND cs.status='approved' LEFT JOIN submission_tracks st ON st.submission_id=s.id LEFT JOIN session_speakers ss ON ss.submission_id=s.id LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id WHERE s.event_id=? AND s.status='accepted' GROUP BY s.id ORDER BY s.title`,
       )
       .bind(eventId)
       .all(),
     db
       .prepare(
-        `SELECT DISTINCT sp.id,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.headshot_key AS headshotKey,sp.social_json AS socialJson FROM speaker_profiles sp JOIN session_speakers ss ON ss.speaker_id=sp.id JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=? AND s.status='accepted' ORDER BY sp.last_name,sp.first_name`,
+        `SELECT DISTINCT sp.id,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.headshot_key AS headshotKey,sp.social_json AS socialJson FROM speaker_profiles sp JOIN session_speakers ss ON ss.speaker_id=sp.id JOIN submissions s ON s.id=ss.submission_id JOIN session_content_state cs ON cs.submission_id=s.id AND cs.status='approved' WHERE s.event_id=? AND s.status='accepted' ORDER BY sp.last_name,sp.first_name`,
       )
       .bind(eventId)
       .all(),
     db
       .prepare(
-        `SELECT a.id,a.submission_id AS submissionId,a.track_id AS trackId,a.item_type AS itemType,a.title,a.description,a.starts_at AS startsAt,a.ends_at AS endsAt,a.status,r.id AS roomId,r.name AS roomName,t.name AS trackName,t.color AS trackColor FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id WHERE a.event_id=? AND a.status='published' ORDER BY a.starts_at,a.title`,
+        `SELECT a.id,a.submission_id AS submissionId,a.track_id AS trackId,a.item_type AS itemType,
+                CASE WHEN a.submission_id IS NOT NULL THEN s.title ELSE a.title END AS title,
+                CASE WHEN a.submission_id IS NOT NULL THEN s.abstract ELSE a.description END AS description,
+                a.starts_at AS startsAt,a.ends_at AS endsAt,a.status,r.id AS roomId,r.name AS roomName,t.name AS trackName,t.color AS trackColor
+         FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id
+         LEFT JOIN submissions s ON s.id=a.submission_id
+         LEFT JOIN session_content_state cs ON cs.submission_id=a.submission_id
+         WHERE a.event_id=? AND a.status='published' AND (a.submission_id IS NULL OR cs.status='approved')
+         ORDER BY a.starts_at,title`,
       )
       .bind(eventId)
       .all(),

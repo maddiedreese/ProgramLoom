@@ -49,6 +49,15 @@ type CrmOutreachMessage = {
   campaignId: string;
 };
 
+type DeliverablesReminderMessage = {
+  email: string;
+  name: string;
+  eventName: string;
+  portalLink: string;
+  outstanding: Array<{ title: string; dueAt: string | null }>;
+  batchId: string;
+};
+
 export async function sendMagicLink(
   env: Env,
   message: MagicLinkMessage,
@@ -273,6 +282,59 @@ export async function sendCrmOutreach(
       }),
     );
     throw new Error("The outreach email could not be sent.");
+  }
+  const result = (await response.json()) as { id?: string };
+  return result.id ?? "accepted";
+}
+
+export async function sendDeliverablesReminder(
+  env: Env,
+  message: DeliverablesReminderMessage,
+): Promise<string> {
+  if (env.APP_ENV === "test") return `test-${message.batchId}-${message.email}`;
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM)
+    throw new Error("Transactional email is not configured.");
+  const items = message.outstanding
+    .map(
+      (task) =>
+        `<li><strong>${escapeHtml(task.title)}</strong>${task.dueAt ? ` — due ${escapeHtml(new Date(task.dueAt).toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "UTC" }))}` : ""}</li>`,
+    )
+    .join("");
+  const textItems = message.outstanding
+    .map(
+      (task) =>
+        `- ${task.title}${task.dueAt ? ` — due ${new Date(task.dueAt).toLocaleDateString("en-US", { dateStyle: "medium", timeZone: "UTC" })}` : ""}`,
+    )
+    .join("\n");
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "content-type": "application/json",
+      "idempotency-key": `deliverables/${message.batchId}/${await stableMessageKey(message.email, message.portalLink)}`,
+    },
+    body: JSON.stringify({
+      from: env.EMAIL_FROM,
+      to: [message.email],
+      reply_to: env.EMAIL_REPLY_TO,
+      subject: `${message.eventName}: outstanding speaker deliverables`,
+      html: `<!doctype html><html><body style="margin:0;background:#f4f1e8;color:#20241f;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:40px 24px"><div style="font-size:20px;font-weight:700;margin-bottom:34px">ProgramLoom</div><div style="background:#fffdf6;border:1px solid #d9d5ca;border-radius:14px;padding:32px"><p>Hi ${escapeHtml(message.name)},</p><p>The ${escapeHtml(message.eventName)} team is waiting on:</p><ul>${items}</ul><p style="margin:28px 0"><a href="${escapeHtml(message.portalLink)}" style="display:inline-block;background:#315c45;color:white;text-decoration:none;padding:14px 18px;border-radius:8px;font-weight:700">Open speaker portal</a></p></div></div></body></html>`,
+      text: `Hi ${message.name},\n\nThe ${message.eventName} team is waiting on:\n${textItems}\n\nOpen your speaker portal: ${message.portalLink}`,
+      tags: [{ name: "message_type", value: "deliverables_reminder" }],
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error(
+      JSON.stringify({
+        level: "error",
+        service: "resend",
+        operation: "deliverables_reminder",
+        status: response.status,
+        detail: detail.slice(0, 500),
+      }),
+    );
+    throw new Error("The deliverables reminder could not be sent.");
   }
   const result = (await response.json()) as { id?: string };
   return result.id ?? "accepted";

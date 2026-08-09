@@ -58,6 +58,9 @@ const fileStatusSchema = z.object({
   status: z.enum(["approved", "needs_changes"]),
   note: z.string().trim().max(2000).optional(),
 });
+const fileCommentSchema = z.object({
+  body: z.string().trim().min(1).max(5000),
+});
 
 async function speakerContext(
   context: Parameters<typeof requireEventRole>[0],
@@ -131,7 +134,14 @@ router.get("/events/:eventId", async (context) => {
     .all();
   const files = await db
     .prepare(
-      `SELECT f.id, f.purpose, f.status, f.current_version_id AS currentVersionId, fv.filename, fv.content_type AS contentType, fv.size_bytes AS sizeBytes, fv.version_number AS versionNumber, fv.created_at AS uploadedAt FROM files f LEFT JOIN file_versions fv ON fv.id=f.current_version_id WHERE f.event_id=? AND f.speaker_id=? ORDER BY f.created_at`,
+      `SELECT f.id,f.task_id AS taskId,f.submission_id AS submissionId,s.title AS sessionTitle,
+              f.purpose,f.status,f.current_version_id AS currentVersionId,fv.filename,
+              fv.content_type AS contentType,fv.size_bytes AS sizeBytes,fv.version_number AS versionNumber,
+              fv.created_at AS uploadedAt,
+              (SELECT COUNT(*) FROM file_versions allv WHERE allv.file_id=f.id) AS versionCount
+       FROM files f LEFT JOIN submissions s ON s.id=f.submission_id
+       LEFT JOIN file_versions fv ON fv.id=f.current_version_id
+       WHERE f.event_id=? AND f.speaker_id=? ORDER BY f.created_at`,
     )
     .bind(eventId, profile.id)
     .all();
@@ -329,14 +339,24 @@ router.post("/events/:eventId/files/:fileId/upload", async (context) => {
       "File storage is temporarily unavailable.",
     );
   const request = await db
-    .prepare("SELECT id FROM files WHERE id=? AND event_id=? AND speaker_id=?")
+    .prepare(
+      `SELECT f.id,f.task_id AS taskId,e.file_uploads_enabled AS fileUploadsEnabled
+       FROM files f JOIN events e ON e.id=f.event_id
+       WHERE f.id=? AND f.event_id=? AND f.speaker_id=?`,
+    )
     .bind(context.req.param("fileId"), eventId, profile.id)
-    .first();
+    .first<{ id: string; taskId?: string; fileUploadsEnabled: number }>();
   if (!request)
     throw new HttpError(
       404,
       "file_request_not_found",
       "File request not found.",
+    );
+  if (!request.fileUploadsEnabled)
+    throw new HttpError(
+      409,
+      "file_uploads_disabled",
+      "This event is not currently accepting file uploads.",
     );
   const form = await context.req.raw.formData();
   const upload = form.get("file");
@@ -387,7 +407,7 @@ router.post("/events/:eventId/files/:fileId/upload", async (context) => {
     customMetadata: { sha256: checksum, originalFilename: upload.name },
   });
   try {
-    await db.batch([
+    const statements = [
       db
         .prepare(
           "INSERT INTO file_versions (id,file_id,r2_key,filename,content_type,size_bytes,sha256,version_number,uploaded_by) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -423,7 +443,20 @@ router.post("/events/:eventId/files/:fileId/upload", async (context) => {
         },
         requestId: context.get("requestId"),
       }),
-    ]);
+    ];
+    if (request.taskId)
+      statements.push(
+        db
+          .prepare(
+            "UPDATE speaker_task_assignments SET status='submitted',response_json=?,updated_at=CURRENT_TIMESTAMP WHERE task_id=? AND speaker_id=?",
+          )
+          .bind(
+            JSON.stringify({ fileId: context.req.param("fileId"), version }),
+            request.taskId,
+            profile.id,
+          ),
+      );
+    await db.batch(statements);
   } catch (error) {
     await context.env.FILES.delete(key);
     throw error;
@@ -477,6 +510,84 @@ router.get("/events/:eventId/files/:fileId/download", async (context) => {
     },
   });
 });
+
+router.get("/events/:eventId/files/:fileId", async (context) => {
+  const eventId = context.req.param("eventId");
+  const { db, profile } = await speakerContext(context, eventId);
+  await requireOwnedFile(db, context.req.param("fileId"), eventId, profile.id);
+  return context.json(await fileDetail(db, context.req.param("fileId")));
+});
+
+router.post(
+  "/events/:eventId/files/:fileId/comments",
+  zValidator("json", fileCommentSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const { access, db, profile } = await speakerContext(context, eventId);
+    await requireOwnedFile(
+      db,
+      context.req.param("fileId"),
+      eventId,
+      profile.id,
+    );
+    const input = context.req.valid("json");
+    const id = crypto.randomUUID();
+    await db.batch([
+      db
+        .prepare(
+          "INSERT INTO comments(id,organization_id,entity_type,entity_id,author_user_id,body) VALUES(?,?,'file',?,?,?)",
+        )
+        .bind(
+          id,
+          access.organizationId,
+          context.req.param("fileId"),
+          access.user.id,
+          input.body,
+        ),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "speaker_file.commented",
+        entityType: "file",
+        entityId: context.req.param("fileId"),
+        after: { commentId: id },
+        requestId: context.get("requestId"),
+      }),
+    ]);
+    return context.json(
+      {
+        comment: {
+          id,
+          body: input.body,
+          authorName: access.user.name,
+          createdAt: new Date().toISOString(),
+        },
+      },
+      201,
+    );
+  },
+);
+
+router.get(
+  "/events/:eventId/files/:fileId/versions/:versionId/download",
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const { db, profile } = await speakerContext(context, eventId);
+    await requireOwnedFile(
+      db,
+      context.req.param("fileId"),
+      eventId,
+      profile.id,
+    );
+    return serveFileVersion(
+      context.env,
+      db,
+      context.req.param("fileId"),
+      context.req.param("versionId"),
+    );
+  },
+);
 
 router.get("/admin/events/:eventId", async (context) => {
   const eventId = context.req.param("eventId");
@@ -550,6 +661,17 @@ router.post(
           .first<{ position: number }>()
       )?.position ?? 0,
     );
+    const fileTargets =
+      input.assignAll && input.taskType === "file_request"
+        ? await db
+            .prepare(
+              `SELECT DISTINCT ss.speaker_id AS speakerId,s.id AS submissionId
+               FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id
+               WHERE s.event_id=? AND s.status='accepted'`,
+            )
+            .bind(eventId)
+            .all<{ speakerId: string; submissionId: string }>()
+        : { results: [] };
     const statements = [
       db
         .prepare(
@@ -582,6 +704,24 @@ router.post(
             "INSERT INTO speaker_task_assignments (task_id,speaker_id) SELECT ?,sp.id FROM speaker_profiles sp JOIN session_speakers ss ON ss.speaker_id=sp.id JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=? GROUP BY sp.id ON CONFLICT (task_id,speaker_id) DO NOTHING",
           )
           .bind(id, eventId),
+      );
+    for (const target of fileTargets.results)
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO files
+             (id,organization_id,event_id,submission_id,speaker_id,task_id,purpose)
+             VALUES(?,?,?,?,?,?,?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            access.organizationId,
+            eventId,
+            target.submissionId,
+            target.speakerId,
+            id,
+            input.title,
+          ),
       );
     await db.batch(statements);
     return context.json({ task: { id, ...input, position } }, 201);
@@ -805,5 +945,157 @@ router.get("/admin/events/:eventId/files/:fileId/download", async (context) => {
     },
   });
 });
+
+router.get("/admin/events/:eventId/files/:fileId", async (context) => {
+  const eventId = context.req.param("eventId");
+  await requireEventRole(context, eventId, [...organizerRoles]);
+  const db = database(context.env);
+  const file = await db
+    .prepare("SELECT id FROM files WHERE id=? AND event_id=?")
+    .bind(context.req.param("fileId"), eventId)
+    .first();
+  if (!file) throw new HttpError(404, "file_not_found", "File not found.");
+  return context.json(await fileDetail(db, context.req.param("fileId")));
+});
+
+router.post(
+  "/admin/events/:eventId/files/:fileId/comments",
+  zValidator("json", fileCommentSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const db = database(context.env);
+    const file = await db
+      .prepare("SELECT id FROM files WHERE id=? AND event_id=?")
+      .bind(context.req.param("fileId"), eventId)
+      .first();
+    if (!file) throw new HttpError(404, "file_not_found", "File not found.");
+    const input = context.req.valid("json");
+    const id = crypto.randomUUID();
+    await db
+      .prepare(
+        "INSERT INTO comments(id,organization_id,entity_type,entity_id,author_user_id,body) VALUES(?,?,'file',?,?,?)",
+      )
+      .bind(
+        id,
+        access.organizationId,
+        context.req.param("fileId"),
+        access.user.id,
+        input.body,
+      )
+      .run();
+    return context.json(
+      {
+        comment: {
+          id,
+          body: input.body,
+          authorName: access.user.name,
+          createdAt: new Date().toISOString(),
+        },
+      },
+      201,
+    );
+  },
+);
+
+router.get(
+  "/admin/events/:eventId/files/:fileId/versions/:versionId/download",
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    await requireEventRole(context, eventId, [...organizerRoles]);
+    const db = database(context.env);
+    const file = await db
+      .prepare("SELECT id FROM files WHERE id=? AND event_id=?")
+      .bind(context.req.param("fileId"), eventId)
+      .first();
+    if (!file) throw new HttpError(404, "file_not_found", "File not found.");
+    return serveFileVersion(
+      context.env,
+      db,
+      context.req.param("fileId"),
+      context.req.param("versionId"),
+    );
+  },
+);
+
+async function requireOwnedFile(
+  db: D1Database,
+  fileId: string,
+  eventId: string,
+  speakerId: string,
+) {
+  const file = await db
+    .prepare("SELECT id FROM files WHERE id=? AND event_id=? AND speaker_id=?")
+    .bind(fileId, eventId, speakerId)
+    .first();
+  if (!file) throw new HttpError(404, "file_not_found", "File not found.");
+}
+
+async function fileDetail(db: D1Database, fileId: string) {
+  const [versions, comments] = await Promise.all([
+    db
+      .prepare(
+        `SELECT fv.id,fv.filename,fv.content_type AS contentType,fv.size_bytes AS sizeBytes,
+                fv.sha256,fv.version_number AS versionNumber,fv.created_at AS createdAt,
+                u.name AS uploadedByName,
+                CASE WHEN f.current_version_id=fv.id THEN 1 ELSE 0 END AS isCurrent
+         FROM file_versions fv JOIN files f ON f.id=fv.file_id JOIN users u ON u.id=fv.uploaded_by
+         WHERE fv.file_id=? ORDER BY fv.version_number DESC`,
+      )
+      .bind(fileId)
+      .all(),
+    db
+      .prepare(
+        `SELECT c.id,c.body,c.created_at AS createdAt,c.edited_at AS editedAt,u.name AS authorName
+         FROM comments c JOIN users u ON u.id=c.author_user_id
+         WHERE c.entity_type='file' AND c.entity_id=? AND c.deleted_at IS NULL
+         ORDER BY c.created_at`,
+      )
+      .bind(fileId)
+      .all(),
+  ]);
+  return {
+    versions: versions.results.map((version: Record<string, unknown>) => ({
+      ...version,
+      isCurrent: Boolean(version.isCurrent),
+    })),
+    comments: comments.results,
+  };
+}
+
+async function serveFileVersion(
+  env: Env,
+  db: D1Database,
+  fileId: string,
+  versionId: string,
+) {
+  if (!env.FILES)
+    throw new HttpError(
+      503,
+      "storage_unavailable",
+      "File storage is unavailable.",
+    );
+  const version = await db
+    .prepare(
+      "SELECT r2_key AS r2Key,filename,content_type AS contentType FROM file_versions WHERE id=? AND file_id=?",
+    )
+    .bind(versionId, fileId)
+    .first<{ r2Key: string; filename: string; contentType: string }>();
+  if (!version)
+    throw new HttpError(404, "version_not_found", "File version not found.");
+  const object = await env.FILES.get(version.r2Key);
+  if (!object)
+    throw new HttpError(404, "file_not_found", "Stored file not found.");
+  return new Response(object.body, {
+    headers: {
+      "content-type": version.contentType,
+      "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(version.filename)}`,
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
 
 export default router;

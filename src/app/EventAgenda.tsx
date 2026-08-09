@@ -5,6 +5,7 @@ import {
   Clock3,
   Code2,
   FileInput,
+  Files,
   Inbox,
   LoaderCircle,
   MapPin,
@@ -118,6 +119,9 @@ function EventChrome({
           </a>
           <a href={`/app/events/${eventId}/speakers`}>
             <UsersRound size={18} /> Speakers
+          </a>
+          <a href={`/app/events/${eventId}/content`}>
+            <Files size={18} /> Content
           </a>
           <a className="active" href={`/app/events/${eventId}/agenda`}>
             <CalendarClock size={18} /> Agenda
