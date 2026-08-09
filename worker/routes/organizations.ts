@@ -4,6 +4,8 @@ import { z } from "zod";
 import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, normalizeSlug, requireOrganizationRole, requireUser } from "../lib/authz";
+import { randomToken, sha256 } from "../lib/crypto";
+import { sendInvitation } from "../lib/email";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -26,6 +28,14 @@ const eventSchema = z.object({
 }).superRefine((value, context) => {
   if (new Date(value.endsAt) <= new Date(value.startsAt)) context.addIssue({ code: "custom", path: ["endsAt"], message: "End time must be after start time." });
   try { new Intl.DateTimeFormat("en-US", { timeZone: value.timezone }); } catch { context.addIssue({ code: "custom", path: ["timezone"], message: "Choose a valid IANA timezone." }); }
+});
+
+const invitationSchema = z.object({
+  email: z.email().transform((email) => email.trim().toLowerCase()),
+  role: z.enum(["admin", "reviewer", "speaker"]),
+  eventId: z.string().uuid().optional(),
+}).superRefine((value, context) => {
+  if ((value.role === "reviewer" || value.role === "speaker") && !value.eventId) context.addIssue({ code: "custom", path: ["eventId"], message: "Choose an event for reviewer and speaker invitations." });
 });
 
 router.get("/", async (context) => {
@@ -93,6 +103,72 @@ router.post("/:organizationId/events", zValidator("json", eventSchema), async (c
     auditStatement(db, { organizationId, eventId: id, actorUserId: user.id, action: "event.created", entityType: "event", entityId: id, after: event, requestId: context.get("requestId") }),
   ]);
   return context.json({ event }, 201);
+});
+
+router.get("/:organizationId/members", async (context) => {
+  const organizationId = context.req.param("organizationId");
+  await requireOrganizationRole(context, organizationId, ["owner", "admin"]);
+  const db = database(context.env);
+  const members = await db.prepare(
+    `SELECT u.id, u.email, u.name, om.role AS organizationRole, om.created_at AS joinedAt
+     FROM organization_members om JOIN users u ON u.id = om.user_id
+     WHERE om.organization_id = ? ORDER BY u.name COLLATE NOCASE`,
+  ).bind(organizationId).all();
+  const eventRoles = await db.prepare(
+    `SELECT em.user_id AS userId, em.event_id AS eventId, e.name AS eventName, em.role
+     FROM event_members em JOIN events e ON e.id = em.event_id
+     WHERE e.organization_id = ? ORDER BY e.starts_at, e.name`,
+  ).bind(organizationId).all();
+  const invitations = await db.prepare(
+    `SELECT i.id, i.email, i.role, i.event_id AS eventId, e.name AS eventName, i.expires_at AS expiresAt, i.created_at AS createdAt
+     FROM invitations i LEFT JOIN events e ON e.id = i.event_id
+     WHERE i.organization_id = ? AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > ?
+     ORDER BY i.created_at DESC`,
+  ).bind(organizationId, new Date().toISOString()).all();
+  return context.json({ members: members.results, eventRoles: eventRoles.results, invitations: invitations.results });
+});
+
+router.post("/:organizationId/invitations", zValidator("json", invitationSchema), async (context) => {
+  const organizationId = context.req.param("organizationId");
+  const { user } = await requireOrganizationRole(context, organizationId, ["owner", "admin"]);
+  const input = context.req.valid("json");
+  const db = database(context.env);
+  const organization = await db.prepare("SELECT name FROM organizations WHERE id = ?").bind(organizationId).first<{ name: string }>();
+  if (!organization) throw new HttpError(404, "organization_not_found", "Organization not found.");
+  let eventName: string | undefined;
+  if (input.eventId) {
+    const event = await db.prepare("SELECT name FROM events WHERE id = ? AND organization_id = ?").bind(input.eventId, organizationId).first<{ name: string }>();
+    if (!event) throw new HttpError(404, "event_not_found", "Event not found.");
+    eventName = event.name;
+  }
+  const existingUser = await db.prepare("SELECT id FROM users WHERE email = ? COLLATE NOCASE").bind(input.email).first<{ id: string }>();
+  if (existingUser) {
+    if (input.role === "admin") {
+      const membership = await db.prepare("SELECT role FROM organization_members WHERE organization_id = ? AND user_id = ?").bind(organizationId, existingUser.id).first();
+      if (membership) throw new HttpError(409, "already_member", "This person already belongs to the workspace.");
+    } else {
+      const membership = await db.prepare("SELECT role FROM event_members WHERE event_id = ? AND user_id = ? AND role = ?").bind(input.eventId, existingUser.id, input.role).first();
+      if (membership) throw new HttpError(409, "already_member", `This person is already a ${input.role} for the event.`);
+    }
+  }
+  const id = crypto.randomUUID();
+  const rawToken = randomToken();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString();
+  await db.batch([
+    db.prepare("UPDATE invitations SET revoked_at = ? WHERE organization_id = ? AND email = ? COLLATE NOCASE AND role = ? AND COALESCE(event_id, '') = COALESCE(?, '') AND accepted_at IS NULL AND revoked_at IS NULL")
+      .bind(new Date().toISOString(), organizationId, input.email, input.role, input.eventId ?? null),
+    db.prepare("INSERT INTO invitations (id, organization_id, event_id, email, role, token_hash, invited_by, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(id, organizationId, input.eventId ?? null, input.email, input.role, await sha256(rawToken), user.id, expiresAt),
+  ]);
+  const inviteLink = `${context.env.APP_URL}/invite#token=${encodeURIComponent(rawToken)}`;
+  try {
+    await sendInvitation(context.env, { email: input.email, inviterName: user.name, organizationName: organization.name, eventName, role: input.role, inviteLink });
+  } catch (error) {
+    await db.prepare("UPDATE invitations SET revoked_at = ? WHERE id = ?").bind(new Date().toISOString(), id).run();
+    throw error;
+  }
+  await auditStatement(db, { organizationId, eventId: input.eventId, actorUserId: user.id, action: "invitation.sent", entityType: "invitation", entityId: id, after: { email: input.email, role: input.role, eventId: input.eventId, expiresAt }, requestId: context.get("requestId") }).run();
+  return context.json({ invitation: { id, email: input.email, role: input.role, eventId: input.eventId ?? null, eventName: eventName ?? null, expiresAt } }, 201);
 });
 
 export default router;

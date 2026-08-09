@@ -3,6 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env";
+import { auditStatement } from "../lib/audit";
 import { randomToken, sha256 } from "../lib/crypto";
 import { sendMagicLink } from "../lib/email";
 import { verifyTurnstile } from "../lib/turnstile";
@@ -16,6 +17,9 @@ const requestSchema = z.object({
   mode: z.enum(["login", "register"]),
   turnstileToken: z.string().optional(),
 });
+
+const invitationTokenSchema = z.object({ token: z.string().min(32).max(200) });
+const acceptInvitationSchema = invitationTokenSchema.extend({ name: z.string().trim().min(2).max(120).optional() });
 
 router.post("/request", zValidator("json", requestSchema), async (context) => {
   const db = requireDatabase(context.env);
@@ -110,6 +114,43 @@ router.get("/session", async (context) => {
   return context.json({ user: user ?? null });
 });
 
+router.post("/invitations/preview", zValidator("json", invitationTokenSchema), async (context) => {
+  const db = requireDatabase(context.env);
+  const { token } = context.req.valid("json");
+  const invitation = await findInvitation(db, token);
+  if (!invitation) return context.json({ error: { code: "invalid_invitation", message: "This invitation is invalid or has expired." } }, 404);
+  const existingUser = await db.prepare("SELECT id FROM users WHERE email = ? COLLATE NOCASE").bind(invitation.email).first();
+  return context.json({ invitation: { email: invitation.email, role: invitation.role, organizationName: invitation.organizationName, eventName: invitation.eventName, expiresAt: invitation.expiresAt, needsName: !existingUser } });
+});
+
+router.post("/invitations/accept", zValidator("json", acceptInvitationSchema), async (context) => {
+  const db = requireDatabase(context.env);
+  const { token, name } = context.req.valid("json");
+  const invitation = await findInvitation(db, token);
+  if (!invitation) return context.json({ error: { code: "invalid_invitation", message: "This invitation is invalid or has expired." } }, 404);
+  let user = await db.prepare("SELECT id, email, name FROM users WHERE email = ? COLLATE NOCASE").bind(invitation.email).first<{ id: string; email: string; name: string }>();
+  if (!user && !name) return context.json({ error: { code: "name_required", message: "Enter your full name to accept this invitation." } }, 400);
+  const now = new Date().toISOString();
+  const statements: D1PreparedStatement[] = [];
+  if (!user) {
+    user = { id: crypto.randomUUID(), email: invitation.email, name: name! };
+    statements.push(db.prepare("INSERT INTO users (id, email, name, email_verified_at) VALUES (?, ?, ?, ?)").bind(user.id, user.email, user.name, now));
+  }
+  const organizationRole = invitation.role === "admin" ? "admin" : "member";
+  statements.push(db.prepare("INSERT INTO organization_members (organization_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT (organization_id, user_id) DO NOTHING").bind(invitation.organizationId, user.id, organizationRole));
+  if (invitation.eventId) statements.push(db.prepare("INSERT INTO event_members (event_id, user_id, role, invited_by) VALUES (?, ?, ?, ?) ON CONFLICT (event_id, user_id, role) DO NOTHING").bind(invitation.eventId, user.id, invitation.role, invitation.invitedBy));
+  const sessionToken = randomToken();
+  const sessionExpires = new Date(Date.now() + 30 * 24 * 60 * 60_000);
+  statements.push(
+    db.prepare("UPDATE invitations SET accepted_at = ? WHERE id = ? AND accepted_at IS NULL AND revoked_at IS NULL").bind(now, invitation.id),
+    db.prepare("INSERT INTO auth_sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)").bind(crypto.randomUUID(), user.id, await sha256(sessionToken), sessionExpires.toISOString()),
+    auditStatement(db, { organizationId: invitation.organizationId, eventId: invitation.eventId ?? undefined, actorUserId: user.id, action: "invitation.accepted", entityType: "invitation", entityId: invitation.id, after: { role: invitation.role }, requestId: context.get("requestId") }),
+  );
+  await db.batch(statements);
+  setCookie(context, "programloom_session", sessionToken, { httpOnly: true, secure: context.env.APP_ENV === "production", sameSite: "Lax", path: "/", expires: sessionExpires });
+  return context.json({ ok: true, redirectTo: "/app", user });
+});
+
 router.post("/logout", async (context) => {
   const db = requireDatabase(context.env);
   const token = getCookie(context, "programloom_session");
@@ -121,6 +162,30 @@ router.post("/logout", async (context) => {
 function requireDatabase(env: Env): D1Database {
   if (!env.DB) throw new Error("Database binding is unavailable.");
   return env.DB;
+}
+
+type InvitationRecord = {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  eventId: string | null;
+  eventName: string | null;
+  email: string;
+  role: "admin" | "reviewer" | "speaker";
+  invitedBy: string;
+  expiresAt: string;
+};
+
+async function findInvitation(db: D1Database, rawToken: string): Promise<InvitationRecord | null> {
+  return db.prepare(
+    `SELECT i.id, i.organization_id AS organizationId, o.name AS organizationName,
+            i.event_id AS eventId, e.name AS eventName, i.email, i.role,
+            i.invited_by AS invitedBy, i.expires_at AS expiresAt
+     FROM invitations i
+     JOIN organizations o ON o.id = i.organization_id
+     LEFT JOIN events e ON e.id = i.event_id
+     WHERE i.token_hash = ? AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > ?`,
+  ).bind(await sha256(rawToken), new Date().toISOString()).first<InvitationRecord>();
 }
 
 export default router;

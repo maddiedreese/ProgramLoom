@@ -7,6 +7,15 @@ type MagicLinkMessage = {
   purpose: "login" | "register" | "invite";
 };
 
+type InvitationMessage = {
+  email: string;
+  inviterName: string;
+  organizationName: string;
+  eventName?: string;
+  role: "admin" | "reviewer" | "speaker";
+  inviteLink: string;
+};
+
 export async function sendMagicLink(env: Env, message: MagicLinkMessage): Promise<void> {
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM) throw new Error("Transactional email is not configured.");
 
@@ -36,6 +45,33 @@ export async function sendMagicLink(env: Env, message: MagicLinkMessage): Promis
   }
 }
 
+export async function sendInvitation(env: Env, message: InvitationMessage): Promise<void> {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) throw new Error("Transactional email is not configured.");
+  const scope = message.eventName ? `${message.eventName} in ${message.organizationName}` : message.organizationName;
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "content-type": "application/json",
+      "idempotency-key": `invite/${await stableMessageKey(message.email, message.inviteLink)}`,
+    },
+    body: JSON.stringify({
+      from: env.EMAIL_FROM,
+      to: [message.email],
+      reply_to: env.EMAIL_REPLY_TO,
+      subject: `${message.inviterName} invited you to ${scope}`,
+      html: renderInvitationHtml(message),
+      text: `${message.inviterName} invited you to join ${scope} as a ${message.role}. Accept the invitation: ${message.inviteLink}\n\nThe link expires in 7 days and can be used once.`,
+      tags: [{ name: "message_type", value: "team_invitation" }],
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error(JSON.stringify({ level: "error", service: "resend", status: response.status, detail: detail.slice(0, 500) }));
+    throw new Error("The invitation email could not be sent.");
+  }
+}
+
 async function stableMessageKey(email: string, link: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${email}|${link}`));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -44,6 +80,11 @@ async function stableMessageKey(email: string, link: string): Promise<string> {
 function renderMagicLinkHtml(name: string | undefined, action: string, link: string): string {
   const greeting = name ? `Hi ${escapeHtml(name)},` : "Hello,";
   return `<!doctype html><html><body style="margin:0;background:#f4f1e8;color:#20241f;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:40px 24px"><div style="font-size:20px;font-weight:700;margin-bottom:34px">ProgramLoom</div><div style="background:#fffdf6;border:1px solid #d9d5ca;border-radius:14px;padding:32px"><p>${greeting}</p><p>Use the button below to ${escapeHtml(action)}.</p><p style="margin:28px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:#315c45;color:white;text-decoration:none;padding:14px 18px;border-radius:8px;font-weight:700">Continue to ProgramLoom</a></p><p style="font-size:13px;color:#63675f">This link expires in 15 minutes and can be used once. If you did not request it, you can safely ignore this email.</p></div></div></body></html>`;
+}
+
+function renderInvitationHtml(message: InvitationMessage): string {
+  const scope = message.eventName ? `${escapeHtml(message.eventName)} in ${escapeHtml(message.organizationName)}` : escapeHtml(message.organizationName);
+  return `<!doctype html><html><body style="margin:0;background:#f4f1e8;color:#20241f;font-family:Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:40px 24px"><div style="font-size:20px;font-weight:700;margin-bottom:34px">ProgramLoom</div><div style="background:#fffdf6;border:1px solid #d9d5ca;border-radius:14px;padding:32px"><p>Hello,</p><p><strong>${escapeHtml(message.inviterName)}</strong> invited you to join ${scope} as a <strong>${escapeHtml(message.role)}</strong>.</p><p style="margin:28px 0"><a href="${escapeHtml(message.inviteLink)}" style="display:inline-block;background:#315c45;color:white;text-decoration:none;padding:14px 18px;border-radius:8px;font-weight:700">Accept invitation</a></p><p style="font-size:13px;color:#63675f">This link expires in 7 days and can be used once. If you were not expecting this invitation, you can ignore it.</p></div></div></body></html>`;
 }
 
 function escapeHtml(value: string): string {

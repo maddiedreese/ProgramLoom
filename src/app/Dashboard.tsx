@@ -1,4 +1,4 @@
-import { ArrowRight, Building2, CalendarDays, CheckCircle2, LoaderCircle, Plus } from "lucide-react";
+import { ArrowRight, Building2, CalendarDays, CheckCircle2, LoaderCircle, Plus, UsersRound } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 type User = { id: string; email: string; name: string };
@@ -94,6 +94,7 @@ export function Dashboard({ user }: { user: User }) {
         </div>
         <nav className="app-nav" aria-label="Workspace">
           <a className="active" href="/app"><CalendarDays size={18} /> Events</a>
+          <a href="/app/team"><UsersRound size={18} /> Team</a>
           <span aria-disabled="true"><Building2 size={18} /> Speaker CRM <small>Soon</small></span>
         </nav>
         <div className="sidebar-user"><span>{user.name}</span><small>{user.email}</small></div>

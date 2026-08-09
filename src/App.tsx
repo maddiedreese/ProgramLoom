@@ -3,6 +3,8 @@ import { ArrowRight, CalendarRange, Check, GalleryVerticalEnd, Sparkles, UsersRo
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { Dashboard } from "./app/Dashboard";
+import { InvitePage } from "./app/InvitePage";
+import { TeamPage } from "./app/TeamPage";
 
 const capabilities = [
   { icon: GalleryVerticalEnd, title: "Shape the program", body: "Collect proposals with conditional forms, route reviews, and make decisions with confidence." },
@@ -135,7 +137,7 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
 
 type SessionUser = { id: string; email: string; name: string };
 
-function AppHome() {
+function AuthenticatedPage({ page }: { page: "dashboard" | "team" }) {
   const [session, setSession] = useState<{ loading: boolean; user: SessionUser | null }>({ loading: true, user: null });
   useEffect(() => {
     fetch("/api/auth/session", { credentials: "same-origin" })
@@ -145,9 +147,9 @@ function AppHome() {
   }, []);
   if (session.loading) return <main id="main-content" className="loading-page" aria-busy="true">Loading your workspace…</main>;
   if (!session.user) return <Navigate to="/login" replace />;
-  return <Dashboard user={session.user} />;
+  return page === "team" ? <TeamPage user={session.user} /> : <Dashboard user={session.user} />;
 }
 
 export function App() {
-  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/app" element={<AppHome />} /><Route path="*" element={<MarketingPage />} /></Routes>;
+  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/invite" element={<InvitePage />} /><Route path="/app" element={<AuthenticatedPage page="dashboard" />} /><Route path="/app/team" element={<AuthenticatedPage page="team" />} /><Route path="*" element={<MarketingPage />} /></Routes>;
 }
