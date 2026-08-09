@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { SidebarUser } from "./SidebarUser";
+import {
+  EventTemplateStudio,
+  SaveEventTemplateButton,
+} from "./EventTemplateStudio";
 
 type User = { id: string; email: string; name: string };
 type Organization = {
@@ -171,58 +175,6 @@ export function Dashboard({ user }: { user: User }) {
           error instanceof Error
             ? error.message
             : "Could not create the workspace.",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function createEvent(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    if (!selectedId) return;
-    setSubmitting(true);
-    setFeedback(undefined);
-    const form = new FormData(formElement);
-    try {
-      const { event: created } = await api<{ event: EventRecord }>(
-        `/api/organizations/${selectedId}/events`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            name: form.get("name"),
-            eventType: form.get("eventType"),
-            venueName: form.get("venueName"),
-            websiteUrl: form.get("websiteUrl"),
-            timezone: form.get("timezone"),
-            startsAt: new Date(String(form.get("startsAt"))).toISOString(),
-            endsAt: new Date(String(form.get("endsAt"))).toISOString(),
-          }),
-        },
-      );
-      setEvents((current) => [...current, created]);
-      setOrganizations((current) =>
-        current.map((organization) =>
-          organization.id === selectedId
-            ? {
-                ...organization,
-                eventCount: Number(organization.eventCount) + 1,
-              }
-            : organization,
-        ),
-      );
-      formElement.reset();
-      setFeedback({
-        kind: "success",
-        message: `${created.name} was created as a draft.`,
-      });
-    } catch (error) {
-      setFeedback({
-        kind: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Could not create the event.",
       });
     } finally {
       setSubmitting(false);
@@ -409,7 +361,12 @@ export function Dashboard({ user }: { user: User }) {
             </div>
             <div className="event-grid">
               {events.map((item) => (
-                <article className="event-card" key={item.id}>
+                <article
+                  className="event-card"
+                  key={item.id}
+                  id={`event-${item.id}`}
+                  tabIndex={-1}
+                >
                   <div className="event-status">{item.status}</div>
                   <h3>{item.name}</h3>
                   <p>
@@ -427,6 +384,12 @@ export function Dashboard({ user }: { user: User }) {
                   <a href={`/app/events/${item.id}`}>
                     Open program <ArrowRight size={15} />
                   </a>
+                  {selected && ["owner", "admin"].includes(selected.role) && (
+                    <SaveEventTemplateButton
+                      eventId={item.id}
+                      eventName={item.name}
+                    />
+                  )}
                 </article>
               ))}
             </div>
@@ -451,58 +414,32 @@ export function Dashboard({ user }: { user: User }) {
               {events.length ? "Add another" : "Step 2 of 2"}
             </div>
             <h2 id="new-event-title">Create an event</h2>
-            <form className="event-form" onSubmit={createEvent}>
-              <label className="wide">
-                Event name
-                <input name="name" placeholder="DevFlow Conf 2027" required />
-              </label>
-              <label>
-                Type
-                <select name="eventType" defaultValue="conference">
-                  <option value="conference">Conference</option>
-                  <option value="summit">Summit</option>
-                  <option value="festival">Festival</option>
-                  <option value="internal">Internal program</option>
-                </select>
-              </label>
-              <label>
-                Timezone
-                <input
-                  name="timezone"
-                  defaultValue={
-                    Intl.DateTimeFormat().resolvedOptions().timeZone
-                  }
-                  required
-                />
-              </label>
-              <label>
-                Starts
-                <input type="datetime-local" name="startsAt" required />
-              </label>
-              <label>
-                Ends
-                <input type="datetime-local" name="endsAt" required />
-              </label>
-              <label>
-                Venue
-                <input name="venueName" placeholder="Moscone West" />
-              </label>
-              <label>
-                Website
-                <input
-                  type="url"
-                  name="websiteUrl"
-                  placeholder="https://example.com"
-                />
-              </label>
-              <button
-                className="button button-large wide"
-                disabled={submitting}
-              >
-                {submitting ? "Creating event…" : "Create draft event"}
-                <ArrowRight size={18} />
-              </button>
-            </form>
+            <p>
+              Start from a maintained template, an organization template, or a
+              prior event. You will review exactly what is copied before the
+              draft is created.
+            </p>
+            <EventTemplateStudio
+              organizationId={selected.id}
+              events={events}
+              onCreated={(created) => {
+                setEvents((current) => [...current, created]);
+                setOrganizations((current) =>
+                  current.map((organization) =>
+                    organization.id === selected.id
+                      ? {
+                          ...organization,
+                          eventCount: Number(organization.eventCount) + 1,
+                        }
+                      : organization,
+                  ),
+                );
+                setFeedback({
+                  kind: "success",
+                  message: `${created.name} was created as a draft from reusable configuration.`,
+                });
+              }}
+            />
           </section>
         )}
       </main>

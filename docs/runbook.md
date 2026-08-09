@@ -70,4 +70,7 @@ The authoritative upstream kit is `swyx/killmysaas-evals` at the commit recorded
 3. Run its free browser smoke and `--dry-run --include-optional` first.
 4. With explicit approval for Anthropic usage, run all areas in order with optional scope included. Preserve the run directory and use resume rather than restarting an interrupted run.
 5. Complete the generated manual checklist with real mailbox, ICS/calendar, ZIP, and second-account evidence; then finalize the report.
-6. Record only nonsensitive results and artifact paths in the evaluation matrix. Revoke evaluator sessions after submission.
+
+## Event template recovery
+
+Event creation from reusable configuration is synchronous and records an `event_creation_operations` row. A successful operation links the new event and source provenance. A failed operation must have a null target event, a failure code, and no event with its `creation_operation_id`; this proves cleanup completed. Investigate the correlated `event_templates` structured log, fix the configuration or service problem, and create again from a fresh preview. Never manually reuse copied external IDs. 6. Record only nonsensitive results and artifact paths in the evaluation matrix. Revoke evaluator sessions after submission.

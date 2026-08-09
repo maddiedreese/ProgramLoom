@@ -1077,6 +1077,127 @@ input {
 .event-form .wide {
   grid-column: 1 / -1;
 }
+
+.event-template-studio {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.event-template-studio .wide {
+  grid-column: 1 / -1;
+}
+
+.event-template-source {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper-subtle, #f8faf8);
+}
+
+.event-template-source small {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--muted);
+}
+
+.template-domains {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.template-domains legend {
+  padding: 0 0.35rem;
+  font-weight: 700;
+}
+
+.template-domains > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+}
+
+.duplication-preview {
+  padding: 1.1rem;
+  border: 2px solid var(--forest, #315c45);
+  border-radius: 14px;
+  background: #f8fcf9;
+}
+
+.duplication-preview h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0;
+}
+
+.preview-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.preview-counts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.save-template-control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+
+.save-template-control .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.modal-card {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border-radius: 16px;
+  background: var(--cream, #fffdf7);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+}
+
+.modal-card > h2 {
+  margin-top: 0;
+}
+
+.modal-card > form {
+  display: grid;
+  gap: 1rem;
+}
+
+.template-domains.compact > div {
+  max-height: 230px;
+  overflow-y: auto;
+}
+
+@media (max-width: 700px) {
+  .event-template-studio,
+  .template-domains > div,
+  .preview-counts {
+    grid-template-columns: 1fr;
+  }
+
+  .event-template-studio .wide {
+    grid-column: auto;
+  }
+}
 .content-heading {
   display: flex;
   justify-content: space-between;

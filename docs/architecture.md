@@ -27,6 +27,8 @@ The Organizer Control Room is a live, event-scoped projection rather than a sepa
 
 Issue ownership is the only Control Room-specific durable state. Resolving an item changes its authoritative domain record, so it disappears on the next automatic or explicit refresh. Owner changes and supported resolution actions retain before/after audit history. Review and schedule conflicts also synchronize to Airtable in Airtable-authoritative workspaces; delivery attempts, Queue state, audit history, and Control Room ownership remain operational D1 records.
 
+Reusable event configuration is represented by event-scoped program settings and immutable template snapshots. Materialization regenerates every internal and public identifier and translates deadlines relative to the new event start. A durable creation operation records source, selected domains, warnings, and provenance. Large copies use bounded D1 batches; any failure cascade-removes the new event and its audit rows before the operation is retained as failed. Operational, historical, personal, file, calendar, integration-secret, and external-ID tables are outside the snapshot boundary by construction.
+
 ## Trust boundaries
 
 - Organizer registration is public and protected by verified email and Turnstile.

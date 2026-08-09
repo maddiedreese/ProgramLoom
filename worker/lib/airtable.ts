@@ -6,6 +6,9 @@ const supportedEntityTypes = [
   "event",
   "cfp_form",
   "form_field",
+  "event_template",
+  "event_program_settings",
+  "crm_field",
   "submission",
   "submission_tag",
   "speaker",
@@ -335,7 +338,9 @@ async function projectEntity(
     case "event": {
       const row = await db
         .prepare(
-          "SELECT organization_id AS organizationId,name,slug,timezone,starts_at AS startsAt,ends_at AS endsAt,venue_name AS venue,status,updated_at AS updatedAt FROM events WHERE id=?",
+          `SELECT organization_id AS organizationId,name,slug,timezone,starts_at AS startsAt,ends_at AS endsAt,
+           venue_name AS venue,status,source_event_id AS sourceEventId,source_template_id AS sourceTemplateId,
+           creation_operation_id AS creationOperationId,updated_at AS updatedAt FROM events WHERE id=?`,
         )
         .bind(entityId)
         .first<Record<string, unknown>>();
@@ -348,6 +353,9 @@ async function projectEntity(
             "Starts At": normalizeDate(row.startsAt),
             "Ends At": normalizeDate(row.endsAt),
             Venue: row.venue,
+            "Source Event ID": row.sourceEventId,
+            "Source Template ID": row.sourceTemplateId,
+            "Creation Operation ID": row.creationOperationId,
             Status: row.status,
             "Updated At": normalizeDate(row.updatedAt),
           })
@@ -402,6 +410,71 @@ async function projectEntity(
             Searchable: Boolean(row.searchable),
             "Options JSON": row.optionsJson,
             "Validation JSON": row.validationJson,
+            Position: row.position,
+          })
+        : null;
+    }
+    case "event_template": {
+      const row = await db
+        .prepare(
+          `SELECT organization_id AS organizationId,source_event_id AS sourceEventId,name,slug,description,
+           version,domains_json AS domainsJson,configuration_json AS configurationJson,updated_at AS updatedAt
+           FROM event_templates WHERE id=?`,
+        )
+        .bind(entityId)
+        .first<Record<string, unknown>>();
+      return row
+        ? projection("PL Event Templates", {
+            "Organization ID": row.organizationId,
+            "Source Event ID": row.sourceEventId,
+            Name: row.name,
+            Slug: row.slug,
+            Description: row.description,
+            Version: row.version,
+            "Domains JSON": row.domainsJson,
+            "Configuration JSON": row.configurationJson,
+            "Updated At": normalizeDate(row.updatedAt),
+          })
+        : null;
+    }
+    case "event_program_settings": {
+      const row = await db
+        .prepare(
+          `SELECT event_id AS eventId,reviewer_routing_json AS reviewerRoutingJson,
+           reminder_rules_json AS reminderRulesJson,locations_json AS locationsJson,
+           formats_json AS formatsJson,content_workflow_json AS contentWorkflowJson,
+           crm_handoff_defaults_json AS crmHandoffDefaultsJson,updated_at AS updatedAt
+           FROM event_program_settings WHERE event_id=?`,
+        )
+        .bind(entityId)
+        .first<Record<string, unknown>>();
+      return row
+        ? projection("PL Event Program Settings", {
+            "Event ID": row.eventId,
+            "Reviewer Routing JSON": row.reviewerRoutingJson,
+            "Reminder Rules JSON": row.reminderRulesJson,
+            "Locations JSON": row.locationsJson,
+            "Formats JSON": row.formatsJson,
+            "Content Workflow JSON": row.contentWorkflowJson,
+            "CRM Handoff Defaults JSON": row.crmHandoffDefaultsJson,
+            "Updated At": normalizeDate(row.updatedAt),
+          })
+        : null;
+    }
+    case "crm_field": {
+      const row = await db
+        .prepare(
+          `SELECT organization_id AS organizationId,name,field_type AS fieldType,
+           options_json AS optionsJson,position FROM crm_fields WHERE id=?`,
+        )
+        .bind(entityId)
+        .first<Record<string, unknown>>();
+      return row
+        ? projection("PL CRM Fields", {
+            "Organization ID": row.organizationId,
+            Name: row.name,
+            Type: row.fieldType,
+            "Options JSON": row.optionsJson,
             Position: row.position,
           })
         : null;
@@ -1223,6 +1296,9 @@ function tableForEntity(entityType: SupportedEntity) {
     event: "PL Events",
     cfp_form: "PL CFP Forms",
     form_field: "PL Form Fields",
+    event_template: "PL Event Templates",
+    event_program_settings: "PL Event Program Settings",
+    crm_field: "PL CRM Fields",
     submission: "PL Submissions",
     submission_tag: "PL Submission Tags",
     speaker: "PL Speakers",
