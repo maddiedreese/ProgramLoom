@@ -5,6 +5,7 @@ import { sha256 } from "./crypto";
 
 export type AuthenticatedUser = { id: string; email: string; name: string };
 export type OrganizationRole = "owner" | "admin" | "member";
+export type EventRole = "owner" | "admin" | "reviewer" | "speaker";
 
 type AppContext = Context<{ Bindings: Env; Variables: { requestId: string } }>;
 
@@ -43,6 +44,31 @@ export async function requireOrganizationRole(
   if (!membership) throw new HttpError(404, "organization_not_found", "Organization not found.");
   if (!allowed.includes(membership.role)) throw new HttpError(403, "permission_denied", "You do not have permission to do that.");
   return { user, role: membership.role };
+}
+
+export async function requireEventRole(
+  context: AppContext,
+  eventId: string,
+  allowed: EventRole[],
+): Promise<{ user: AuthenticatedUser; role: EventRole; organizationId: string }> {
+  const user = await requireUser(context);
+  const membership = await database(context.env).prepare(
+    `SELECT e.organization_id AS organizationId,
+            CASE
+              WHEN om.role = 'owner' THEN 'owner'
+              WHEN om.role = 'admin' THEN 'admin'
+              ELSE em.role
+            END AS role
+     FROM events e
+     LEFT JOIN organization_members om ON om.organization_id = e.organization_id AND om.user_id = ?
+     LEFT JOIN event_members em ON em.event_id = e.id AND em.user_id = ?
+     WHERE e.id = ? AND (om.role IN ('owner', 'admin') OR em.role IS NOT NULL)
+     ORDER BY CASE WHEN om.role IN ('owner', 'admin') THEN 0 ELSE 1 END
+     LIMIT 1`,
+  ).bind(user.id, user.id, eventId).first<{ organizationId: string; role: EventRole }>();
+  if (!membership) throw new HttpError(404, "event_not_found", "Event not found.");
+  if (!allowed.includes(membership.role)) throw new HttpError(403, "permission_denied", "You do not have permission to do that.");
+  return { user, role: membership.role, organizationId: membership.organizationId };
 }
 
 export function normalizeSlug(value: string): string {

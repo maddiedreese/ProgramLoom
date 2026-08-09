@@ -27,4 +27,10 @@ describe("ProgramLoom Worker", () => {
     const response = await app.request("/register", {}, env);
     expect(await response.text()).toBe("asset");
   });
+
+  it("protects event workspace routes before database access", async () => {
+    const response = await app.request("/api/events/00000000-0000-4000-8000-000000000003", {}, env);
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: "authentication_required" } });
+  });
 });

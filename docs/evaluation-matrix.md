@@ -4,7 +4,7 @@ This file is the delivery ledger for the 96-item Kill My SaaS evaluator. Criteri
 
 | Area | Criterion IDs | Count | Current state | Required evidence |
 |---|---:|---:|---|---|
-| Call for papers | CFP-01–CFP-16 | 16 | Planned | Form CRUD, anonymous submit, draft/edit/deadline rules, reviewer isolation, decisions, delivery evidence |
+| Call for papers | CFP-01–CFP-16 | 16 | In progress: organizer form builder implemented and runtime-tested | Anonymous submit, draft/edit/deadline enforcement, reviewer isolation, decisions, delivery evidence |
 | Abstract management | ABS-01–ABS-14 | 14 | Planned | Two-round scoring, assignment/scoping, blind review, COI, aggregate/export, AI override evidence |
 | Speaker management | SPK-01–SPK-16 | 16 | Planned | Roster/import, portal scoping, profiles, tasks, files, email/logistics, handoff evidence |
 | Content management | CNT-01–CNT-14 | 14 | Planned | Requests, uploads, versions, comments, constraints, approval, history, ZIP evidence |
@@ -22,3 +22,11 @@ This file is the delivery ledger for the 96-item Kill My SaaS evaluator. Criteri
 - **Complete:** all evidence above exists, including any human-only mailbox, calendar, file, or multi-browser protocol.
 
 The detailed row-level ledger will be populated from the evaluator YAML before module implementation begins. Ordered scenario execution must follow CFP → abstract management → speaker management → content → agenda → embeds, preserving generated state between areas. CRM is then run as required extra scope.
+
+## CFP implementation evidence
+
+- Event access resolves organization owners/admins and scoped event roles server-side.
+- Organizer APIs support form create/read/update/delete, protected deletion, publish/unpublish, field create/update/delete, tracks, and conditional rules.
+- Select options and conditional values round-trip as structured JSON; forms require a field and a valid future deadline, when configured, before publication.
+- The organizer UI exposes field types, required flags, sections, options, deadlines, draft policy, submission limits, confirmation messaging, and conditional show/hide/require rules.
+- Local Worker + D1 runtime protocol verified authenticated create → fields → conditional rule → publish → read-back on 2026-08-09. This is development evidence, not production-complete evaluator evidence.

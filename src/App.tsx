@@ -5,6 +5,7 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { Dashboard } from "./app/Dashboard";
 import { InvitePage } from "./app/InvitePage";
 import { TeamPage } from "./app/TeamPage";
+import { EventWorkspace } from "./app/EventWorkspace";
 
 const capabilities = [
   { icon: GalleryVerticalEnd, title: "Shape the program", body: "Collect proposals with conditional forms, route reviews, and make decisions with confidence." },
@@ -137,7 +138,7 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
 
 type SessionUser = { id: string; email: string; name: string };
 
-function AuthenticatedPage({ page }: { page: "dashboard" | "team" }) {
+function AuthenticatedPage({ page }: { page: "dashboard" | "team" | "event" }) {
   const [session, setSession] = useState<{ loading: boolean; user: SessionUser | null }>({ loading: true, user: null });
   useEffect(() => {
     fetch("/api/auth/session", { credentials: "same-origin" })
@@ -147,9 +148,11 @@ function AuthenticatedPage({ page }: { page: "dashboard" | "team" }) {
   }, []);
   if (session.loading) return <main id="main-content" className="loading-page" aria-busy="true">Loading your workspace…</main>;
   if (!session.user) return <Navigate to="/login" replace />;
-  return page === "team" ? <TeamPage user={session.user} /> : <Dashboard user={session.user} />;
+  if (page === "team") return <TeamPage user={session.user} />;
+  if (page === "event") return <EventWorkspace user={session.user} />;
+  return <Dashboard user={session.user} />;
 }
 
 export function App() {
-  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/invite" element={<InvitePage />} /><Route path="/app" element={<AuthenticatedPage page="dashboard" />} /><Route path="/app/team" element={<AuthenticatedPage page="team" />} /><Route path="*" element={<MarketingPage />} /></Routes>;
+  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/invite" element={<InvitePage />} /><Route path="/app" element={<AuthenticatedPage page="dashboard" />} /><Route path="/app/team" element={<AuthenticatedPage page="team" />} /><Route path="/app/events/:eventId" element={<AuthenticatedPage page="event" />} /><Route path="*" element={<MarketingPage />} /></Routes>;
 }
