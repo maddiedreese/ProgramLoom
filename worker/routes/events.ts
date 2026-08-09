@@ -84,7 +84,7 @@ router.get("/:eventId", async (context) => {
   const event = await database(context.env).prepare(
     `SELECT e.id, e.organization_id AS organizationId, e.name, e.slug, e.event_type AS eventType,
             e.timezone, e.starts_at AS startsAt, e.ends_at AS endsAt, e.venue_name AS venueName,
-            e.website_url AS websiteUrl, e.status, o.name AS organizationName, o.storage_mode AS storageMode
+            e.website_url AS websiteUrl, e.status, o.name AS organizationName, o.slug AS organizationSlug, o.storage_mode AS storageMode
      FROM events e JOIN organizations o ON o.id = e.organization_id WHERE e.id = ?`,
   ).bind(eventId).first();
   return context.json({ event, role: access.role });

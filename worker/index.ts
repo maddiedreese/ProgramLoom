@@ -5,6 +5,7 @@ import { HttpError } from "./lib/authz";
 import authRoutes from "./routes/auth";
 import organizationRoutes from "./routes/organizations";
 import eventRoutes from "./routes/events";
+import publicRoutes from "./routes/public";
 
 type Variables = { requestId: string };
 
@@ -59,6 +60,7 @@ app.get("/api/meta", (context) =>
 app.route("/api/auth", authRoutes);
 app.route("/api/organizations", organizationRoutes);
 app.route("/api/events", eventRoutes);
+app.route("/api/public", publicRoutes);
 
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {

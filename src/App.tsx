@@ -6,6 +6,7 @@ import { Dashboard } from "./app/Dashboard";
 import { InvitePage } from "./app/InvitePage";
 import { TeamPage } from "./app/TeamPage";
 import { EventWorkspace } from "./app/EventWorkspace";
+import { PublicCfpPage } from "./app/PublicCfpPage";
 
 const capabilities = [
   { icon: GalleryVerticalEnd, title: "Shape the program", body: "Collect proposals with conditional forms, route reviews, and make decisions with confidence." },
@@ -154,5 +155,5 @@ function AuthenticatedPage({ page }: { page: "dashboard" | "team" | "event" }) {
 }
 
 export function App() {
-  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/invite" element={<InvitePage />} /><Route path="/app" element={<AuthenticatedPage page="dashboard" />} /><Route path="/app/team" element={<AuthenticatedPage page="team" />} /><Route path="/app/events/:eventId" element={<AuthenticatedPage page="event" />} /><Route path="*" element={<MarketingPage />} /></Routes>;
+  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/invite" element={<InvitePage />} /><Route path="/c/:organizationSlug/:eventSlug/:formSlug" element={<PublicCfpPage />} /><Route path="/app" element={<AuthenticatedPage page="dashboard" />} /><Route path="/app/team" element={<AuthenticatedPage page="team" />} /><Route path="/app/events/:eventId" element={<AuthenticatedPage page="event" />} /><Route path="*" element={<MarketingPage />} /></Routes>;
 }
