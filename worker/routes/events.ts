@@ -62,6 +62,7 @@ const conditionSchema = z.object({
   targetFieldId: z.string().uuid(),
   action: z.enum(["show", "hide", "require"]),
 }).refine((value) => value.sourceFieldId !== value.targetFieldId, { message: "A field cannot control itself.", path: ["targetFieldId"] });
+const submissionStatusSchema = z.object({ status: z.enum(["pending", "accepted_queue", "accepted", "decline_queue", "declined", "withdrawn"]) });
 
 function formSelect() {
   return `SELECT f.id, f.event_id AS eventId, f.name, f.slug, f.description,
@@ -291,6 +292,68 @@ router.delete("/:eventId/forms/:formId/conditions/:conditionId", async (context)
   if (!result.meta.changes) throw new HttpError(404, "condition_not_found", "Condition not found.");
   await auditStatement(db, { organizationId: access.organizationId, eventId, actorUserId: access.user.id, action: "form_condition.deleted", entityType: "form_condition", entityId: conditionId, requestId: context.get("requestId") }).run();
   return context.body(null, 204);
+});
+
+router.get("/:eventId/submissions", async (context) => {
+  const eventId = context.req.param("eventId");
+  await requireEventRole(context, eventId, [...organizerRoles]);
+  const status = context.req.query("status");
+  const formId = context.req.query("formId");
+  const query = context.req.query("query")?.trim();
+  const clauses = ["s.event_id = ?"];
+  const values: unknown[] = [eventId];
+  if (status && status !== "all") { clauses.push("s.status = ?"); values.push(status); }
+  if (formId) { clauses.push("s.form_id = ?"); values.push(formId); }
+  if (query) { clauses.push("(s.title LIKE ? OR p.name LIKE ? OR p.email LIKE ?)"); const pattern = `%${query.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`; values.push(pattern, pattern, pattern); }
+  const submissions = await database(context.env).prepare(
+    `SELECT s.id, s.form_id AS formId, f.name AS formName, s.title, s.abstract, s.status,
+            s.submitted_at AS submittedAt, s.updated_at AS updatedAt,
+            p.name AS submitterName, p.email AS submitterEmail, p.organization AS submitterOrganization,
+            COUNT(DISTINCT ra.id) AS reviewCount, COUNT(DISTINCT CASE WHEN r.submitted_at IS NOT NULL THEN r.id END) AS completedReviewCount,
+            ROUND(AVG(CASE WHEN r.submitted_at IS NOT NULL THEN r.weighted_score END), 2) AS averageScore
+     FROM submissions s JOIN cfp_forms f ON f.id = s.form_id
+     LEFT JOIN submission_people p ON p.submission_id = s.id AND p.role = 'primary'
+     LEFT JOIN review_assignments ra ON ra.submission_id = s.id AND ra.recused_at IS NULL
+     LEFT JOIN reviews r ON r.assignment_id = ra.id
+     WHERE ${clauses.join(" AND ")}
+     GROUP BY s.id ORDER BY COALESCE(s.submitted_at, s.updated_at) DESC`,
+  ).bind(...values).all();
+  const counts = await database(context.env).prepare("SELECT status, COUNT(*) AS count FROM submissions WHERE event_id = ? GROUP BY status").bind(eventId).all();
+  return context.json({ submissions: submissions.results, counts: Object.fromEntries(counts.results.map((row: Record<string, unknown>) => [String(row.status), Number(row.count)])) });
+});
+
+router.get("/:eventId/submissions/:submissionId", async (context) => {
+  const eventId = context.req.param("eventId");
+  await requireEventRole(context, eventId, [...organizerRoles]);
+  const db = database(context.env);
+  const submission = await db.prepare(
+    `SELECT s.id, s.form_id AS formId, f.name AS formName, s.title, s.abstract, s.format,
+            s.duration_minutes AS durationMinutes, s.status, s.answers_json AS answersJson,
+            s.submitted_at AS submittedAt, s.created_at AS createdAt, s.updated_at AS updatedAt
+     FROM submissions s JOIN cfp_forms f ON f.id = s.form_id WHERE s.id = ? AND s.event_id = ?`,
+  ).bind(context.req.param("submissionId"), eventId).first<Record<string, unknown>>();
+  if (!submission) throw new HttpError(404, "submission_not_found", "Submission not found.");
+  const people = await db.prepare("SELECT id, email, name, role, organization, position FROM submission_people WHERE submission_id = ? ORDER BY position, id").bind(submission.id).all();
+  const fields = await db.prepare("SELECT field_key AS fieldKey, label, field_type AS fieldType, section, position FROM form_fields WHERE form_id = ? ORDER BY position, id").bind(submission.formId).all();
+  const history = await db.prepare("SELECT action, after_json AS afterJson, created_at AS createdAt FROM audit_events WHERE event_id = ? AND entity_type = 'submission' AND entity_id = ? ORDER BY created_at DESC").bind(eventId, submission.id).all();
+  return context.json({ submission: { ...submission, answers: JSON.parse(String(submission.answersJson)), answersJson: undefined }, people: people.results, fields: fields.results, history: history.results.map((item: Record<string, unknown>) => ({ ...item, after: item.afterJson ? JSON.parse(String(item.afterJson)) : undefined, afterJson: undefined })) });
+});
+
+router.patch("/:eventId/submissions/:submissionId/status", zValidator("json", submissionStatusSchema), async (context) => {
+  const eventId = context.req.param("eventId");
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
+  const submissionId = context.req.param("submissionId");
+  const { status } = context.req.valid("json");
+  const db = database(context.env);
+  const current = await db.prepare("SELECT status FROM submissions WHERE id = ? AND event_id = ?").bind(submissionId, eventId).first<{ status: string }>();
+  if (!current) throw new HttpError(404, "submission_not_found", "Submission not found.");
+  if (current.status === status) return context.json({ submission: { id: submissionId, status } });
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("UPDATE submissions SET status = ?, updated_at = ? WHERE id = ?").bind(status, now, submissionId),
+    auditStatement(db, { organizationId: access.organizationId, eventId, actorUserId: access.user.id, action: "submission.status_changed", entityType: "submission", entityId: submissionId, after: { from: current.status, to: status }, requestId: context.get("requestId") }),
+  ]);
+  return context.json({ submission: { id: submissionId, status, updatedAt: now } });
 });
 
 export default router;

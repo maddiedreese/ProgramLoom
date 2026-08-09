@@ -1,0 +1,69 @@
+import { ArrowLeft, CheckCircle2, ChevronRight, Clock3, FileInput, Inbox, LoaderCircle, Search, ThumbsDown, ThumbsUp, UsersRound, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+
+type User = { id: string; email: string; name: string };
+type EventRecord = { id: string; organizationName: string; name: string; status: string };
+type Submission = { id: string; formId: string; formName: string; title: string; abstract: string; status: string; submittedAt: string | null; updatedAt: string; submitterName: string; submitterEmail: string; submitterOrganization: string | null; reviewCount: number; completedReviewCount: number; averageScore: number | null };
+type SubmissionDetail = Submission & { answers: Record<string, unknown>; createdAt: string };
+type Field = { fieldKey: string; label: string; fieldType: string; section: string; position: number };
+type Person = { id: string; name: string; email: string; role: string; organization: string | null };
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, { credentials: "same-origin", ...init, headers: { "content-type": "application/json", ...init?.headers } });
+  const result = await response.json() as T & { error?: { message?: string } };
+  if (!response.ok) throw new Error(result.error?.message ?? "The request could not be completed.");
+  return result;
+}
+
+const filters = [
+  { key: "all", label: "All" }, { key: "pending", label: "In review" }, { key: "accepted_queue", label: "Accept queue" },
+  { key: "decline_queue", label: "Decline queue" }, { key: "accepted", label: "Accepted" }, { key: "declined", label: "Declined" }, { key: "draft", label: "Drafts" },
+];
+
+export function EventSubmissions({ user }: { user: User }) {
+  const { eventId = "" } = useParams();
+  const [event, setEvent] = useState<EventRecord>();
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<SubmissionDetail>();
+  const [fields, setFields] = useState<Field[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string>();
+
+  async function load() {
+    const parameters = new URLSearchParams(); if (filter !== "all") parameters.set("status", filter); if (query.trim()) parameters.set("query", query.trim());
+    try { const result = await api<{ submissions: Submission[]; counts: Record<string, number> }>(`/api/events/${eventId}/submissions?${parameters}`); setSubmissions(result.submissions); setCounts(result.counts); }
+    catch (error) { setFeedback(error instanceof Error ? error.message : "Could not load submissions."); }
+  }
+  useEffect(() => { Promise.all([api<{ event: EventRecord }>(`/api/events/${eventId}`), api<{ submissions: Submission[]; counts: Record<string, number> }>(`/api/events/${eventId}/submissions`)]).then(([eventResult, result]) => { setEvent(eventResult.event); setSubmissions(result.submissions); setCounts(result.counts); }).catch((error: Error) => setFeedback(error.message)).finally(() => setLoading(false)); }, [eventId]);
+  useEffect(() => { if (!loading) { const timer = window.setTimeout(load, 220); return () => window.clearTimeout(timer); } }, [filter, query]);
+
+  async function openSubmission(id: string) {
+    setBusy(true); setFeedback(undefined);
+    try { const result = await api<{ submission: SubmissionDetail; fields: Field[]; people: Person[] }>(`/api/events/${eventId}/submissions/${id}`); setSelected(result.submission); setFields(result.fields); setPeople(result.people); }
+    catch (error) { setFeedback(error instanceof Error ? error.message : "Could not open the submission."); }
+    finally { setBusy(false); }
+  }
+  async function changeStatus(status: string) {
+    if (!selected) return; setBusy(true); setFeedback(undefined);
+    try { await api(`/api/events/${eventId}/submissions/${selected.id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }); setSelected({ ...selected, status }); await load(); }
+    catch (error) { setFeedback(error instanceof Error ? error.message : "Could not update the decision queue."); }
+    finally { setBusy(false); }
+  }
+  const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  if (loading) return <main className="loading-page" aria-busy="true"><LoaderCircle className="spin" /> Loading submissions…</main>;
+  return <div className="event-workspace">
+    <aside className="event-sidebar"><a className="wordmark" href="/"><span aria-hidden="true" className="mark">PL</span>ProgramLoom</a><a className="back-link" href="/app"><ArrowLeft size={15} /> All events</a><div className="event-identity"><small>{event?.organizationName}</small><strong>{event?.name}</strong><span>{event?.status}</span></div><nav className="event-nav" aria-label="Event workspace"><a href={`/app/events/${eventId}`}><FileInput size={18} /> Call for proposals</a><a className="active" href={`/app/events/${eventId}/submissions`}><Inbox size={18} /> Submissions</a><span><CheckCircle2 size={18} /> Reviews</span><span><UsersRound size={18} /> Speakers</span><span><Clock3 size={18} /> Agenda</span></nav><div className="sidebar-user"><span>{user.name}</span><small>{user.email}</small></div></aside>
+    <main id="main-content" className="event-main submissions-main"><header className="event-heading"><div><p className="kicker">Program intake</p><h1>Submissions</h1><p>Review the pipeline, open every answer, and prepare decisions without losing context.</p></div><div className="submission-total"><strong>{total}</strong><span>Total proposals</span></div></header>
+      {feedback && <div className="form-status form-status-error" role="alert">{feedback}</div>}
+      <div className="submission-controls"><div className="submission-filters" role="tablist" aria-label="Submission status">{filters.map((item) => <button role="tab" aria-selected={filter === item.key} className={filter === item.key ? "active" : ""} onClick={() => setFilter(item.key)} key={item.key}>{item.label}<span>{item.key === "all" ? total : counts[item.key] ?? 0}</span></button>)}</div><label className="submission-search"><Search size={16} /><span className="sr-only">Search submissions</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Title, speaker, or email" /></label></div>
+      <section className="submission-table" aria-label="Submissions"><div className="submission-table-head"><span>Proposal</span><span>Submitter</span><span>Reviews</span><span>Status</span><span /></div>{submissions.length ? submissions.map((submission) => <button className="submission-row" onClick={() => openSubmission(submission.id)} key={submission.id}><span><strong>{submission.title || "Untitled draft"}</strong><small>{submission.formName}</small></span><span><strong>{submission.submitterName}</strong><small>{submission.submitterOrganization || submission.submitterEmail}</small></span><span><strong>{submission.averageScore ?? "—"}</strong><small>{submission.completedReviewCount}/{submission.reviewCount} complete</small></span><span><em className={`submission-status status-${submission.status}`}>{submission.status.replaceAll("_", " ")}</em></span><ChevronRight size={17} /></button>) : <div className="submission-empty"><Inbox size={30} /><h2>No matching proposals</h2><p>New public submissions will appear here immediately.</p></div>}</section>
+    </main>
+    {selected && <div className="detail-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(undefined); }}><aside className="submission-detail" aria-label="Submission details"><header><div><small>{selected.formName}</small><h2>{selected.title || "Untitled proposal"}</h2></div><button className="plain-icon" onClick={() => setSelected(undefined)} aria-label="Close"><X size={19} /></button></header><div className="detail-speakers">{people.map((person) => <div key={person.id}><span>{person.name.slice(0, 1).toUpperCase()}</span><div><strong>{person.name}</strong><small>{person.email}{person.organization ? ` · ${person.organization}` : ""}</small></div></div>)}</div><div className="decision-strip"><button className={selected.status === "accepted_queue" ? "selected accept" : ""} onClick={() => changeStatus("accepted_queue")} disabled={busy}><ThumbsUp size={16} /> Accept queue</button><button className={selected.status === "decline_queue" ? "selected decline" : ""} onClick={() => changeStatus("decline_queue")} disabled={busy}><ThumbsDown size={16} /> Decline queue</button><button onClick={() => changeStatus("pending")} disabled={busy}>Clear</button></div><div className="detail-answers">{fields.map((field) => <section key={field.fieldKey}><small>{field.label}</small><div>{Array.isArray(selected.answers[field.fieldKey]) ? (selected.answers[field.fieldKey] as unknown[]).join(", ") : typeof selected.answers[field.fieldKey] === "boolean" ? (selected.answers[field.fieldKey] ? "Yes" : "No") : String(selected.answers[field.fieldKey] ?? "—")}</div></section>)}</div></aside></div>}
+  </div>;
+}

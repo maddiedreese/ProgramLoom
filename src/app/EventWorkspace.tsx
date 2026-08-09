@@ -148,7 +148,7 @@ export function EventWorkspace({ user }: { user: User }) {
       <div className="event-identity"><small>{event?.organizationName}</small><strong>{event?.name ?? "Event"}</strong><span>{event?.status}</span></div>
       <nav className="event-nav" aria-label="Event workspace">
         <a className="active" href="#cfp"><FileInput size={18} /> Call for proposals</a>
-        <span><UsersRound size={18} /> Submissions</span><span><CheckCircle2 size={18} /> Reviews</span><span><UsersRound size={18} /> Speakers</span><span><CalendarClock size={18} /> Agenda</span>
+        <a href={`/app/events/${eventId}/submissions`}><UsersRound size={18} /> Submissions</a><span><CheckCircle2 size={18} /> Reviews</span><span><UsersRound size={18} /> Speakers</span><span><CalendarClock size={18} /> Agenda</span>
       </nav>
       <div className="sidebar-user"><span>{user.name}</span><small>{user.email}</small></div>
     </aside>
