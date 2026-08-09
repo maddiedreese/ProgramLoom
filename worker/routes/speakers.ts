@@ -484,9 +484,9 @@ router.get("/admin/events/:eventId", async (context) => {
   const db = database(context.env);
   const speakers = await db
     .prepare(
-      `SELECT sp.id, sp.email, sp.first_name AS firstName, sp.last_name AS lastName, sp.pronouns, sp.job_title AS jobTitle, sp.company, sp.bio, sp.portal_status AS portalStatus, COUNT(DISTINCT ss.submission_id) AS sessionCount, COUNT(DISTINCT sta.task_id) AS taskCount, COUNT(DISTINCT CASE WHEN sta.status='complete' THEN sta.task_id END) AS completedTaskCount, COUNT(DISTINCT f.id) AS fileRequestCount, COUNT(DISTINCT CASE WHEN f.status='approved' THEN f.id END) AS approvedFileCount FROM speaker_profiles sp JOIN session_speakers ss ON ss.speaker_id=sp.id JOIN submissions s ON s.id=ss.submission_id AND s.event_id=? LEFT JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id LEFT JOIN files f ON f.speaker_id=sp.id AND f.event_id=? GROUP BY sp.id ORDER BY sp.last_name,sp.first_name`,
+      `SELECT sp.id,sp.email,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.portal_status AS portalStatus,COUNT(DISTINCT CASE WHEN session.event_id=? THEN ss.submission_id END) AS sessionCount,COUNT(DISTINCT task.id) AS taskCount,COUNT(DISTINCT CASE WHEN sta.status='complete' THEN task.id END) AS completedTaskCount,COUNT(DISTINCT f.id) AS fileRequestCount,COUNT(DISTINCT CASE WHEN f.status='approved' THEN f.id END) AS approvedFileCount FROM speaker_profiles sp JOIN (SELECT speaker_id FROM event_speakers WHERE event_id=? UNION SELECT ss2.speaker_id FROM session_speakers ss2 JOIN submissions s2 ON s2.id=ss2.submission_id WHERE s2.event_id=?) roster ON roster.speaker_id=sp.id LEFT JOIN session_speakers ss ON ss.speaker_id=sp.id LEFT JOIN submissions session ON session.id=ss.submission_id LEFT JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id LEFT JOIN onboarding_tasks task ON task.id=sta.task_id AND task.event_id=? LEFT JOIN files f ON f.speaker_id=sp.id AND f.event_id=? GROUP BY sp.id ORDER BY sp.last_name,sp.first_name`,
     )
-    .bind(eventId, eventId)
+    .bind(eventId, eventId, eventId, eventId, eventId)
     .all();
   const tasks = await db
     .prepare(

@@ -14,13 +14,19 @@ describe("ProgramLoom Worker", () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(response.headers.get("x-request-id")).toBeTruthy();
-    expect(body).toMatchObject({ status: "ok", service: "programloom", environment: "test" });
+    expect(body).toMatchObject({
+      status: "ok",
+      service: "programloom",
+      environment: "test",
+    });
   });
 
   it("uses a structured error envelope for unknown API routes", async () => {
     const response = await app.request("/api/not-real", {}, env);
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toMatchObject({ error: { code: "not_found" } });
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "not_found" },
+    });
   });
 
   it("serves front-end assets for application routes", async () => {
@@ -45,8 +51,26 @@ describe("ProgramLoom Worker", () => {
   });
 
   it("protects event workspace routes before database access", async () => {
-    const response = await app.request("/api/events/00000000-0000-4000-8000-000000000003", {}, env);
+    const response = await app.request(
+      "/api/events/00000000-0000-4000-8000-000000000003",
+      {},
+      env,
+    );
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toMatchObject({ error: { code: "authentication_required" } });
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "authentication_required" },
+    });
+  });
+
+  it("protects speaker CRM routes before database access", async () => {
+    const response = await app.request(
+      "/api/crm/organizations/00000000-0000-4000-8000-000000000003/contacts",
+      {},
+      env,
+    );
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "authentication_required" },
+    });
   });
 });

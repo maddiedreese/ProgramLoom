@@ -16,12 +16,13 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format:modules": "prettier --write src/app/EventSpeakers.tsx worker/routes/speakers.ts src/app/EventAgenda.tsx worker/routes/agenda.ts src/app/EventWidgets.tsx src/app/PublicWidgetPage.tsx worker/routes/widgets.ts",
-    "format:modules:check": "prettier --check src/app/EventSpeakers.tsx worker/routes/speakers.ts src/app/EventAgenda.tsx worker/routes/agenda.ts src/app/EventWidgets.tsx src/app/PublicWidgetPage.tsx worker/routes/widgets.ts",
+    "format:modules": "prettier --write src/app/EventSpeakers.tsx worker/routes/speakers.ts src/app/EventAgenda.tsx worker/routes/agenda.ts src/app/EventWidgets.tsx src/app/PublicWidgetPage.tsx worker/routes/widgets.ts src/app/CRMPage.tsx src/app/PublicInterestPage.tsx worker/routes/crm.ts",
+    "format:modules:check": "prettier --check src/app/EventSpeakers.tsx worker/routes/speakers.ts src/app/EventAgenda.tsx worker/routes/agenda.ts src/app/EventWidgets.tsx src/app/PublicWidgetPage.tsx worker/routes/widgets.ts src/app/CRMPage.tsx src/app/PublicInterestPage.tsx worker/routes/crm.ts",
     "check": "npm run typecheck && npm run test && npm run build",
     "cf:types": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply programloom-production --local",
     "db:migrate:remote": "wrangler d1 migrations apply programloom-production --remote",
+    "smoke:crm": "node scripts/smoke-crm.mjs",
     "airtable:provision": "node scripts/provision-airtable.mjs --apply"
   },
   "dependencies": {
@@ -34,6 +35,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.0",
+    "read-excel-file": "^9.3.8",
     "zod": "^4.0.17"
   },
   "devDependencies": {

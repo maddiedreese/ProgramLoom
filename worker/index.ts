@@ -10,6 +10,7 @@ import reviewRoutes from "./routes/reviews";
 import speakerRoutes from "./routes/speakers";
 import agendaRoutes from "./routes/agenda";
 import widgetRoutes from "./routes/widgets";
+import crmRoutes from "./routes/crm";
 
 type Variables = { requestId: string };
 
@@ -27,15 +28,24 @@ app.use(
   secureHeaders({
     contentSecurityPolicy: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "https://challenges.cloudflare.com", "https://*.posthog.com", "https://*.sentry.io"],
+      connectSrc: [
+        "'self'",
+        "https://challenges.cloudflare.com",
+        "https://*.posthog.com",
+        "https://*.sentry.io",
+      ],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "data:"],
-      frameSrc: ["https://challenges.cloudflare.com", "https://www.youtube.com", "https://player.vimeo.com", "https://docs.google.com"],
+      frameSrc: [
+        "https://challenges.cloudflare.com",
+        "https://www.youtube.com",
+        "https://player.vimeo.com",
+        "https://docs.google.com",
+      ],
       frameAncestors: [
-        (context) =>
-          context.req.path.startsWith("/embed/") ? "*" : "'none'",
+        (context) => (context.req.path.startsWith("/embed/") ? "*" : "'none'"),
       ],
       baseUri: ["'self'"],
       formAction: [
@@ -88,6 +98,7 @@ app.route("/api/reviews", reviewRoutes);
 app.route("/api/speakers", speakerRoutes);
 app.route("/api/agenda", agendaRoutes);
 app.route("/api/widgets", widgetRoutes);
+app.route("/api/crm", crmRoutes);
 
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);
@@ -102,7 +113,13 @@ app.get("/embed/:publicKey", async (context) => {
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {
     return context.json(
-      { error: { code: "not_found", message: "The requested API route does not exist." }, requestId: context.get("requestId") },
+      {
+        error: {
+          code: "not_found",
+          message: "The requested API route does not exist.",
+        },
+        requestId: context.get("requestId"),
+      },
       404,
     );
   }
@@ -111,11 +128,26 @@ app.notFound(async (context) => {
 
 app.onError((error, context) => {
   if (error instanceof HttpError) {
-    return context.json({ error: { code: error.code, message: error.message }, requestId: context.get("requestId") }, error.status);
+    return context.json(
+      {
+        error: { code: error.code, message: error.message },
+        requestId: context.get("requestId"),
+      },
+      error.status,
+    );
   }
-  console.error(JSON.stringify({ level: "error", requestId: context.get("requestId"), message: error.message }));
+  console.error(
+    JSON.stringify({
+      level: "error",
+      requestId: context.get("requestId"),
+      message: error.message,
+    }),
+  );
   return context.json(
-    { error: { code: "internal_error", message: "Something went wrong." }, requestId: context.get("requestId") },
+    {
+      error: { code: "internal_error", message: "Something went wrong." },
+      requestId: context.get("requestId"),
+    },
     500,
   );
 });
