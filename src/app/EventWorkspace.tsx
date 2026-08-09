@@ -60,6 +60,7 @@ type Field = {
   description?: string | null;
   placeholder?: string | null;
   required: boolean;
+  searchable: boolean;
   options?: string[];
   position: number;
 };
@@ -235,6 +236,7 @@ export function EventWorkspace({ user }: { user: User }) {
             description: data.get("description") || undefined,
             placeholder: data.get("placeholder") || undefined,
             required: data.get("required") === "on",
+            searchable: data.get("searchable") === "on",
             options: ["select", "multiselect"].includes(fieldType)
               ? options
               : undefined,
@@ -725,6 +727,7 @@ export function EventWorkspace({ user }: { user: User }) {
                               <strong>
                                 {field.label}
                                 {field.required && <em>Required</em>}
+                                {field.searchable && <em>Searchable</em>}
                               </strong>
                               {field.description && (
                                 <span>{field.description}</span>
@@ -826,6 +829,16 @@ export function EventWorkspace({ user }: { user: User }) {
                               <strong>Required answer</strong>
                               <small>
                                 Submitters cannot finish without it.
+                              </small>
+                            </span>
+                          </label>
+                          <label className="check-row wide">
+                            <input type="checkbox" name="searchable" />
+                            <span>
+                              <strong>Include in organizer search</strong>
+                              <small>
+                                The Submission Workspace can search this answer.
+                                Private values should remain excluded.
                               </small>
                             </span>
                           </label>

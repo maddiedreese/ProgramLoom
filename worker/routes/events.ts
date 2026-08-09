@@ -98,6 +98,7 @@ const fieldShape = {
   description: z.string().trim().max(1000).optional(),
   placeholder: z.string().trim().max(240).optional(),
   required: z.boolean().default(false),
+  searchable: z.boolean().default(false),
   options: z.array(z.string().trim().min(1).max(160)).max(100).optional(),
   validation: z
     .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
@@ -116,7 +117,11 @@ const fieldSchema = z.object(fieldShape).superRefine((value, context) => {
     });
 });
 const fieldPatchSchema = z
-  .object({ ...fieldShape, required: z.boolean().optional() })
+  .object({
+    ...fieldShape,
+    required: z.boolean().optional(),
+    searchable: z.boolean().optional(),
+  })
   .partial()
   .superRefine((value, context) => {
     if (
@@ -416,7 +421,7 @@ router.get("/:eventId/forms/:formId", async (context) => {
     .first();
   const fields = await db
     .prepare(
-      `SELECT id, section, field_type AS fieldType, field_key AS fieldKey, label, description, placeholder, required, options_json AS optionsJson, validation_json AS validationJson, position FROM form_fields WHERE form_id = ? ORDER BY position, id`,
+      `SELECT id, section, field_type AS fieldType, field_key AS fieldKey, label, description, placeholder, required, searchable, options_json AS optionsJson, validation_json AS validationJson, position FROM form_fields WHERE form_id = ? ORDER BY position, id`,
     )
     .bind(formId)
     .all();
@@ -431,6 +436,7 @@ router.get("/:eventId/forms/:formId", async (context) => {
     fields: fields.results.map((field: Record<string, unknown>) => ({
       ...field,
       required: Boolean(field.required),
+      searchable: Boolean(field.searchable),
       options: field.optionsJson
         ? JSON.parse(String(field.optionsJson))
         : undefined,
@@ -695,7 +701,7 @@ router.post(
     await db.batch([
       db
         .prepare(
-          `INSERT INTO form_fields (id, form_id, section, field_type, field_key, label, description, placeholder, required, options_json, validation_json, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO form_fields (id, form_id, section, field_type, field_key, label, description, placeholder, required, searchable, options_json, validation_json, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           id,
@@ -707,6 +713,7 @@ router.post(
           input.description ?? null,
           input.placeholder ?? null,
           input.required ? 1 : 0,
+          input.searchable ? 1 : 0,
           input.options ? JSON.stringify(input.options) : null,
           input.validation ? JSON.stringify(input.validation) : null,
           position,
@@ -754,6 +761,7 @@ router.patch(
       description: "description",
       placeholder: "placeholder",
       required: "required",
+      searchable: "searchable",
       options: "options_json",
       validation: "validation_json",
       position: "position",
@@ -762,7 +770,8 @@ router.patch(
     for (const [key, column] of Object.entries(mapping))
       if (key in input) {
         let value = input[key as keyof typeof input] ?? null;
-        if (key === "required") value = input.required ? 1 : 0;
+        if (key === "required" || key === "searchable")
+          value = input[key as "required" | "searchable"] ? 1 : 0;
         if (key === "options" || key === "validation")
           value = value === null ? null : JSON.stringify(value);
         if (key === "fieldKey")

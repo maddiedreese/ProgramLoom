@@ -16,6 +16,7 @@ import contentRoutes from "./routes/content";
 import communicationRoutes from "./routes/communications";
 import calendarRoutes from "./routes/calendar";
 import controlRoomRoutes from "./routes/control-room";
+import submissionWorkspaceRoutes from "./routes/submission-workspace";
 import {
   beginAirtableReconciliation,
   dispatchPendingAirtableOutbox,
@@ -25,6 +26,7 @@ import {
   reconcileAirtableOrganizations,
   refreshAirtableWebhook,
 } from "./lib/airtable";
+import { cleanupEphemeralWorkspaceState } from "./lib/maintenance";
 import {
   dispatchScheduledCommunications,
   processCommunication,
@@ -145,6 +147,7 @@ app.route("/api/content", contentRoutes);
 app.route("/api/communications", communicationRoutes);
 app.route("/api/calendar", calendarRoutes);
 app.route("/api/control-room", controlRoomRoutes);
+app.route("/api/submission-workspace", submissionWorkspaceRoutes);
 
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);
@@ -249,12 +252,18 @@ const worker: ExportedHandler<Env, ProgramLoomJob> = {
         dispatchScheduledCommunications(env),
       ),
     );
-    if (event.cron === "0 3 * * *")
+    if (event.cron === "0 3 * * *") {
       context.waitUntil(
         observeOperation("airtable_webhook_refresh", () =>
           refreshAirtableWebhook(env),
         ),
       );
+      context.waitUntil(
+        observeOperation("workspace_ephemeral_cleanup", () =>
+          cleanupEphemeralWorkspaceState(env),
+        ),
+      );
+    }
   },
 };
 

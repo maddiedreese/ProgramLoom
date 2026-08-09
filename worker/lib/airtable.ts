@@ -5,7 +5,9 @@ const supportedEntityTypes = [
   "organization",
   "event",
   "cfp_form",
+  "form_field",
   "submission",
+  "submission_tag",
   "speaker",
   "review_assignment",
   "review_conflict",
@@ -73,26 +75,26 @@ export async function queueAirtableAudits(
       entityId: string;
     }>();
   if (!audits.results.length) return 0;
-  await db.batch(
-    audits.results.map((audit) =>
-      db
-        .prepare(
-          `INSERT OR IGNORE INTO integration_outbox
+  const statements = audits.results.map((audit) =>
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO integration_outbox
            (id,organization_id,event_id,integration,action,entity_type,entity_id,payload_json,idempotency_key)
            VALUES(?,?,?,'airtable',?,?,?,?,?)`,
-        )
-        .bind(
-          `airtable-${audit.id}`,
-          audit.organizationId,
-          audit.eventId,
-          audit.action.includes("deleted") ? "delete" : "upsert",
-          audit.entityType,
-          audit.entityId,
-          JSON.stringify({ auditId: audit.id, action: audit.action }),
-          `airtable:audit:${audit.id}`,
-        ),
-    ),
+      )
+      .bind(
+        `airtable-${audit.id}`,
+        audit.organizationId,
+        audit.eventId,
+        audit.action.includes("deleted") ? "delete" : "upsert",
+        audit.entityType,
+        audit.entityId,
+        JSON.stringify({ auditId: audit.id, action: audit.action }),
+        `airtable:audit:${audit.id}`,
+      ),
   );
+  for (let offset = 0; offset < statements.length; offset += 80)
+    await db.batch(statements.slice(offset, offset + 80));
   await sendOutboxMessages(
     env,
     audits.results.map((audit) => `airtable-${audit.id}`),
@@ -374,10 +376,46 @@ async function projectEntity(
           })
         : null;
     }
+    case "form_field": {
+      const row = await db
+        .prepare(
+          `SELECT f.event_id AS eventId,ff.form_id AS formId,ff.section,
+           ff.field_type AS fieldType,ff.field_key AS fieldKey,ff.label,
+           ff.description,ff.placeholder,ff.required,ff.searchable,
+           ff.options_json AS optionsJson,ff.validation_json AS validationJson,
+           ff.position FROM form_fields ff JOIN cfp_forms f ON f.id=ff.form_id
+           WHERE ff.id=?`,
+        )
+        .bind(entityId)
+        .first<Record<string, unknown>>();
+      return row
+        ? projection("PL Form Fields", {
+            "Event ID": row.eventId,
+            "Form ID": row.formId,
+            Section: row.section,
+            Type: row.fieldType,
+            Key: row.fieldKey,
+            Label: row.label,
+            Description: row.description,
+            Placeholder: row.placeholder,
+            Required: Boolean(row.required),
+            Searchable: Boolean(row.searchable),
+            "Options JSON": row.optionsJson,
+            "Validation JSON": row.validationJson,
+            Position: row.position,
+          })
+        : null;
+    }
     case "submission": {
       const row = await db
         .prepare(
-          "SELECT event_id AS eventId,form_id AS formId,title,abstract,status,answers_json AS answersJson,submitted_at AS submittedAt,updated_at AS updatedAt FROM submissions WHERE id=?",
+          `SELECT s.event_id AS eventId,s.form_id AS formId,s.title,s.abstract,s.status,
+           s.decision_state AS decisionState,s.answers_json AS answersJson,
+           s.submitted_at AS submittedAt,s.updated_at AS updatedAt,
+           COALESCE((SELECT json_group_array(json_object('id',tag.id,'name',tag.name,'color',tag.color))
+             FROM submission_tag_assignments sta JOIN submission_tags tag ON tag.id=sta.tag_id
+             WHERE sta.submission_id=s.id),'[]') AS tagsJson
+           FROM submissions s WHERE s.id=?`,
         )
         .bind(entityId)
         .first<Record<string, unknown>>();
@@ -388,9 +426,29 @@ async function projectEntity(
             Title: row.title,
             Abstract: row.abstract,
             Status: row.status,
+            "Decision State": row.decisionState,
+            "Tags JSON": row.tagsJson,
             "Answers JSON": row.answersJson,
             "Submitted At": normalizeDate(row.submittedAt),
             "Updated At": normalizeDate(row.updatedAt),
+          })
+        : null;
+    }
+    case "submission_tag": {
+      const row = await db
+        .prepare(
+          `SELECT organization_id AS organizationId,event_id AS eventId,name,color,created_at AS createdAt
+           FROM submission_tags WHERE id=?`,
+        )
+        .bind(entityId)
+        .first<Record<string, unknown>>();
+      return row
+        ? projection("PL Submission Tags", {
+            "Organization ID": row.organizationId,
+            "Event ID": row.eventId,
+            Name: row.name,
+            Color: row.color,
+            "Created At": normalizeDate(row.createdAt),
           })
         : null;
     }
@@ -1164,7 +1222,9 @@ function tableForEntity(entityType: SupportedEntity) {
     organization: "PL Organizations",
     event: "PL Events",
     cfp_form: "PL CFP Forms",
+    form_field: "PL Form Fields",
     submission: "PL Submissions",
+    submission_tag: "PL Submission Tags",
     speaker: "PL Speakers",
     review_assignment: "PL Reviews",
     review_conflict: "PL Review Conflicts",

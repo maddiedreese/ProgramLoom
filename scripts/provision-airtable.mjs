@@ -37,6 +37,21 @@ const definitions = [
     longText("Configuration JSON"),
     dateTime("Updated At"),
   ]),
+  table("PL Form Fields", [
+    text("Event ID"),
+    text("Form ID"),
+    text("Section"),
+    text("Type"),
+    text("Key"),
+    text("Label"),
+    longText("Description"),
+    text("Placeholder"),
+    checkbox("Required"),
+    checkbox("Searchable"),
+    longText("Options JSON"),
+    longText("Validation JSON"),
+    number("Position"),
+  ]),
   table("PL Submissions", [
     text("Event ID"),
     text("Form ID"),
@@ -51,9 +66,26 @@ const definitions = [
       "declined",
       "withdrawn",
     ]),
+    select("Decision State", [
+      "none",
+      "acceptance_staged",
+      "waitlist_staged",
+      "rejection_staged",
+      "accepted",
+      "waitlisted",
+      "rejected",
+    ]),
+    longText("Tags JSON"),
     longText("Answers JSON"),
     dateTime("Submitted At"),
     dateTime("Updated At"),
+  ]),
+  table("PL Submission Tags", [
+    text("Organization ID"),
+    text("Event ID"),
+    text("Name"),
+    text("Color"),
+    dateTime("Created At"),
   ]),
   table("PL Speakers", [
     text("Organization ID"),
@@ -164,10 +196,20 @@ const definitions = [
 ];
 
 const existingResponse = await airtable(`/meta/bases/${baseId}/tables`);
-const existing = new Set(existingResponse.tables.map((item) => item.name));
+const existing = new Map(
+  existingResponse.tables.map((item) => [item.name, item]),
+);
 const missing = definitions.filter((item) => !existing.has(item.name));
+const missingFields = definitions.flatMap((definition) => {
+  const current = existing.get(definition.name);
+  if (!current) return [];
+  const names = new Set(current.fields.map((field) => field.name));
+  return definition.fields
+    .filter((field) => !names.has(field.name))
+    .map((field) => ({ table: current, field }));
+});
 
-if (!missing.length) {
+if (!missing.length && !missingFields.length) {
   console.log(
     `Airtable schema is current (${definitions.length} ProgramLoom tables).`,
   );
@@ -175,9 +217,14 @@ if (!missing.length) {
 }
 
 if (!shouldApply) {
-  console.log(
-    `Dry run: ${missing.length} table(s) would be created: ${missing.map((item) => item.name).join(", ")}`,
-  );
+  if (missing.length)
+    console.log(
+      `Dry run: ${missing.length} table(s) would be created: ${missing.map((item) => item.name).join(", ")}`,
+    );
+  if (missingFields.length)
+    console.log(
+      `Dry run: ${missingFields.length} field(s) would be added: ${missingFields.map(({ table, field }) => `${table.name}.${field.name}`).join(", ")}`,
+    );
   process.exit(0);
 }
 
@@ -187,6 +234,13 @@ for (const definition of missing) {
     body: JSON.stringify(definition),
   });
   console.log(`Created ${definition.name}`);
+}
+for (const { table: current, field } of missingFields) {
+  await airtable(`/meta/bases/${baseId}/tables/${current.id}/fields`, {
+    method: "POST",
+    body: JSON.stringify(field),
+  });
+  console.log(`Created ${current.name}.${field.name}`);
 }
 console.log(
   `Airtable schema provisioned (${definitions.length} ProgramLoom tables).`,

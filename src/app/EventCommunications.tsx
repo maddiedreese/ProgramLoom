@@ -108,6 +108,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function EventCommunications({ user }: { user: User }) {
   const { eventId = "" } = useParams();
+  const submissionBulk = useMemo(
+    () =>
+      new URLSearchParams(window.location.search).get("submissionBulk") ?? "",
+    [],
+  );
   const [overview, setOverview] = useState<Overview>();
   const [tab, setTab] = useState<"outbox" | "compose" | "templates">("outbox");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -150,7 +155,13 @@ export function EventCommunications({ user }: { user: User }) {
       );
       setOverview(result);
       setSelectedTemplateId(
-        (current) => current || result.templates[0]?.id || "",
+        (current) =>
+          current ||
+          result.templates.find(
+            (template) => template.category === filters.category,
+          )?.id ||
+          result.templates[0]?.id ||
+          "",
       );
     } catch (error) {
       setFeedback({
@@ -185,22 +196,56 @@ export function EventCommunications({ user }: { user: User }) {
 
   useEffect(() => {
     if (!selectedTemplate) return;
+    let cancelled = false;
     setSelectedRecipients([]);
     setPreview(undefined);
     api<{ recipients: Recipient[] }>(
       `/api/communications/events/${eventId}/recipients?category=${selectedTemplate.category}`,
     )
-      .then((result) => setRecipients(result.recipients))
-      .catch((error) =>
-        setFeedback({
-          kind: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Recipients could not be loaded.",
-        }),
+      .then(async (result) => {
+        if (!submissionBulk) {
+          if (!cancelled) setRecipients(result.recipients);
+          return;
+        }
+        const handoff = await api<{
+          submissionIds: string[];
+          count: number;
+          category: string;
+        }>(
+          `/api/submission-workspace/events/${eventId}/bulk/${submissionBulk}/submission-ids`,
+        );
+        if (handoff.category !== selectedTemplate.category) return;
+        const permitted = new Set(handoff.submissionIds);
+        const eligible = result.recipients.filter(
+          (recipient) =>
+            recipient.entityType === "submission" &&
+            permitted.has(recipient.entityId),
+        );
+        if (!cancelled) {
+          setRecipients(eligible);
+          setSelectedRecipients(eligible.map((recipient) => recipient.key));
+          setTab("compose");
+          setFeedback({
+            kind: "success",
+            message: `${eligible.length} eligible ${eligible.length === 1 ? "recipient" : "recipients"} selected from ${handoff.count} proposals. Review the recipient list before sending.`,
+          });
+        }
+      })
+      .catch(
+        (error) =>
+          !cancelled &&
+          setFeedback({
+            kind: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Recipients could not be loaded.",
+          }),
       );
-  }, [eventId, selectedTemplate?.category]);
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, selectedTemplate?.category, submissionBulk]);
 
   const selectedRecipient = recipients.find((recipient) =>
     selectedRecipients.includes(recipient.key),
