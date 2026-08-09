@@ -3,6 +3,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock3,
+  Code2,
   FileInput,
   Inbox,
   LoaderCircle,
@@ -120,6 +121,9 @@ function EventChrome({
           </a>
           <a className="active" href={`/app/events/${eventId}/agenda`}>
             <CalendarClock size={18} /> Agenda
+          </a>
+          <a href={`/app/events/${eventId}/widgets`}>
+            <Code2 size={18} /> Public widgets
           </a>
         </nav>
         <div className="sidebar-user">

@@ -9,7 +9,7 @@ This file is the delivery ledger for the 96-item Kill My SaaS evaluator. Criteri
 | Speaker management | SPK-01–SPK-16 | 16 | Implemented, locally protocol-tested, and deployed | Roster/import, portal scoping, profiles, tasks, files, email/logistics, handoff evidence |
 | Content management | CNT-01–CNT-14 | 14 | Planned | Requests, uploads, versions, comments, constraints, approval, history, ZIP evidence |
 | Agenda and scheduling | AIA-01–AIA-08 | 8 | Implemented, locally protocol-tested, and deployed | Configuration, placement persistence, two conflict classes, move/clear, publish, assisted scheduling evidence |
-| Public widgets | EMB-01–EMB-16 | 16 | Planned | All five anonymous widgets, search/filter/detail, navigation, schedule persistence/ICS, generator and live propagation evidence |
+| Public widgets | EMB-01–EMB-16 | 16 | Implemented, locally protocol-tested, and deployed; seeded production data protocol pending | All five anonymous widgets, search/filter/detail, navigation, schedule persistence/ICS, generator and live propagation evidence |
 | Speaker CRM | CRM-01–CRM-12 | 12 | Planned and required | Directory, filters, history, fields, import/dedupe, pipeline, segments, event handoff, outreach, analytics evidence |
 | **Total** |  | **96** |  |  |
 
@@ -57,3 +57,12 @@ The detailed row-level ledger will be populated from the evaluator YAML before m
 - Placement rejects overlapping use of the same room and independently rejects a shared speaker appearing in overlapping sessions across different rooms. Publication performs a final global scan for both conflict classes.
 - The assisted scheduler is a deterministic multi-room greedy algorithm. It accounts for existing occupancy and speaker sets, returns a preview, and applies only compatible placements; it is not mocked or demo data.
 - Local protocol passed incomplete publish rejection → combined room/speaker collision → cross-room speaker collision → assisted next-slot placement → publication → clear/move → republish with persisted version increments on 2026-08-09. Deployed Worker `9b1de170-576f-4001-a8d6-22fb1fc22a16` exposed the authenticated agenda boundary on both production domains after edge propagation.
+
+## Public widget implementation evidence
+
+- Organizers can create and edit five persistent public configurations: sessions, speakers, agenda, personal itinerary, and gallery. Theme, brand color, search, track filtering, selected tracks, and visible fields are stored in D1 and read on every public request, so edits propagate without replacing embed code.
+- Anonymous widget reads expose accepted-session and published-agenda read models only. Speaker headshots remain private R2 objects served through an acceptance-scoped public route; organizer endpoints require owner/admin event access.
+- Search, track filtering, expandable session details, responsive layouts, durable device-local itinerary choices, and personal ICS export are functional client behavior. JSON, XML, and full-agenda iCal feeds share the same track-restricted server read model.
+- Local Worker + D1 protocol created all five types, validated anonymous JSON/XML/iCal payloads, rejected unauthorized administration, and confirmed PATCH propagation on 2026-08-09. Browser protocol rendered the live agenda and confirmed an itinerary addition survived a full reload.
+- Deployed Worker `d54caf33-a364-4308-8c20-a6021bde1b5f` passed production health and authorization-boundary checks. The embed shell returns `200` with `frame-ancestors *` and no `X-Frame-Options`; normal application routes retain `frame-ancestors 'none'` and `X-Frame-Options: DENY`. Production D1 has no event records yet, so full seeded public-data evidence remains pending.
+- PostHog is configured with the existing US project token, lazy loading, identified-only person profiles, no session recording, and no autocapture. Explicit widget and itinerary events plus route pageviews are enabled; the core app remains 107.87 KB gzipped.

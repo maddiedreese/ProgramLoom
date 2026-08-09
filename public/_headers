@@ -1,8 +1,8 @@
 /*
   Content-Security-Policy: default-src 'self'; connect-src 'self' https://challenges.cloudflare.com https://*.posthog.com https://*.sentry.io; img-src 'self' data: blob: https:; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src https://challenges.cloudflare.com https://www.youtube.com https://player.vimeo.com https://docs.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests
   Referrer-Policy: strict-origin-when-cross-origin
-  X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains
 

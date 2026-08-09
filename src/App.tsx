@@ -11,6 +11,8 @@ import { EventSubmissions } from "./app/EventSubmissions";
 import { EventReviews } from "./app/EventReviews";
 import { EventSpeakers } from "./app/EventSpeakers";
 import { EventAgenda } from "./app/EventAgenda";
+import { EventWidgets } from "./app/EventWidgets";
+import { PublicWidgetPage } from "./app/PublicWidgetPage";
 
 const capabilities = [
   { icon: GalleryVerticalEnd, title: "Shape the program", body: "Collect proposals with conditional forms, route reviews, and make decisions with confidence." },
@@ -143,7 +145,7 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
 
 type SessionUser = { id: string; email: string; name: string };
 
-function AuthenticatedPage({ page }: { page: "dashboard" | "team" | "event" | "submissions" | "reviews" | "speakers" | "agenda" }) {
+function AuthenticatedPage({ page }: { page: "dashboard" | "team" | "event" | "submissions" | "reviews" | "speakers" | "agenda" | "widgets" }) {
   const [session, setSession] = useState<{ loading: boolean; user: SessionUser | null }>({ loading: true, user: null });
   useEffect(() => {
     fetch("/api/auth/session", { credentials: "same-origin" })
@@ -159,9 +161,10 @@ function AuthenticatedPage({ page }: { page: "dashboard" | "team" | "event" | "s
   if (page === "reviews") return <EventReviews user={session.user} />;
   if (page === "speakers") return <EventSpeakers user={session.user} />;
   if (page === "agenda") return <EventAgenda user={session.user} />;
+  if (page === "widgets") return <EventWidgets user={session.user} />;
   return <Dashboard user={session.user} />;
 }
 
 export function App() {
-  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/invite" element={<InvitePage />} /><Route path="/c/:organizationSlug/:eventSlug/:formSlug" element={<PublicCfpPage />} /><Route path="/app" element={<AuthenticatedPage page="dashboard" />} /><Route path="/app/team" element={<AuthenticatedPage page="team" />} /><Route path="/app/events/:eventId" element={<AuthenticatedPage page="event" />} /><Route path="/app/events/:eventId/submissions" element={<AuthenticatedPage page="submissions" />} /><Route path="/app/events/:eventId/reviews" element={<AuthenticatedPage page="reviews" />} /><Route path="/app/events/:eventId/speakers" element={<AuthenticatedPage page="speakers" />} /><Route path="/app/events/:eventId/speaker" element={<AuthenticatedPage page="speakers" />} /><Route path="/app/events/:eventId/agenda" element={<AuthenticatedPage page="agenda" />} /><Route path="*" element={<MarketingPage />} /></Routes>;
+  return <Routes><Route path="/" element={<MarketingPage />} /><Route path="/login" element={<EntryPage mode="login" />} /><Route path="/register" element={<EntryPage mode="register" />} /><Route path="/invite" element={<InvitePage />} /><Route path="/c/:organizationSlug/:eventSlug/:formSlug" element={<PublicCfpPage />} /><Route path="/embed/:publicKey" element={<PublicWidgetPage />} /><Route path="/app" element={<AuthenticatedPage page="dashboard" />} /><Route path="/app/team" element={<AuthenticatedPage page="team" />} /><Route path="/app/events/:eventId" element={<AuthenticatedPage page="event" />} /><Route path="/app/events/:eventId/submissions" element={<AuthenticatedPage page="submissions" />} /><Route path="/app/events/:eventId/reviews" element={<AuthenticatedPage page="reviews" />} /><Route path="/app/events/:eventId/speakers" element={<AuthenticatedPage page="speakers" />} /><Route path="/app/events/:eventId/speaker" element={<AuthenticatedPage page="speakers" />} /><Route path="/app/events/:eventId/agenda" element={<AuthenticatedPage page="agenda" />} /><Route path="/app/events/:eventId/widgets" element={<AuthenticatedPage page="widgets" />} /><Route path="*" element={<MarketingPage />} /></Routes>;
 }

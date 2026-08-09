@@ -28,6 +28,22 @@ describe("ProgramLoom Worker", () => {
     expect(await response.text()).toBe("asset");
   });
 
+  it("allows public widgets to be framed without weakening application routes", async () => {
+    const widget = await app.request("/embed/public-key", {}, env);
+    expect(widget.status).toBe(200);
+    await expect(widget.clone().text()).resolves.toBe("asset");
+    expect(widget.headers.get("content-security-policy")).toContain(
+      "frame-ancestors *",
+    );
+    expect(widget.headers.get("x-frame-options")).toBeNull();
+
+    const application = await app.request("/register", {}, env);
+    expect(application.headers.get("content-security-policy")).toContain(
+      "frame-ancestors 'none'",
+    );
+    expect(application.headers.get("x-frame-options")).toBe("SAMEORIGIN");
+  });
+
   it("protects event workspace routes before database access", async () => {
     const response = await app.request("/api/events/00000000-0000-4000-8000-000000000003", {}, env);
     expect(response.status).toBe(401);

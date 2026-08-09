@@ -9,6 +9,7 @@ import publicRoutes from "./routes/public";
 import reviewRoutes from "./routes/reviews";
 import speakerRoutes from "./routes/speakers";
 import agendaRoutes from "./routes/agenda";
+import widgetRoutes from "./routes/widgets";
 
 type Variables = { requestId: string };
 
@@ -32,11 +33,30 @@ app.use(
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "data:"],
       frameSrc: ["https://challenges.cloudflare.com", "https://www.youtube.com", "https://player.vimeo.com", "https://docs.google.com"],
-      frameAncestors: ["'none'"],
+      frameAncestors: [
+        (context) =>
+          context.req.path.startsWith("/embed/") ? "*" : "'none'",
+      ],
+      baseUri: ["'self'"],
+      formAction: [
+        (context) =>
+          context.req.path.startsWith("/embed/") ? "'none'" : "'self'",
+      ],
+      objectSrc: ["'none'"],
     },
     referrerPolicy: "strict-origin-when-cross-origin",
+    xFrameOptions: false,
   }),
 );
+
+app.use("*", async (context, next) => {
+  await next();
+  if (context.req.path.startsWith("/embed/")) {
+    context.res.headers.delete("x-frame-options");
+  } else {
+    context.header("x-frame-options", "SAMEORIGIN");
+  }
+});
 
 app.get("/api/health", (context) =>
   context.json({
@@ -67,6 +87,17 @@ app.route("/api/public", publicRoutes);
 app.route("/api/reviews", reviewRoutes);
 app.route("/api/speakers", speakerRoutes);
 app.route("/api/agenda", agendaRoutes);
+app.route("/api/widgets", widgetRoutes);
+
+app.get("/embed/:publicKey", async (context) => {
+  const assetUrl = new URL("/index.html", context.req.url);
+  const asset = await context.env.ASSETS.fetch(new Request(assetUrl));
+  return new Response(asset.body, {
+    status: asset.status,
+    statusText: asset.statusText,
+    headers: new Headers(asset.headers),
+  });
+});
 
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {

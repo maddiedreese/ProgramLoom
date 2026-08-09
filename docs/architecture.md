@@ -27,7 +27,7 @@ An organization can connect a dedicated Airtable base as its authoritative busin
 - Reviewers and speakers enter only through expiring, single-use invitations.
 - Session cookies are secure, HTTP-only, same-site, rotated after authentication, and backed by revocable server sessions.
 - Uploads use allow-listed types, size limits, randomized keys, and private R2 access through scoped signed routes.
-- Resend, Airtable, PostHog, and Sentry secrets exist only in Worker bindings.
+- Resend and Airtable credentials exist only in Worker bindings. PostHog's write-only project token and the Sentry DSN are intentionally browser-visible SDK identifiers; privileged API tokens are never shipped to clients.
 - Sensitive fields are excluded from analytics and error payloads.
 
 ## Delivery gates
