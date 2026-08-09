@@ -37,6 +37,7 @@ import {
   useState,
 } from "react";
 import { captureProductEvent } from "../lib/telemetry";
+import { SidebarUser } from "./SidebarUser";
 
 type User = { id: string; email: string; name: string };
 type Organization = {
@@ -393,10 +394,7 @@ export function CRMPage({ user }: { user: User }) {
             </button>
           ))}
         </nav>
-        <div className="sidebar-user">
-          <span>{user.name}</span>
-          <small>{user.email}</small>
-        </div>
+        <SidebarUser user={user} />
       </aside>
       <main className="crm-main">
         <header className="crm-heading">

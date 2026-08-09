@@ -49,11 +49,11 @@ Run the product in this order so every handoff supplies the next module with rea
 ## Verification summary
 
 - The exact upstream evaluator validates 7 areas, 20 ordered scenarios, and all 96 rubric items with optional scope included.
-- Local and GitHub CI run the locked install, TypeScript checks, 29 automated tests, and production build.
+- Local and GitHub CI run the locked install, TypeScript checks, 30 automated tests, and production build.
 - Repeatable local protocols exercise CRM and the two-role content/file lifecycle against Worker, D1, and R2—not mocks.
 - Production probes verify health, headers, role isolation, Airtable round trips, authenticated boundaries, public boundaries, legal pages, and custom domains.
 - Axe-core reports zero WCAG 2 A/AA/2.1 AA violations and zero horizontal overflow across twelve desktop/mobile production layouts.
-- The current core application is 106.10 KB gzipped; heavier CRM, speaker, content, legal, and spreadsheet features load only when requested.
+- The current core application is 106.85 KB gzipped; heavier CRM, speaker, content, legal, and spreadsheet features load only when requested.
 
 Full criterion-by-criterion implementation and evidence notes live in [evaluation-matrix.md](evaluation-matrix.md). Reproduction, deployment, recovery, and evaluator procedures live in [runbook.md](runbook.md).
 

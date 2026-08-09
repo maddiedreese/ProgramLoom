@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { SidebarUser } from "./SidebarUser";
 import { sanitizeResourceHtml } from "../lib/sanitizeResource";
 
 type User = { id: string; email: string; name: string };
@@ -184,10 +185,7 @@ function EventChrome({
             <Clock3 size={18} /> Agenda
           </a>
         </nav>
-        <div className="sidebar-user">
-          <span>{user.name}</span>
-          <small>{user.email}</small>
-        </div>
+        <SidebarUser user={user} />
       </aside>
       {children}
     </div>

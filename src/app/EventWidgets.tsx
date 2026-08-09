@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { SidebarUser } from "./SidebarUser";
 import { captureProductEvent } from "../lib/telemetry";
 
 type User = { id: string; email: string; name: string };
@@ -174,10 +175,7 @@ export function EventWidgets({ user }: { user: User }) {
             <Code2 size={18} /> Public widgets
           </a>
         </nav>
-        <div className="sidebar-user">
-          <span>{user.name}</span>
-          <small>{user.email}</small>
-        </div>
+        <SidebarUser user={user} />
       </aside>
       <main className="event-main widgets-main">
         <header className="event-heading">

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { SidebarUser } from "./SidebarUser";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -354,10 +355,7 @@ export function EventSubmissions({ user }: { user: User }) {
             <Clock3 size={18} /> Agenda
           </a>
         </nav>
-        <div className="sidebar-user">
-          <span>{user.name}</span>
-          <small>{user.email}</small>
-        </div>
+        <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="event-main submissions-main">
         <header className="event-heading">

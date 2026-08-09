@@ -18,6 +18,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+import { SidebarUser } from "./SidebarUser";
 import { useParams } from "react-router-dom";
 
 type User = { id: string; email: string; name: string };
@@ -515,10 +516,7 @@ export function EventWorkspace({ user }: { user: User }) {
             <CalendarClock size={18} /> Agenda
           </a>
         </nav>
-        <div className="sidebar-user">
-          <span>{user.name}</span>
-          <small>{user.email}</small>
-        </div>
+        <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="event-main">
         <header className="event-heading">

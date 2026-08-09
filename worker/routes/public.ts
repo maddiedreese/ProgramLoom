@@ -141,12 +141,64 @@ async function formDefinition(db: D1Database, formId: string) {
   return { fields, conditions };
 }
 
-function availability(form: FormRecord) {
+function availability(form: Pick<FormRecord, "opensAt" | "closesAt">) {
   const now = new Date().toISOString();
   if (form.opensAt && now < form.opensAt) return "upcoming" as const;
   if (form.closesAt && now > form.closesAt) return "closed" as const;
   return "open" as const;
 }
+
+router.get("/cfp", async (context) => {
+  const db = database(context.env);
+  const result = await db
+    .prepare(
+      `SELECT f.id, f.name, f.slug, f.description, f.opens_at AS opensAt,
+              f.closes_at AS closesAt, f.edit_closes_at AS editClosesAt,
+              f.published_at AS publishedAt, e.name AS eventName,
+              e.slug AS eventSlug, e.starts_at AS eventStartsAt,
+              e.ends_at AS eventEndsAt, e.timezone, o.name AS organizationName,
+              o.slug AS organizationSlug
+       FROM cfp_forms f
+       JOIN events e ON e.id = f.event_id
+       JOIN organizations o ON o.id = e.organization_id
+       WHERE f.published_at IS NOT NULL
+         AND (f.closes_at IS NULL OR datetime(f.closes_at) >= datetime('now', '-30 days'))
+       ORDER BY
+         CASE WHEN f.opens_at IS NOT NULL AND datetime(f.opens_at) > datetime('now') THEN 1
+              WHEN f.closes_at IS NOT NULL AND datetime(f.closes_at) < datetime('now') THEN 2
+              ELSE 0 END,
+         COALESCE(f.closes_at, e.starts_at), f.name`,
+    )
+    .all<
+      Pick<
+        FormRecord,
+        | "id"
+        | "name"
+        | "slug"
+        | "description"
+        | "opensAt"
+        | "closesAt"
+        | "editClosesAt"
+        | "publishedAt"
+        | "timezone"
+      > & {
+        eventName: string;
+        eventSlug: string;
+        eventStartsAt: string;
+        eventEndsAt: string;
+        organizationName: string;
+        organizationSlug: string;
+      }
+    >();
+
+  return context.json({
+    forms: result.results.map((form) => ({
+      ...form,
+      availability: availability(form),
+      url: `/c/${form.organizationSlug}/${form.eventSlug}/${form.slug}`,
+    })),
+  });
+});
 
 export function matches(operator: string, actual: unknown, expected: unknown) {
   if (operator === "is_checked") return actual === true;

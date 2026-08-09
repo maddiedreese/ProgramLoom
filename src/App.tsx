@@ -8,12 +8,13 @@ import {
   UsersRound,
 } from "lucide-react";
 import { lazy, Suspense, type FormEvent, useEffect, useState } from "react";
-import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Dashboard } from "./app/Dashboard";
 import { InvitePage } from "./app/InvitePage";
 import { TeamPage } from "./app/TeamPage";
 import { EventWorkspace } from "./app/EventWorkspace";
 import { PublicCfpPage } from "./app/PublicCfpPage";
+import { PublicCfpDirectory } from "./app/PublicCfpDirectory";
 import { EventSubmissions } from "./app/EventSubmissions";
 import { EventReviews } from "./app/EventReviews";
 import { EventAgenda } from "./app/EventAgenda";
@@ -404,6 +405,13 @@ function AuthenticatedPage({
   return <Dashboard user={session.user} />;
 }
 
+function PublicCfpAlias() {
+  const { organizationSlug, eventSlug, formSlug } = useParams();
+  return (
+    <Navigate replace to={`/c/${organizationSlug}/${eventSlug}/${formSlug}`} />
+  );
+}
+
 export function App() {
   return (
     <Routes>
@@ -411,6 +419,11 @@ export function App() {
       <Route path="/login" element={<EntryPage mode="login" />} />
       <Route path="/register" element={<EntryPage mode="register" />} />
       <Route path="/invite" element={<InvitePage />} />
+      <Route path="/cfp" element={<PublicCfpDirectory />} />
+      <Route
+        path="/cfp/:organizationSlug/:eventSlug/:formSlug"
+        element={<PublicCfpAlias />}
+      />
       <Route
         path="/privacy"
         element={

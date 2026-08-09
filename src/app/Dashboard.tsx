@@ -10,6 +10,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+import { SidebarUser } from "./SidebarUser";
 
 type User = { id: string; email: string; name: string };
 type Organization = {
@@ -274,10 +275,7 @@ export function Dashboard({ user }: { user: User }) {
             <Building2 size={18} /> Speaker CRM
           </a>
         </nav>
-        <div className="sidebar-user">
-          <span>{user.name}</span>
-          <small>{user.email}</small>
-        </div>
+        <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="workspace-main">
         <header className="workspace-header">
