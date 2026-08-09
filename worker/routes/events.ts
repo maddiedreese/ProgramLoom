@@ -34,7 +34,11 @@ function refineDeadlines(value: { opensAt?: string | null; closesAt?: string | n
 }
 const formSchema = z.object(formShape).superRefine(refineDeadlines);
 
-const formPatchSchema = z.object(formShape).partial().extend({ published: z.boolean().optional() }).superRefine(refineDeadlines);
+const formPatchSchema = z.object({
+  ...formShape,
+  allowDrafts: z.boolean().optional(),
+  published: z.boolean().optional(),
+}).partial().superRefine(refineDeadlines);
 const fieldTypes = ["text", "textarea", "number", "email", "url", "select", "multiselect", "checkbox", "date", "file"] as const;
 const fieldShape = {
   section: z.enum(["welcome", "session", "speaker", "custom"]),
@@ -51,7 +55,7 @@ const fieldShape = {
 const fieldSchema = z.object(fieldShape).superRefine((value, context) => {
   if (["select", "multiselect"].includes(value.fieldType) && (!value.options || value.options.length < 1)) context.addIssue({ code: "custom", path: ["options"], message: "Select fields need at least one option." });
 });
-const fieldPatchSchema = z.object(fieldShape).partial().superRefine((value, context) => {
+const fieldPatchSchema = z.object({ ...fieldShape, required: z.boolean().optional() }).partial().superRefine((value, context) => {
   if (value.fieldType && ["select", "multiselect"].includes(value.fieldType) && value.options !== undefined && value.options.length < 1) context.addIssue({ code: "custom", path: ["options"], message: "Select fields need at least one option." });
 });
 

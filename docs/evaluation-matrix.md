@@ -32,3 +32,12 @@ The detailed row-level ledger will be populated from the evaluator YAML before m
 - Local Worker + D1 runtime protocol verified authenticated create → fields → conditional rule → publish → read-back on 2026-08-09. This is development evidence, not production-complete evaluator evidence.
 - Anonymous submitter flow now renders published configuration, applies conditional visibility/requirements on both client and server, supports hashed private draft/edit tokens, enforces availability/edit windows and submission limits, transitions drafts into the review queue, and records real Resend confirmation attempts. Local draft → validation rejection → submit → private read-back protocol passed on 2026-08-09; production mailbox evidence remains pending.
 - Organizer submission management now provides owner/admin-scoped search and status filters, structured answer/submitter detail, aggregate review progress, decision queues, and auditable status transitions. Local filtered list → detail → accept queue → audit read-back protocol passed on 2026-08-09.
+
+## Abstract review implementation evidence
+
+- Organizer review configuration supports ordered multi-round evaluation, blind/non-blind mode, weighted numeric criteria, scored-select criteria, reviewer notes, required fields, round lifecycle, bulk assignment, progress, and aggregate scores.
+- Assignment creation requires event-scoped reviewer access and rejects speaker/self assignments as explicit conflicts. Duplicate assignment requests are idempotent and reported separately.
+- Reviewer endpoints are identity-scoped to assigned proposals. Draft/future rounds remain invisible; blind detail removes people and speaker-section answers; direct organizer submission access by a reviewer returns `403`.
+- Reviewers can save partial drafts, submit only valid final scorecards, receive a server-computed weighted score, and recuse with a persisted rationale. Organizer aggregates update from the same review records.
+- Two-session local protocol passed draft invisibility → blind assignment → PII denial → required-score rejection → weighted final score `4.33` → organizer `1/1` completion on 2026-08-09.
+- Workers AI advisory assessment stores model, original score, reasoning, strengths, and risks; human override preserves the original while setting an effective score, actor, and rationale. A 25-assessment event/day guard protects the free tier. Local stored assessment `82` → human override `76` → transparent read-back passed without invoking AI on 2026-08-09. Live model-response evidence remains pending.

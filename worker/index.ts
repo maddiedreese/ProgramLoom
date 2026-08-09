@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth";
 import organizationRoutes from "./routes/organizations";
 import eventRoutes from "./routes/events";
 import publicRoutes from "./routes/public";
+import reviewRoutes from "./routes/reviews";
 
 type Variables = { requestId: string };
 
@@ -61,6 +62,7 @@ app.route("/api/auth", authRoutes);
 app.route("/api/organizations", organizationRoutes);
 app.route("/api/events", eventRoutes);
 app.route("/api/public", publicRoutes);
+app.route("/api/reviews", reviewRoutes);
 
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {
