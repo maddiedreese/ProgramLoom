@@ -122,6 +122,18 @@ describe("ProgramLoom Worker", () => {
     });
   });
 
+  it("protects the Organizer Control Room before database access", async () => {
+    const response = await app.request(
+      "/api/control-room/events/00000000-0000-4000-8000-000000000003",
+      {},
+      env,
+    );
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "authentication_required" },
+    });
+  });
+
   it("does not disclose an unconfigured Resend webhook", async () => {
     const response = await app.request(
       "/api/communications/resend/webhook",

@@ -11,7 +11,7 @@ This runbook covers the production service at `programloom.com` and `app.program
 - Workers AI supplies advisory review and content assistance. Human confirmation remains required.
 - Turnstile protects anonymous authentication, CFP, and speaker-interest writes.
 - Resend sends from `ProgramLoom <notifications@mail.programloom.com>`.
-- Airtable base `apppAC5fPzvR1bwdm` contains the ten `PL` business-data tables for Airtable-authoritative workspaces.
+- Airtable base `apppAC5fPzvR1bwdm` contains the twelve `PL` business-data tables for Airtable-authoritative workspaces.
 - PostHog receives explicit product events only. Operational errors stay in structured Cloudflare logs and Workers Observability.
 
 ## Local verification
@@ -54,6 +54,12 @@ D1 and R2 are the durable application stores; Airtable is authoritative only for
 ## Airtable operations
 
 Run `npm run airtable:provision` only against the dedicated ProgramLoom base. `npm run airtable:webhook` rotates/configures the filtered HMAC webhook and deploys its generated secrets. Never enumerate or modify unrelated bases. Normal writes enter the D1 outbox, move through Queue, and receive stable external IDs; webhook pulls are coalesced and tenancy-row deletion becomes a visible conflict instead of deleting the workspace.
+
+## Control Room operations
+
+Open an event's Control Room first during program-readiness or integration triage. Blocking items sort before warnings and informational drafts; overdue items sort first within a severity. Counts are derived live and should reconcile with the linked filtered records. Assign an owner for coordination, then resolve the underlying workflow rather than trying to hide an item. Only new-submission triage, review conflicts, recorded schedule conflicts, and integration acknowledgement have direct safe resolution controls.
+
+If a category fails while others remain available, retain the request ID and inspect Cloudflare logs before retrying. Queue, Airtable, delivery, and integration records should be repaired or safely retried from their owning workspace. Never delete operational history to clear a count. After recovery, explicitly refresh and verify the count and linked records agree.
 
 ## Evaluator procedure
 

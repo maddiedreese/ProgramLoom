@@ -363,6 +363,59 @@ router.patch(
         input.startsAt,
         input.endsAt,
       );
+      if (conflicts.length) {
+        const conflictStatements: D1PreparedStatement[] = [];
+        for (const conflict of conflicts) {
+          const existingConflict = await db
+            .prepare(
+              `SELECT id FROM schedule_conflict_records WHERE agenda_item_id=?
+               AND conflicting_item_id=? AND conflict_type=? AND status='open'`,
+            )
+            .bind(item.id, conflict.itemId, conflict.type)
+            .first<{ id: string }>();
+          const conflictId = existingConflict?.id ?? crypto.randomUUID();
+          conflictStatements.push(
+            db
+              .prepare(
+                `INSERT INTO schedule_conflict_records
+                  (id,organization_id,event_id,agenda_item_id,conflicting_item_id,
+                   conflict_type,summary,attempted_room_id,attempted_starts_at,attempted_ends_at)
+                 VALUES(?,?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(agenda_item_id,conflicting_item_id,conflict_type,status)
+                 DO UPDATE SET summary=excluded.summary,attempted_room_id=excluded.attempted_room_id,
+                   attempted_starts_at=excluded.attempted_starts_at,
+                   attempted_ends_at=excluded.attempted_ends_at,created_at=CURRENT_TIMESTAMP`,
+              )
+              .bind(
+                conflictId,
+                access.organizationId,
+                eventId,
+                item.id,
+                conflict.itemId,
+                conflict.type,
+                conflict.message,
+                input.roomId,
+                input.startsAt,
+                input.endsAt,
+              ),
+            auditStatement(db, {
+              organizationId: access.organizationId,
+              eventId,
+              actorUserId: access.user.id,
+              action: "schedule_conflict.detected",
+              entityType: "schedule_conflict",
+              entityId: conflictId,
+              after: {
+                agendaItemId: item.id,
+                conflictingItemId: conflict.itemId,
+                conflictType: conflict.type,
+              },
+              requestId: context.get("requestId"),
+            }),
+          );
+        }
+        await db.batch(conflictStatements);
+      }
       if (conflicts.length)
         return context.json(
           {
@@ -387,6 +440,13 @@ router.patch(
           input.endsAt,
           item.id,
         ),
+      db
+        .prepare(
+          `UPDATE schedule_conflict_records SET status='resolved',resolved_by=?,
+             resolved_at=CURRENT_TIMESTAMP
+           WHERE event_id=? AND status='open' AND (agenda_item_id=? OR conflicting_item_id=?)`,
+        )
+        .bind(access.user.id, eventId, item.id, item.id),
       auditStatement(db, {
         organizationId: access.organizationId,
         eventId,

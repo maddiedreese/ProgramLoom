@@ -4,19 +4,163 @@ const shouldApply = process.argv.includes("--apply");
 const env = await loadLocalEnv();
 const token = env.AIRTABLE_ACCESS_TOKEN;
 const baseId = env.AIRTABLE_BASE_ID;
-if (!token || !baseId) throw new Error("AIRTABLE_ACCESS_TOKEN and AIRTABLE_BASE_ID are required in .env.local.");
+if (!token || !baseId)
+  throw new Error(
+    "AIRTABLE_ACCESS_TOKEN and AIRTABLE_BASE_ID are required in .env.local.",
+  );
 
 const definitions = [
-  table("PL Organizations", [text("Name"), text("Slug"), select("Storage Mode", ["native", "airtable"]), dateTime("Updated At")]),
-  table("PL Events", [text("Organization ID"), text("Name"), text("Slug"), text("Timezone"), dateTime("Starts At"), dateTime("Ends At"), text("Venue"), select("Status", ["draft", "active", "archived"]), dateTime("Updated At")]),
-  table("PL CFP Forms", [text("Event ID"), text("Name"), text("Slug"), dateTime("Opens At"), dateTime("Closes At"), checkbox("Published"), longText("Configuration JSON"), dateTime("Updated At")]),
-  table("PL Submissions", [text("Event ID"), text("Form ID"), text("Title"), longText("Abstract"), select("Status", ["draft", "pending", "accepted_queue", "accepted", "decline_queue", "declined", "withdrawn"]), longText("Answers JSON"), dateTime("Submitted At"), dateTime("Updated At")]),
-  table("PL Speakers", [text("Organization ID"), email("Email"), text("First Name"), text("Last Name"), text("Job Title"), text("Company"), longText("Biography"), longText("Social JSON"), longText("Logistics JSON"), select("Portal Status", ["not_invited", "invited", "active", "complete"]), dateTime("Updated At")]),
-  table("PL Reviews", [text("Round ID"), text("Submission ID"), text("Reviewer ID"), number("Weighted Score"), select("Recommendation", ["approve", "maybe", "deny"]), longText("Comment"), number("AI Score"), longText("AI Reasoning"), checkbox("Human Override"), dateTime("Updated At")]),
-  table("PL Speaker Tasks", [text("Event ID"), text("Speaker ID"), text("Title"), select("Status", ["todo", "in_progress", "submitted", "complete", "needs_changes"]), dateTime("Due At"), longText("Response JSON"), dateTime("Updated At")]),
-  table("PL Agenda Items", [text("Event ID"), text("Session ID"), text("Track ID"), text("Room ID"), text("Title"), dateTime("Starts At"), dateTime("Ends At"), select("Status", ["draft", "pending_approval", "approved", "published"]), dateTime("Updated At")]),
-  table("PL CRM Contacts", [text("Organization ID"), email("Email"), text("First Name"), text("Last Name"), text("Company"), text("Job Title"), longText("Biography"), longText("Tags JSON"), text("Source"), dateTime("Updated At")]),
-  table("PL Pipeline Cards", [text("Organization ID"), text("Contact ID"), select("Stage", ["researching", "identified", "approved", "contacted", "interested", "confirmed", "future_fit", "declined"]), number("Score"), longText("Rationale"), dateTime("Updated At")]),
+  table("PL Organizations", [
+    text("Name"),
+    text("Slug"),
+    select("Storage Mode", ["native", "airtable"]),
+    dateTime("Updated At"),
+  ]),
+  table("PL Events", [
+    text("Organization ID"),
+    text("Name"),
+    text("Slug"),
+    text("Timezone"),
+    dateTime("Starts At"),
+    dateTime("Ends At"),
+    text("Venue"),
+    select("Status", ["draft", "active", "archived"]),
+    dateTime("Updated At"),
+  ]),
+  table("PL CFP Forms", [
+    text("Event ID"),
+    text("Name"),
+    text("Slug"),
+    dateTime("Opens At"),
+    dateTime("Closes At"),
+    checkbox("Published"),
+    longText("Configuration JSON"),
+    dateTime("Updated At"),
+  ]),
+  table("PL Submissions", [
+    text("Event ID"),
+    text("Form ID"),
+    text("Title"),
+    longText("Abstract"),
+    select("Status", [
+      "draft",
+      "pending",
+      "accepted_queue",
+      "accepted",
+      "decline_queue",
+      "declined",
+      "withdrawn",
+    ]),
+    longText("Answers JSON"),
+    dateTime("Submitted At"),
+    dateTime("Updated At"),
+  ]),
+  table("PL Speakers", [
+    text("Organization ID"),
+    email("Email"),
+    text("First Name"),
+    text("Last Name"),
+    text("Job Title"),
+    text("Company"),
+    longText("Biography"),
+    longText("Social JSON"),
+    longText("Logistics JSON"),
+    select("Portal Status", ["not_invited", "invited", "active", "complete"]),
+    dateTime("Updated At"),
+  ]),
+  table("PL Reviews", [
+    text("Round ID"),
+    text("Submission ID"),
+    text("Reviewer ID"),
+    number("Weighted Score"),
+    select("Recommendation", ["approve", "maybe", "deny"]),
+    longText("Comment"),
+    number("AI Score"),
+    longText("AI Reasoning"),
+    checkbox("Human Override"),
+    dateTime("Updated At"),
+  ]),
+  table("PL Review Conflicts", [
+    text("Event ID"),
+    text("Round ID"),
+    text("Assignment ID"),
+    text("Submission ID"),
+    text("Reviewer ID"),
+    select("Type", ["recusal", "declared", "detected"]),
+    longText("Reason"),
+    select("Status", ["unresolved", "resolved", "overridden"]),
+    longText("Resolution Note"),
+    dateTime("Resolved At"),
+    dateTime("Created At"),
+  ]),
+  table("PL Speaker Tasks", [
+    text("Event ID"),
+    text("Speaker ID"),
+    text("Title"),
+    select("Status", [
+      "todo",
+      "in_progress",
+      "submitted",
+      "complete",
+      "needs_changes",
+    ]),
+    dateTime("Due At"),
+    longText("Response JSON"),
+    dateTime("Updated At"),
+  ]),
+  table("PL Agenda Items", [
+    text("Event ID"),
+    text("Session ID"),
+    text("Track ID"),
+    text("Room ID"),
+    text("Title"),
+    dateTime("Starts At"),
+    dateTime("Ends At"),
+    select("Status", ["draft", "pending_approval", "approved", "published"]),
+    dateTime("Updated At"),
+  ]),
+  table("PL Schedule Conflicts", [
+    text("Event ID"),
+    text("Agenda Item ID"),
+    text("Conflicting Item ID"),
+    select("Type", ["room", "speaker"]),
+    longText("Summary"),
+    text("Room ID"),
+    dateTime("Starts At"),
+    dateTime("Ends At"),
+    select("Status", ["open", "resolved", "dismissed"]),
+    dateTime("Resolved At"),
+    dateTime("Created At"),
+  ]),
+  table("PL CRM Contacts", [
+    text("Organization ID"),
+    email("Email"),
+    text("First Name"),
+    text("Last Name"),
+    text("Company"),
+    text("Job Title"),
+    longText("Biography"),
+    longText("Tags JSON"),
+    text("Source"),
+    dateTime("Updated At"),
+  ]),
+  table("PL Pipeline Cards", [
+    text("Organization ID"),
+    text("Contact ID"),
+    select("Stage", [
+      "researching",
+      "identified",
+      "approved",
+      "contacted",
+      "interested",
+      "confirmed",
+      "future_fit",
+      "declined",
+    ]),
+    number("Score"),
+    longText("Rationale"),
+    dateTime("Updated At"),
+  ]),
 ];
 
 const existingResponse = await airtable(`/meta/bases/${baseId}/tables`);
@@ -24,42 +168,110 @@ const existing = new Set(existingResponse.tables.map((item) => item.name));
 const missing = definitions.filter((item) => !existing.has(item.name));
 
 if (!missing.length) {
-  console.log(`Airtable schema is current (${definitions.length} ProgramLoom tables).`);
+  console.log(
+    `Airtable schema is current (${definitions.length} ProgramLoom tables).`,
+  );
   process.exit(0);
 }
 
 if (!shouldApply) {
-  console.log(`Dry run: ${missing.length} table(s) would be created: ${missing.map((item) => item.name).join(", ")}`);
+  console.log(
+    `Dry run: ${missing.length} table(s) would be created: ${missing.map((item) => item.name).join(", ")}`,
+  );
   process.exit(0);
 }
 
 for (const definition of missing) {
-  await airtable(`/meta/bases/${baseId}/tables`, { method: "POST", body: JSON.stringify(definition) });
+  await airtable(`/meta/bases/${baseId}/tables`, {
+    method: "POST",
+    body: JSON.stringify(definition),
+  });
   console.log(`Created ${definition.name}`);
 }
-console.log(`Airtable schema provisioned (${definitions.length} ProgramLoom tables).`);
+console.log(
+  `Airtable schema provisioned (${definitions.length} ProgramLoom tables).`,
+);
 
 async function airtable(path, init = {}) {
-  const response = await fetch(`https://api.airtable.com/v0${path}`, { ...init, headers: { authorization: `Bearer ${token}`, "content-type": "application/json", ...init.headers } });
-  if (!response.ok) throw new Error(`Airtable ${response.status}: ${(await response.text()).slice(0, 500)}`);
+  const response = await fetch(`https://api.airtable.com/v0${path}`, {
+    ...init,
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      ...init.headers,
+    },
+  });
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new Error(
+      `Airtable schema request failed with status ${response.status}.`,
+    );
+  }
   return response.json();
 }
 
 async function loadLocalEnv() {
-  const source = await readFile(new URL("../.env.local", import.meta.url), "utf8");
-  return Object.fromEntries(source.split(/\r?\n/).filter((line) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(line)).map((line) => {
-    const index = line.indexOf("=");
-    let value = line.slice(index + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
-    return [line.slice(0, index), value];
-  }));
+  const source = await readFile(
+    new URL("../.env.local", import.meta.url),
+    "utf8",
+  );
+  return Object.fromEntries(
+    source
+      .split(/\r?\n/)
+      .filter((line) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(line))
+      .map((line) => {
+        const index = line.indexOf("=");
+        let value = line.slice(index + 1).trim();
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        )
+          value = value.slice(1, -1);
+        return [line.slice(0, index), value];
+      }),
+  );
 }
 
-function table(name, fields) { return { name, fields: [{ name: "ProgramLoom ID", type: "singleLineText" }, ...fields] }; }
-function text(name) { return { name, type: "singleLineText" }; }
-function email(name) { return { name, type: "email" }; }
-function longText(name) { return { name, type: "multilineText" }; }
-function checkbox(name) { return { name, type: "checkbox", options: { icon: "check", color: "greenBright" } }; }
-function dateTime(name) { return { name, type: "dateTime", options: { dateFormat: { name: "iso" }, timeFormat: { name: "24hour" }, timeZone: "utc" } }; }
-function number(name) { return { name, type: "number", options: { precision: 2 } }; }
-function select(name, choices) { return { name, type: "singleSelect", options: { choices: choices.map((choice) => ({ name: choice })) } }; }
+function table(name, fields) {
+  return {
+    name,
+    fields: [{ name: "ProgramLoom ID", type: "singleLineText" }, ...fields],
+  };
+}
+function text(name) {
+  return { name, type: "singleLineText" };
+}
+function email(name) {
+  return { name, type: "email" };
+}
+function longText(name) {
+  return { name, type: "multilineText" };
+}
+function checkbox(name) {
+  return {
+    name,
+    type: "checkbox",
+    options: { icon: "check", color: "greenBright" },
+  };
+}
+function dateTime(name) {
+  return {
+    name,
+    type: "dateTime",
+    options: {
+      dateFormat: { name: "iso" },
+      timeFormat: { name: "24hour" },
+      timeZone: "utc",
+    },
+  };
+}
+function number(name) {
+  return { name, type: "number", options: { precision: 2 } };
+}
+function select(name, choices) {
+  return {
+    name,
+    type: "singleSelect",
+    options: { choices: choices.map((choice) => ({ name: choice })) },
+  };
+}

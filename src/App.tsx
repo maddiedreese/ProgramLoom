@@ -35,6 +35,11 @@ const LazyEventCalendar = lazy(() =>
     default: EventCalendar,
   })),
 );
+const LazyEventControlRoom = lazy(() =>
+  import("./app/EventControlRoom").then(({ EventControlRoom }) => ({
+    default: EventControlRoom,
+  })),
+);
 const LazySubmissionEditAction = lazy(() =>
   import("./app/SubmissionEditActionPage").then(
     ({ SubmissionEditActionPage }) => ({ default: SubmissionEditActionPage }),
@@ -368,6 +373,7 @@ function AuthenticatedPage({
     | "widgets"
     | "communications"
     | "calendar"
+    | "control-room"
     | "crm";
 }) {
   const [session, setSession] = useState<{
@@ -413,6 +419,12 @@ function AuthenticatedPage({
     return (
       <Suspense fallback={<LoadingRoute label="Loading calendar lifecycle…" />}>
         <LazyEventCalendar user={session.user} />
+      </Suspense>
+    );
+  if (page === "control-room")
+    return (
+      <Suspense fallback={<LoadingRoute label="Loading the Control Room…" />}>
+        <LazyEventControlRoom user={session.user} />
       </Suspense>
     );
   if (page === "crm")
@@ -527,6 +539,10 @@ export function App() {
       <Route
         path="/app/events/:eventId/calendar"
         element={<AuthenticatedPage page="calendar" />}
+      />
+      <Route
+        path="/app/events/:eventId/control-room"
+        element={<AuthenticatedPage page="control-room" />}
       />
       <Route path="*" element={<MarketingPage />} />
     </Routes>

@@ -21,6 +21,12 @@
 
 An organization can connect a dedicated Airtable base as its authoritative business-record store. API writes enter a durable D1 outbox, are applied to Airtable with stable external IDs, and are reconciled back into indexed D1 read models. Sync conflicts are visible and resolvable; unrelated bases are never enumerated or modified. Organizations without Airtable use D1-native storage.
 
+## Operational read model
+
+The Organizer Control Room is a live, event-scoped projection rather than a separately maintained issue cache. Bounded indexed queries derive operational categories from submissions, review assignments and conflicts, decisions, communications, speakers, onboarding, files, content, agenda state, Queue jobs, Airtable outbox/conflicts, and integration incidents. D1's compound-query limit is respected by executing small query groups and merging only bounded priority windows in the Worker. Counts are exact; item ordering is deterministic by severity, overdue state, deadline/age, category, and stable record ID.
+
+Issue ownership is the only Control Room-specific durable state. Resolving an item changes its authoritative domain record, so it disappears on the next automatic or explicit refresh. Owner changes and supported resolution actions retain before/after audit history. Review and schedule conflicts also synchronize to Airtable in Airtable-authoritative workspaces; delivery attempts, Queue state, audit history, and Control Room ownership remain operational D1 records.
+
 ## Trust boundaries
 
 - Organizer registration is public and protected by verified email and Turnstile.

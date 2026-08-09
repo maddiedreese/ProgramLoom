@@ -7,6 +7,7 @@ import {
   FileInput,
   Files,
   GitBranch,
+  Gauge,
   GripVertical,
   Layers3,
   LoaderCircle,
@@ -498,6 +499,9 @@ export function EventWorkspace({ user }: { user: User }) {
           <span>{event?.status}</span>
         </div>
         <nav className="event-nav" aria-label="Event workspace">
+          <a href={`/app/events/${eventId}/control-room`}>
+            <Gauge size={18} /> Control Room
+          </a>
           <a className="active" href="#cfp">
             <FileInput size={18} /> Call for proposals
           </a>

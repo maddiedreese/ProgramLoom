@@ -8,8 +8,10 @@ const supportedEntityTypes = [
   "submission",
   "speaker",
   "review_assignment",
+  "review_conflict",
   "speaker_task",
   "agenda_item",
+  "schedule_conflict",
   "crm_contact",
   "crm_import",
   "pipeline_card",
@@ -24,6 +26,7 @@ type AirtableRecord = {
 type OutboxRecord = {
   id: string;
   organizationId: string;
+  eventId: string | null;
   action: string;
   entityType: SupportedEntity;
   entityId: string;
@@ -53,7 +56,8 @@ export async function queueAirtableAudits(
   const placeholders = supportedEntityTypes.map(() => "?").join(",");
   const audits = await db
     .prepare(
-      `SELECT a.id,a.organization_id AS organizationId,a.action,a.entity_type AS entityType,a.entity_id AS entityId
+      `SELECT a.id,a.organization_id AS organizationId,a.event_id AS eventId,
+              a.action,a.entity_type AS entityType,a.entity_id AS entityId
        FROM audit_events a
        JOIN organizations o ON o.id=a.organization_id
        WHERE a.request_id=? AND o.storage_mode='airtable'
@@ -63,6 +67,7 @@ export async function queueAirtableAudits(
     .all<{
       id: string;
       organizationId: string;
+      eventId: string | null;
       action: string;
       entityType: SupportedEntity;
       entityId: string;
@@ -73,12 +78,13 @@ export async function queueAirtableAudits(
       db
         .prepare(
           `INSERT OR IGNORE INTO integration_outbox
-           (id,organization_id,integration,action,entity_type,entity_id,payload_json,idempotency_key)
-           VALUES(?,?,'airtable',?,?,?,?,?)`,
+           (id,organization_id,event_id,integration,action,entity_type,entity_id,payload_json,idempotency_key)
+           VALUES(?,?,?,'airtable',?,?,?,?,?)`,
         )
         .bind(
           `airtable-${audit.id}`,
           audit.organizationId,
+          audit.eventId,
           audit.action.includes("deleted") ? "delete" : "upsert",
           audit.entityType,
           audit.entityId,
@@ -133,7 +139,7 @@ export async function processAirtableOutbox(
   const db = database(env);
   const outbox = await db
     .prepare(
-      `SELECT id,organization_id AS organizationId,action,entity_type AS entityType,
+      `SELECT id,organization_id AS organizationId,event_id AS eventId,action,entity_type AS entityType,
               entity_id AS entityId,payload_json AS payloadJson,attempts,
               available_at AS availableAt,completed_at AS completedAt
        FROM integration_outbox WHERE id=? AND integration='airtable'`,
@@ -188,6 +194,7 @@ export async function processAirtableOutbox(
         ),
       conflictStatement(db, {
         organizationId: outbox.organizationId,
+        eventId: outbox.eventId,
         entityType: outbox.entityType,
         entityId: outbox.entityId,
         direction: "push",
@@ -289,6 +296,7 @@ async function syncCrmCollection(env: Env, organizationId: string) {
     await upsertExternalEntity(env, {
       id: `collection-${contact.id}`,
       organizationId,
+      eventId: null,
       action: "upsert",
       entityType: "crm_contact",
       entityId: contact.id,
@@ -438,6 +446,33 @@ async function projectEntity(
           })
         : null;
     }
+    case "review_conflict": {
+      const row = await db
+        .prepare(
+          `SELECT event_id AS eventId,round_id AS roundId,assignment_id AS assignmentId,
+                  submission_id AS submissionId,reviewer_user_id AS reviewerId,
+                  conflict_type AS conflictType,reason,status,resolution_note AS resolutionNote,
+                  resolved_at AS resolvedAt,created_at AS createdAt
+           FROM review_conflicts WHERE id=?`,
+        )
+        .bind(entityId)
+        .first<Record<string, unknown>>();
+      return row
+        ? projection("PL Review Conflicts", {
+            "Event ID": row.eventId,
+            "Round ID": row.roundId,
+            "Assignment ID": row.assignmentId,
+            "Submission ID": row.submissionId,
+            "Reviewer ID": row.reviewerId,
+            Type: row.conflictType,
+            Reason: row.reason,
+            Status: row.status,
+            "Resolution Note": row.resolutionNote,
+            "Resolved At": normalizeDate(row.resolvedAt),
+            "Created At": normalizeDate(row.createdAt),
+          })
+        : null;
+    }
     case "speaker_task": {
       const row = await db
         .prepare(
@@ -478,6 +513,33 @@ async function projectEntity(
             "Ends At": normalizeDate(row.endsAt),
             Status: row.status,
             "Updated At": normalizeDate(row.updatedAt),
+          })
+        : null;
+    }
+    case "schedule_conflict": {
+      const row = await db
+        .prepare(
+          `SELECT event_id AS eventId,agenda_item_id AS agendaItemId,
+                  conflicting_item_id AS conflictingItemId,conflict_type AS conflictType,
+                  summary,attempted_room_id AS roomId,attempted_starts_at AS startsAt,
+                  attempted_ends_at AS endsAt,status,resolved_at AS resolvedAt,created_at AS createdAt
+           FROM schedule_conflict_records WHERE id=?`,
+        )
+        .bind(entityId)
+        .first<Record<string, unknown>>();
+      return row
+        ? projection("PL Schedule Conflicts", {
+            "Event ID": row.eventId,
+            "Agenda Item ID": row.agendaItemId,
+            "Conflicting Item ID": row.conflictingItemId,
+            Type: row.conflictType,
+            Summary: row.summary,
+            "Room ID": row.roomId,
+            "Starts At": normalizeDate(row.startsAt),
+            "Ends At": normalizeDate(row.endsAt),
+            Status: row.status,
+            "Resolved At": normalizeDate(row.resolvedAt),
+            "Created At": normalizeDate(row.createdAt),
           })
         : null;
     }
@@ -1036,6 +1098,7 @@ function conflictStatement(
   db: D1Database,
   input: {
     organizationId: string;
+    eventId?: string | null;
     entityType: string;
     entityId: string;
     externalId?: string;
@@ -1047,8 +1110,8 @@ function conflictStatement(
   return db
     .prepare(
       `INSERT INTO integration_conflicts
-       (id,organization_id,integration,entity_type,entity_id,external_id,direction,reason,payload_json)
-       VALUES(?,?,'airtable',?,?,?,?,?,?)
+       (id,organization_id,event_id,integration,entity_type,entity_id,external_id,direction,reason,payload_json)
+       VALUES(?,?,?,'airtable',?,?,?,?,?,?)
        ON CONFLICT(organization_id,integration,entity_type,entity_id,status)
        DO UPDATE SET external_id=excluded.external_id,direction=excluded.direction,reason=excluded.reason,
          payload_json=excluded.payload_json,created_at=CURRENT_TIMESTAMP,resolved_at=NULL`,
@@ -1056,6 +1119,7 @@ function conflictStatement(
     .bind(
       crypto.randomUUID(),
       input.organizationId,
+      input.eventId ?? null,
       input.entityType,
       input.entityId,
       input.externalId ?? null,
@@ -1080,8 +1144,10 @@ async function airtableRequest<T = unknown>(
     },
   });
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 600);
-    throw new Error(`Airtable ${response.status}: ${detail}`);
+    // Airtable error bodies can echo field values. Keep provider responses out
+    // of operational records and structured logs.
+    await response.body?.cancel();
+    throw new Error(`Airtable request failed with status ${response.status}.`);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -1101,8 +1167,10 @@ function tableForEntity(entityType: SupportedEntity) {
     submission: "PL Submissions",
     speaker: "PL Speakers",
     review_assignment: "PL Reviews",
+    review_conflict: "PL Review Conflicts",
     speaker_task: "PL Speaker Tasks",
     agenda_item: "PL Agenda Items",
+    schedule_conflict: "PL Schedule Conflicts",
     crm_contact: "PL CRM Contacts",
     pipeline_card: "PL Pipeline Cards",
   };

@@ -15,6 +15,7 @@ import integrationRoutes from "./routes/integrations";
 import contentRoutes from "./routes/content";
 import communicationRoutes from "./routes/communications";
 import calendarRoutes from "./routes/calendar";
+import controlRoomRoutes from "./routes/control-room";
 import {
   beginAirtableReconciliation,
   dispatchPendingAirtableOutbox,
@@ -143,6 +144,7 @@ app.route("/api/integrations", integrationRoutes);
 app.route("/api/content", contentRoutes);
 app.route("/api/communications", communicationRoutes);
 app.route("/api/calendar", calendarRoutes);
+app.route("/api/control-room", controlRoomRoutes);
 
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);
