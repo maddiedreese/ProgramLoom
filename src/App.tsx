@@ -16,7 +16,6 @@ import { EventWorkspace } from "./app/EventWorkspace";
 import { PublicCfpPage } from "./app/PublicCfpPage";
 import { EventSubmissions } from "./app/EventSubmissions";
 import { EventReviews } from "./app/EventReviews";
-import { EventSpeakers } from "./app/EventSpeakers";
 import { EventAgenda } from "./app/EventAgenda";
 import { EventWidgets } from "./app/EventWidgets";
 import { PublicWidgetPage } from "./app/PublicWidgetPage";
@@ -27,6 +26,11 @@ const LazyCRMPage = lazy(() =>
 const LazyEventContent = lazy(() =>
   import("./app/EventContent").then(({ EventContent }) => ({
     default: EventContent,
+  })),
+);
+const LazyEventSpeakers = lazy(() =>
+  import("./app/EventSpeakers").then(({ EventSpeakers }) => ({
+    default: EventSpeakers,
   })),
 );
 const LazyPublicInterestPage = lazy(() =>
@@ -351,7 +355,12 @@ function AuthenticatedPage({
   if (page === "event") return <EventWorkspace user={session.user} />;
   if (page === "submissions") return <EventSubmissions user={session.user} />;
   if (page === "reviews") return <EventReviews user={session.user} />;
-  if (page === "speakers") return <EventSpeakers user={session.user} />;
+  if (page === "speakers")
+    return (
+      <Suspense fallback={<LoadingRoute label="Loading speaker operations…" />}>
+        <LazyEventSpeakers user={session.user} />
+      </Suspense>
+    );
   if (page === "content")
     return (
       <Suspense fallback={<LoadingRoute label="Loading content workspace…" />}>

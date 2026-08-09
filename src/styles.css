@@ -16,7 +16,7 @@
   --cream: #fffdf6;
   --moss: #315c45;
   --moss-dark: #214332;
-  --coral: #e87757;
+  --coral: #a9432d;
   --line: rgba(32, 36, 31, 0.16);
 }
 * {
@@ -259,6 +259,10 @@ blockquote {
   font-weight: 700;
   color: var(--coral);
 }
+.capabilities .kicker,
+.entry-aside .kicker {
+  color: #f0a58e;
+}
 .section-heading h2 {
   font-size: clamp(38px, 5vw, 60px);
   margin: 12px 0;
@@ -278,7 +282,7 @@ blockquote {
 }
 .card-number {
   float: right;
-  color: #858c82;
+  color: #969d93;
   font:
     600 12px ui-monospace,
     "SFMono-Regular",
@@ -520,7 +524,7 @@ input {
   font-size: 13px;
 }
 .sidebar-user small {
-  color: #787d75;
+  color: #6d726b;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -918,7 +922,7 @@ input {
   padding: 6px 9px;
   border-radius: 999px;
   background: #f0ede3;
-  color: #6b7068;
+  color: #62675f;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -948,7 +952,7 @@ input {
   gap: 4px;
 }
 .check-row small {
-  color: #737870;
+  color: #6d726b;
   font-weight: 400;
 }
 .empty-events {

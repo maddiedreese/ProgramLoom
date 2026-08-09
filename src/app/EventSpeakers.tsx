@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { sanitizeResourceHtml } from "../lib/sanitizeResource";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -129,39 +130,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function SanitizedResource({ html }: { html: string }) {
-  const safe = useMemo(() => {
-    const document = new DOMParser().parseFromString(html, "text/html");
-    document
-      .querySelectorAll("script,style,object,embed,link,meta")
-      .forEach((node) => node.remove());
-    document.querySelectorAll("*").forEach((element) => {
-      for (const attribute of [...element.attributes])
-        if (
-          attribute.name.startsWith("on") ||
-          attribute.name === "srcdoc" ||
-          (attribute.name === "href" &&
-            attribute.value.trim().toLowerCase().startsWith("javascript:"))
-        )
-          element.removeAttribute(attribute.name);
-      if (element instanceof HTMLIFrameElement) {
-        const source = element.getAttribute("src") ?? "";
-        const allowed = [
-          "https://www.youtube.com/embed/",
-          "https://player.vimeo.com/video/",
-          "https://docs.google.com/presentation/",
-        ].some((prefix) => source.startsWith(prefix));
-        if (!allowed) element.remove();
-        else {
-          element.setAttribute(
-            "sandbox",
-            "allow-scripts allow-same-origin allow-presentation",
-          );
-          element.setAttribute("loading", "lazy");
-        }
-      }
-    });
-    return document.body.innerHTML;
-  }, [html]);
+  const safe = useMemo(() => sanitizeResourceHtml(html), [html]);
   return (
     <div className="resource-body" dangerouslySetInnerHTML={{ __html: safe }} />
   );

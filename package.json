@@ -30,6 +30,7 @@
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
     "@marsidev/react-turnstile": "^1.5.5",
+    "dompurify": "^3.4.13",
     "fflate": "^0.8.3",
     "hono": "^4.9.2",
     "lucide-react": "^0.539.0",
