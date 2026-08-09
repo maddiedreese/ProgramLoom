@@ -327,6 +327,84 @@ footer {
   color: #646960;
   font-size: 14px;
 }
+footer nav,
+.legal-footer nav {
+  display: flex;
+  gap: 18px;
+  font-size: 13px;
+}
+footer nav a,
+.legal-footer nav a {
+  text-decoration: none;
+}
+.legal-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+.legal-header,
+.legal-footer {
+  width: min(1080px, calc(100% - 48px));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.legal-header {
+  padding: 24px 0;
+}
+.legal-page {
+  width: min(780px, calc(100% - 48px));
+  margin: 58px auto 100px;
+}
+.legal-page h1 {
+  margin: 8px 0;
+  font-size: clamp(42px, 7vw, 68px);
+  letter-spacing: -0.045em;
+}
+.legal-updated {
+  color: #62675f;
+}
+.legal-copy {
+  display: grid;
+  gap: 34px;
+  margin-top: 48px;
+}
+.legal-copy section {
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.legal-copy h2 {
+  margin: 0 0 12px;
+  font-size: 23px;
+}
+.legal-copy p {
+  color: #4f554d;
+  line-height: 1.75;
+}
+.legal-footer {
+  margin-top: auto;
+  padding: 28px 0;
+  border-top: 1px solid var(--line);
+  color: #62675f;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  footer,
+  .legal-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .legal-header {
+    width: min(100% - 32px, 1080px);
+  }
+  .legal-page {
+    width: min(100% - 32px, 780px);
+    margin-top: 34px;
+  }
+}
 .entry-layout {
   min-height: 100vh;
   display: grid;
@@ -1365,9 +1443,9 @@ input {
 }
 .event-sidebar .mark {
   background: var(--coral);
-  color: var(--ink);
+  color: var(--cream);
 }
-.back-link {
+.event-sidebar .back-link {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1840,7 +1918,7 @@ input {
   .event-sidebar .wordmark {
     margin-bottom: 14px;
   }
-  .back-link,
+  .event-sidebar .back-link,
   .event-identity,
   .event-nav,
   .event-sidebar .sidebar-user {
@@ -4191,7 +4269,7 @@ input {
   margin: 0 8px 24px;
   text-decoration: none;
 }
-.back-link {
+.crm-sidebar .back-link {
   margin: 0 7px 22px;
   display: flex;
   align-items: center;
@@ -5360,7 +5438,7 @@ input {
   .crm-sidebar > .wordmark {
     margin-bottom: 11px;
   }
-  .back-link,
+  .crm-sidebar .back-link,
   .crm-org-switcher,
   .crm-nav-label,
   .crm-sidebar .sidebar-user {

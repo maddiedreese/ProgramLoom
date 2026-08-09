@@ -38,6 +38,9 @@ const LazyPublicInterestPage = lazy(() =>
     default: PublicInterestPage,
   })),
 );
+const LazyLegalPage = lazy(() =>
+  import("./app/LegalPage").then(({ LegalPage }) => ({ default: LegalPage })),
+);
 
 function LoadingRoute({ label }: { label: string }) {
   return (
@@ -177,7 +180,11 @@ function MarketingPage() {
       </main>
       <footer>
         <Wordmark />
-        <span>Built in the open for event teams.</span>
+        <nav aria-label="Legal">
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+          <a href="https://github.com/maddiedreese/SaaS">Source</a>
+        </nav>
       </footer>
     </div>
   );
@@ -387,6 +394,22 @@ export function App() {
       <Route path="/login" element={<EntryPage mode="login" />} />
       <Route path="/register" element={<EntryPage mode="register" />} />
       <Route path="/invite" element={<InvitePage />} />
+      <Route
+        path="/privacy"
+        element={
+          <Suspense fallback={<LoadingRoute label="Loading privacy notice…" />}>
+            <LazyLegalPage kind="privacy" />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/terms"
+        element={
+          <Suspense fallback={<LoadingRoute label="Loading terms…" />}>
+            <LazyLegalPage kind="terms" />
+          </Suspense>
+        }
+      />
       <Route
         path="/c/:organizationSlug/:eventSlug/:formSlug"
         element={<PublicCfpPage />}
