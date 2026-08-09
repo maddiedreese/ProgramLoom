@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import app from "./index";
+import { app } from "./index";
 
 const env = {
   APP_ENV: "test",
@@ -65,6 +65,30 @@ describe("ProgramLoom Worker", () => {
   it("protects speaker CRM routes before database access", async () => {
     const response = await app.request(
       "/api/crm/organizations/00000000-0000-4000-8000-000000000003/contacts",
+      {},
+      env,
+    );
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "authentication_required" },
+    });
+  });
+
+  it("does not disclose an unconfigured Airtable webhook", async () => {
+    const response = await app.request(
+      "/api/integrations/airtable/webhook/not-a-secret",
+      { method: "POST", body: "{}" },
+      env,
+    );
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "webhook_not_found" },
+    });
+  });
+
+  it("protects Airtable integration status before database access", async () => {
+    const response = await app.request(
+      "/api/integrations/organizations/00000000-0000-4000-8000-000000000003/airtable",
       {},
       env,
     );

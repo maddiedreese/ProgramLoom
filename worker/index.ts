@@ -11,16 +11,49 @@ import speakerRoutes from "./routes/speakers";
 import agendaRoutes from "./routes/agenda";
 import widgetRoutes from "./routes/widgets";
 import crmRoutes from "./routes/crm";
+import integrationRoutes from "./routes/integrations";
+import {
+  beginAirtableReconciliation,
+  dispatchPendingAirtableOutbox,
+  finishAirtableReconciliation,
+  processAirtableOutbox,
+  queueAirtableAudits,
+  reconcileAirtableOrganizations,
+  refreshAirtableWebhook,
+} from "./lib/airtable";
 
 type Variables = { requestId: string };
 
-const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+export const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 app.use("*", async (context, next) => {
   const requestId = context.req.header("cf-ray") ?? crypto.randomUUID();
   context.set("requestId", requestId);
   await next();
   context.header("x-request-id", requestId);
+});
+
+app.use("/api/*", async (context, next) => {
+  await next();
+  if (
+    !["POST", "PUT", "PATCH", "DELETE"].includes(context.req.method) ||
+    context.res.status >= 400 ||
+    !context.env.DB
+  )
+    return;
+  try {
+    await queueAirtableAudits(context.env, context.get("requestId"));
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        service: "airtable_outbox",
+        requestId: context.get("requestId"),
+        message:
+          error instanceof Error ? error.message : "Outbox dispatch failed.",
+      }),
+    );
+  }
 });
 
 app.use(
@@ -32,7 +65,6 @@ app.use(
         "'self'",
         "https://challenges.cloudflare.com",
         "https://*.posthog.com",
-        "https://*.sentry.io",
       ],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
@@ -99,6 +131,7 @@ app.route("/api/speakers", speakerRoutes);
 app.route("/api/agenda", agendaRoutes);
 app.route("/api/widgets", widgetRoutes);
 app.route("/api/crm", crmRoutes);
+app.route("/api/integrations", integrationRoutes);
 
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);
@@ -139,7 +172,11 @@ app.onError((error, context) => {
   console.error(
     JSON.stringify({
       level: "error",
+      service: "programloom",
+      operation: "request",
       requestId: context.get("requestId"),
+      method: context.req.method,
+      path: context.req.path,
       message: error.message,
     }),
   );
@@ -152,4 +189,70 @@ app.onError((error, context) => {
   );
 });
 
-export default app;
+type ProgramLoomJob =
+  | { kind: "airtable_outbox"; outboxId: string }
+  | { kind: "airtable_reconcile" };
+
+const worker: ExportedHandler<Env, ProgramLoomJob> = {
+  fetch: app.fetch,
+  async queue(batch, env) {
+    for (const message of batch.messages) {
+      try {
+        if (message.body.kind === "airtable_outbox")
+          await processAirtableOutbox(env, message.body.outboxId);
+        else {
+          await beginAirtableReconciliation(env);
+          try {
+            await reconcileAirtableOrganizations(env);
+          } finally {
+            await finishAirtableReconciliation(env);
+          }
+        }
+        message.ack();
+      } catch (error) {
+        logOperationalError(error, {
+          operation: "queue",
+          jobKind: message.body.kind,
+          messageId: message.id,
+        });
+        message.retry({ delaySeconds: 60 });
+      }
+    }
+  },
+  async scheduled(event, env, context) {
+    context.waitUntil(
+      observeOperation("airtable_outbox_dispatch", () =>
+        dispatchPendingAirtableOutbox(env),
+      ),
+    );
+    if (event.cron === "0 3 * * *")
+      context.waitUntil(
+        observeOperation("airtable_webhook_refresh", () =>
+          refreshAirtableWebhook(env),
+        ),
+      );
+  },
+};
+
+async function observeOperation<T>(operation: string, run: () => Promise<T>) {
+  try {
+    return await run();
+  } catch (error) {
+    logOperationalError(error, { operation });
+    throw error;
+  }
+}
+
+function logOperationalError(error: unknown, fields: Record<string, string>) {
+  console.error(
+    JSON.stringify({
+      level: "error",
+      service: "programloom",
+      ...fields,
+      message:
+        error instanceof Error ? error.message : "Operational task failed.",
+    }),
+  );
+}
+
+export default worker;

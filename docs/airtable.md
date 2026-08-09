@@ -5,3 +5,17 @@ ProgramLoom can use a dedicated Airtable base as the organizer-editable source o
 `npm run airtable:provision` creates ten namespaced `PL …` tables idempotently. It never deletes or modifies unrelated tables. Every table has a stable `ProgramLoom ID`; synchronization uses that ID rather than mutable names or row positions.
 
 Provisioned domains are organizations, events, CFP forms, submissions, speakers, reviews, speaker tasks, agenda items, CRM contacts, and pipeline cards. JSON columns preserve flexible form answers and integration metadata until strongly typed Airtable columns are explicitly configured.
+
+In Airtable-authoritative workspaces, ProgramLoom writes organizer changes through an idempotent D1 outbox and Cloudflare Queue. Airtable client edits trigger an HMAC-authenticated webhook and reconcile the organizer-editable organization, event, CRM-contact, and pipeline domains into D1 read models. Closely spaced webhook pings collapse into one reconciliation; failed writes use durable exponential backoff. This keeps normal operation below Airtable Free's API allowance without a polling loop.
+
+Deleting an authoritative event, CRM contact, or pipeline card in Airtable removes its indexed D1 read model during reconciliation and records an audit event. Removing the workspace's organization row instead creates a visible conflict because authentication and tenancy cannot safely be deleted from an editable spreadsheet row.
+
+Owners and admins see pending records, failed work, conflicts, and last-sync state in the workspace. “Sync now” performs an explicit recovery pass. Authentication, authorization, audit history, and queue state always remain in D1 and cannot be changed through Airtable cells.
+
+Production setup is:
+
+1. Run `npm run airtable:provision` to idempotently create any missing `PL …` tables.
+2. Deploy the Worker and migration.
+3. Run `npm run airtable:webhook` once. It creates the filtered webhook and deploys its path, HMAC, and ID secrets without printing them.
+
+The daily scheduled trigger reads the webhook payload cursor to keep the Airtable webhook active. The ten-minute trigger only drains already-due D1 outbox rows and therefore makes no Airtable calls when there is no work.

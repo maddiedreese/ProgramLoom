@@ -12,7 +12,6 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_TURNSTILE_SITE_KEY": JSON.stringify(env.TURNSTILE_SITE_KEY ?? ""),
       "import.meta.env.VITE_POSTHOG_KEY": JSON.stringify(env.POSTHOG_KEY ?? ""),
       "import.meta.env.VITE_POSTHOG_HOST": JSON.stringify(env.POSTHOG_HOST ?? ""),
-      "import.meta.env.VITE_SENTRY_DSN": JSON.stringify(env.SENTRY_DSN ?? ""),
       "import.meta.env.VITE_RELEASE": JSON.stringify(env.VITE_RELEASE ?? "0.1.0"),
     },
   };

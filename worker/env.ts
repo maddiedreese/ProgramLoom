@@ -6,6 +6,11 @@ export interface Env {
   EMAIL_REPLY_TO?: string;
   RESEND_API_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
+  AIRTABLE_ACCESS_TOKEN?: string;
+  AIRTABLE_BASE_ID?: string;
+  AIRTABLE_WEBHOOK_ID?: string;
+  AIRTABLE_WEBHOOK_MAC_SECRET?: string;
+  AIRTABLE_WEBHOOK_PATH_SECRET?: string;
   ASSETS: Fetcher;
   DB?: D1Database;
   FILES?: R2Bucket;

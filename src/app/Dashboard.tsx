@@ -5,6 +5,8 @@ import {
   CheckCircle2,
   LoaderCircle,
   Plus,
+  RefreshCw,
+  TriangleAlert,
   UsersRound,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
@@ -30,6 +32,21 @@ type EventRecord = {
   status: string;
 };
 type Feedback = { kind: "error" | "success"; message: string };
+type AirtableStatus = {
+  configured: boolean;
+  pending: number;
+  failed: number;
+  lastCompletedAt: string | null;
+  lastSyncedAt: string | null;
+  conflicts: Array<{
+    id: string;
+    entityType: string;
+    direction: "push" | "pull";
+    reason: string;
+    createdAt: string;
+  }>;
+  resources: Array<{ lastSuccessAt: string | null; lastError: string | null }>;
+};
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -53,6 +70,8 @@ export function Dashboard({ user }: { user: User }) {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [airtableStatus, setAirtableStatus] = useState<AirtableStatus>();
   const [feedback, setFeedback] = useState<Feedback>();
   const selected = organizations.find(
     (organization) => organization.id === selectedId,
@@ -81,6 +100,45 @@ export function Dashboard({ user }: { user: User }) {
         setFeedback({ kind: "error", message: error.message }),
       );
   }, [selectedId]);
+
+  useEffect(() => {
+    setAirtableStatus(undefined);
+    if (
+      !selectedId ||
+      selected?.storageMode !== "airtable" ||
+      !["owner", "admin"].includes(selected.role)
+    )
+      return;
+    api<AirtableStatus>(
+      `/api/integrations/organizations/${selectedId}/airtable`,
+    )
+      .then(setAirtableStatus)
+      .catch((error: Error) =>
+        setFeedback({ kind: "error", message: error.message }),
+      );
+  }, [selectedId, selected?.role, selected?.storageMode]);
+
+  async function syncAirtable() {
+    if (!selectedId) return;
+    setSyncing(true);
+    setFeedback(undefined);
+    try {
+      const result = await api<{ status: AirtableStatus }>(
+        `/api/integrations/organizations/${selectedId}/airtable/sync`,
+        { method: "POST" },
+      );
+      setAirtableStatus(result.status);
+      setFeedback({ kind: "success", message: "Airtable sync completed." });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Airtable sync failed.",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function createOrganization(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -227,10 +285,20 @@ export function Dashboard({ user }: { user: User }) {
             <h1>{selected ? selected.name : "Welcome to ProgramLoom"}</h1>
           </div>
           {selected && (
-            <span className="storage-pill">
+            <span
+              className={`storage-pill ${
+                airtableStatus?.failed || airtableStatus?.conflicts.length
+                  ? "storage-pill-warning"
+                  : ""
+              }`}
+            >
               <CheckCircle2 size={14} />{" "}
               {selected.storageMode === "airtable"
-                ? "Airtable source"
+                ? airtableStatus?.failed || airtableStatus?.conflicts.length
+                  ? "Airtable needs attention"
+                  : airtableStatus?.pending
+                    ? `${airtableStatus.pending} sync pending`
+                    : "Airtable source"
                 : "ProgramLoom storage"}
             </span>
           )}
@@ -242,6 +310,50 @@ export function Dashboard({ user }: { user: User }) {
           >
             {feedback.message}
           </div>
+        )}
+        {selected?.storageMode === "airtable" && airtableStatus && (
+          <section
+            className="integration-card"
+            aria-labelledby="airtable-sync-title"
+          >
+            <div>
+              <p className="kicker">Data integration</p>
+              <h2 id="airtable-sync-title">Airtable sync</h2>
+              <p>
+                {airtableStatus.configured
+                  ? airtableStatus.lastSyncedAt
+                    ? `Last synchronized ${new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(airtableStatus.lastSyncedAt))}.`
+                    : "Ready for its first synchronization."
+                  : "Airtable credentials are not configured."}
+              </p>
+            </div>
+            <button
+              className="button button-ghost button-small"
+              onClick={syncAirtable}
+              disabled={syncing || !airtableStatus.configured}
+            >
+              <RefreshCw className={syncing ? "spin" : ""} size={15} />
+              {syncing ? "Syncing…" : "Sync now"}
+            </button>
+            {(airtableStatus.failed > 0 ||
+              airtableStatus.conflicts.length > 0) && (
+              <div className="integration-alert" role="alert">
+                <TriangleAlert size={18} />
+                <div>
+                  <strong>
+                    {airtableStatus.conflicts.length} unresolved sync{" "}
+                    {airtableStatus.conflicts.length === 1
+                      ? "conflict"
+                      : "conflicts"}
+                  </strong>
+                  <p>
+                    {airtableStatus.conflicts[0]?.reason ??
+                      "A queued record could not be synchronized."}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
         )}
         {!organizations.length ? (
           <section

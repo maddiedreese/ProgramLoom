@@ -23,12 +23,12 @@
     "db:migrate:local": "wrangler d1 migrations apply programloom-production --local",
     "db:migrate:remote": "wrangler d1 migrations apply programloom-production --remote",
     "smoke:crm": "node scripts/smoke-crm.mjs",
-    "airtable:provision": "node scripts/provision-airtable.mjs --apply"
+    "airtable:provision": "node scripts/provision-airtable.mjs --apply",
+    "airtable:webhook": "node scripts/configure-airtable-webhook.mjs"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
     "@marsidev/react-turnstile": "^1.5.5",
-    "@sentry/react": "^10.69.0",
     "hono": "^4.9.2",
     "lucide-react": "^0.539.0",
     "posthog-js": "^1.414.0",
