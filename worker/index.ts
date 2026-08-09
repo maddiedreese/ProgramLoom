@@ -8,6 +8,7 @@ import eventRoutes from "./routes/events";
 import publicRoutes from "./routes/public";
 import reviewRoutes from "./routes/reviews";
 import speakerRoutes from "./routes/speakers";
+import agendaRoutes from "./routes/agenda";
 
 type Variables = { requestId: string };
 
@@ -65,6 +66,7 @@ app.route("/api/events", eventRoutes);
 app.route("/api/public", publicRoutes);
 app.route("/api/reviews", reviewRoutes);
 app.route("/api/speakers", speakerRoutes);
+app.route("/api/agenda", agendaRoutes);
 
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {

@@ -184,9 +184,9 @@ function EventChrome({
           <a className="active" href={`/app/events/${eventId}/speakers`}>
             <UsersRound size={18} /> Speakers
           </a>
-          <span>
+          <a href={`/app/events/${eventId}/agenda`}>
             <Clock3 size={18} /> Agenda
-          </span>
+          </a>
         </nav>
         <div className="sidebar-user">
           <span>{user.name}</span>

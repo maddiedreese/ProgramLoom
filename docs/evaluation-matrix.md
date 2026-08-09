@@ -4,11 +4,11 @@ This file is the delivery ledger for the 96-item Kill My SaaS evaluator. Criteri
 
 | Area | Criterion IDs | Count | Current state | Required evidence |
 |---|---:|---:|---|---|
-| Call for papers | CFP-01–CFP-16 | 16 | In progress: organizer form builder implemented and runtime-tested | Anonymous submit, draft/edit/deadline enforcement, reviewer isolation, decisions, delivery evidence |
-| Abstract management | ABS-01–ABS-14 | 14 | Planned | Two-round scoring, assignment/scoping, blind review, COI, aggregate/export, AI override evidence |
-| Speaker management | SPK-01–SPK-16 | 16 | Planned | Roster/import, portal scoping, profiles, tasks, files, email/logistics, handoff evidence |
+| Call for papers | CFP-01–CFP-16 | 16 | Implemented and locally protocol-tested; production mailbox/Turnstile evidence pending | Anonymous submit, draft/edit/deadline enforcement, reviewer isolation, decisions, delivery evidence |
+| Abstract management | ABS-01–ABS-14 | 14 | Implemented and locally protocol-tested; live AI response evidence pending | Two-round scoring, assignment/scoping, blind review, COI, aggregate/export, AI override evidence |
+| Speaker management | SPK-01–SPK-16 | 16 | Implemented, locally protocol-tested, and deployed | Roster/import, portal scoping, profiles, tasks, files, email/logistics, handoff evidence |
 | Content management | CNT-01–CNT-14 | 14 | Planned | Requests, uploads, versions, comments, constraints, approval, history, ZIP evidence |
-| Agenda and scheduling | AIA-01–AIA-08 | 8 | Planned | Configuration, placement persistence, two conflict classes, move/clear, publish, assisted scheduling evidence |
+| Agenda and scheduling | AIA-01–AIA-08 | 8 | Implemented, locally protocol-tested, and deployed | Configuration, placement persistence, two conflict classes, move/clear, publish, assisted scheduling evidence |
 | Public widgets | EMB-01–EMB-16 | 16 | Planned | All five anonymous widgets, search/filter/detail, navigation, schedule persistence/ICS, generator and live propagation evidence |
 | Speaker CRM | CRM-01–CRM-12 | 12 | Planned and required | Directory, filters, history, fields, import/dedupe, pipeline, segments, event handoff, outreach, analytics evidence |
 | **Total** |  | **96** |  |  |
@@ -43,3 +43,17 @@ The detailed row-level ledger will be populated from the evaluator YAML before m
 - Workers AI advisory assessment stores model, original score, reasoning, strengths, and risks; human override preserves the original while setting an effective score, actor, and rationale. A 25-assessment event/day guard protects the free tier. Local stored assessment `82` → human override `76` → transparent read-back passed without invoking AI on 2026-08-09. Live model-response evidence remains pending.
 - Decision delivery requires proposals to enter the matching accept/decline queue, personalizes documented placeholders, sends through verified Resend infrastructure, records provider/error history idempotently, and leaves failed deliveries queued. Final states cannot be bypassed through the status API.
 - A successful acceptance atomically records final status and audit history, creates/updates the organization speaker profile, links it to the accepted session, grants an existing user event-scoped speaker access or creates a hashed 30-day invitation, and includes the portal link in the real decision message. Local queue → test-mode delivery → D1 proof of accepted/email/speaker/session/invitation state passed on 2026-08-09; production mailbox evidence remains pending.
+
+## Speaker operations implementation evidence
+
+- Accepted speakers receive an event-scoped portal with linked sessions, public profile fields, private logistics, onboarding tasks, published resources, headshots, and requested files. Organizer endpoints remain inaccessible to speaker identities and organizer identities cannot enter speaker-scoped endpoints.
+- Headshots and requested content use private R2 objects. File requests enforce type/size policy, keep immutable numbered versions with SHA-256 digests, and expose authorized speaker and organizer downloads only.
+- Organizer operations provide readiness totals, task review, file approval/needs-changes comments, resource publishing, and bulk task/file assignment. Existing onboarding tasks are automatically assigned during future acceptance handoffs.
+- Two-role local protocol passed speaker profile/logistics → task submission → deck/headshot upload → organizer task/file approval → byte-identical authorized downloads on 2026-08-09. Deployed Worker `96145937-fcd1-4c5f-8aa4-e228c1c5e1db` passed production health and anonymous-auth-boundary checks.
+
+## Agenda implementation evidence
+
+- Organizers can configure rooms/tracks, add accepted sessions and non-session blocks, place/move/clear items, and publish only a complete conflict-free schedule. Every mutation is event-scoped, versioned, and audited.
+- Placement rejects overlapping use of the same room and independently rejects a shared speaker appearing in overlapping sessions across different rooms. Publication performs a final global scan for both conflict classes.
+- The assisted scheduler is a deterministic multi-room greedy algorithm. It accounts for existing occupancy and speaker sets, returns a preview, and applies only compatible placements; it is not mocked or demo data.
+- Local protocol passed incomplete publish rejection → combined room/speaker collision → cross-room speaker collision → assisted next-slot placement → publication → clear/move → republish with persisted version increments on 2026-08-09. Deployed Worker `9b1de170-576f-4001-a8d6-22fb1fc22a16` exposed the authenticated agenda boundary on both production domains after edge propagation.
