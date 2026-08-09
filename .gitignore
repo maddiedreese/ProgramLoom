@@ -1,0 +1,14 @@
+# Secrets and local environment overrides
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
+# Common generated files
+node_modules/
+.wrangler/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store

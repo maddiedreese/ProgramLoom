@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "programloom",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "programloom-production",
+      "database_id": "87ce4c4c-82ae-451a-9134-8453eda45d71",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ai": { "binding": "AI" },
+  "queues": {
+    "producers": [
+      {
+        "binding": "JOBS",
+        "queue": "programloom-jobs"
+      }
+    ]
+  },
+  "vars": {
+    "APP_ENV": "development",
+    "APP_URL": "http://localhost:5173",
+    "MARKETING_URL": "http://localhost:5173"
+  }
+}
