@@ -401,7 +401,8 @@ function SpeakerPortal({
   async function addFileComment(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     if (!selectedFile) return;
-    const form = new FormData(formEvent.currentTarget);
+    const formElement = formEvent.currentTarget;
+    const form = new FormData(formElement);
     setBusy(true);
     try {
       await api(
@@ -413,7 +414,7 @@ function SpeakerPortal({
           `/api/speakers/events/${eventId}/files/${selectedFile.id}`,
         ),
       );
-      formEvent.currentTarget.reset();
+      formElement.reset();
       setFeedback({ kind: "success", message: "Comment added." });
     } catch (error) {
       setFeedback({
@@ -842,8 +843,9 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
   }, [eventId]);
   async function createTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setBusy(true);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(formElement);
     try {
       await api(`/api/speakers/admin/events/${eventId}/tasks`, {
         method: "POST",
@@ -857,7 +859,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           assignAll: true,
         }),
       });
-      event.currentTarget.reset();
+      formElement.reset();
       await load();
       setFeedback({
         kind: "success",
@@ -875,8 +877,9 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
   }
   async function createResource(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setBusy(true);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(formElement);
     try {
       await api(`/api/speakers/admin/events/${eventId}/resources`, {
         method: "POST",
@@ -886,7 +889,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           published: data.get("published") === "on",
         }),
       });
-      event.currentTarget.reset();
+      formElement.reset();
       await load();
       setFeedback({ kind: "success", message: "Speaker resource saved." });
     } catch (error) {
@@ -901,8 +904,9 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
   }
   async function createFileRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setBusy(true);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(formElement);
     try {
       await api(`/api/speakers/admin/events/${eventId}/file-requests`, {
         method: "POST",
@@ -911,7 +915,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           speakerIds: speakers.map((speaker) => speaker.id),
         }),
       });
-      event.currentTarget.reset();
+      formElement.reset();
       await load();
       setFeedback({
         kind: "success",

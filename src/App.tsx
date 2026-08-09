@@ -192,6 +192,9 @@ function MarketingPage() {
 
 function EntryPage({ mode }: { mode: "login" | "register" }) {
   const registering = mode === "register";
+  const [sessionState, setSessionState] = useState<
+    "loading" | "anonymous" | "authenticated"
+  >("loading");
   const [turnstileToken, setTurnstileToken] = useState<string>();
   const [status, setStatus] = useState<{
     kind: "error" | "success";
@@ -200,11 +203,25 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
   const [submitting, setSubmitting] = useState(false);
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
 
+  useEffect(() => {
+    fetch("/api/auth/session", { credentials: "same-origin" })
+      .then((response) => response.json())
+      .then((result: { user: SessionUser | null }) =>
+        setSessionState(result.user ? "authenticated" : "anonymous"),
+      )
+      .catch(() => setSessionState("anonymous"));
+  }, []);
+
+  if (sessionState === "loading")
+    return <LoadingRoute label="Checking your session…" />;
+  if (sessionState === "authenticated") return <Navigate to="/app" replace />;
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setSubmitting(true);
     setStatus(undefined);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(formElement);
     try {
       const response = await fetch("/api/auth/request", {
         method: "POST",
@@ -228,7 +245,7 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
         kind: "success",
         message: result.message ?? "Check your inbox for a secure link.",
       });
-      event.currentTarget.reset();
+      formElement.reset();
     } catch (error) {
       setStatus({
         kind: "error",
@@ -424,6 +441,9 @@ export function App() {
       />
       <Route path="/embed/:publicKey" element={<PublicWidgetPage />} />
       <Route path="/app" element={<AuthenticatedPage page="dashboard" />} />
+      <Route path="/dashboard" element={<Navigate to="/app" replace />} />
+      <Route path="/admin" element={<Navigate to="/app" replace />} />
+      <Route path="/organizer" element={<Navigate to="/app" replace />} />
       <Route path="/app/team" element={<AuthenticatedPage page="team" />} />
       <Route path="/app/crm" element={<AuthenticatedPage page="crm" />} />
       <Route

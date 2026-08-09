@@ -178,10 +178,11 @@ export function Dashboard({ user }: { user: User }) {
 
   async function createEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     if (!selectedId) return;
     setSubmitting(true);
     setFeedback(undefined);
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     try {
       const { event: created } = await api<{ event: EventRecord }>(
         `/api/organizations/${selectedId}/events`,
@@ -209,7 +210,7 @@ export function Dashboard({ user }: { user: User }) {
             : organization,
         ),
       );
-      event.currentTarget.reset();
+      formElement.reset();
       setFeedback({
         kind: "success",
         message: `${created.name} was created as a draft.`,

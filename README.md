@@ -20,6 +20,8 @@ npm run dev
 
 Never commit `.env.local` or `.dev.vars`. See `docs/architecture.md` for the system design, `docs/runbook.md` for production operation and evaluator procedures, and `SECURITY.md` for vulnerability reporting.
 
+Competition-ready product copy and the judge walkthrough are maintained in `docs/submission.md`.
+
 Production secrets are uploaded individually with `zsh scripts/push-cloudflare-secrets.zsh`; the script validates presence and never prints values.
 
 ## Quality checks

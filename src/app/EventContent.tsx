@@ -230,7 +230,8 @@ export function EventContent({ user }: { user: User }) {
   }
   async function createTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     await run(async () => {
       await api(`/api/speakers/admin/events/${eventId}/tasks`, {
         method: "POST",
@@ -244,7 +245,7 @@ export function EventContent({ user }: { user: User }) {
           assignAll: true,
         }),
       });
-      event.currentTarget.reset();
+      formElement.reset();
     }, "File request assigned to all accepted speakers.");
   }
   async function sendReminders() {
@@ -360,7 +361,8 @@ export function EventContent({ user }: { user: User }) {
   async function addComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFile) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     await run(async () => {
       await api(
         `/api/speakers/admin/events/${eventId}/files/${selectedFile.id}/comments`,
@@ -371,7 +373,7 @@ export function EventContent({ user }: { user: User }) {
           `/api/speakers/admin/events/${eventId}/files/${selectedFile.id}`,
         ),
       );
-      event.currentTarget.reset();
+      formElement.reset();
     }, "Reply added to the file thread.");
   }
   async function share(file: ContentFile) {

@@ -68,6 +68,14 @@ type Condition = {
   targetFieldId: string;
   action: string;
 };
+type Track = {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+  description: string | null;
+  position: number;
+};
 type Feedback = { kind: "error" | "success"; message: string };
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -102,6 +110,7 @@ export function EventWorkspace({ user }: { user: User }) {
   const [selectedId, setSelectedId] = useState<string>();
   const [fields, setFields] = useState<Field[]>([]);
   const [conditions, setConditions] = useState<Condition[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>();
@@ -130,11 +139,13 @@ export function EventWorkspace({ user }: { user: User }) {
         }
         setEvent(eventResult.event);
         setRole(eventResult.role);
-        const formResult = await api<{ forms: CfpForm[] }>(
-          `/api/events/${eventId}/forms`,
-        );
+        const [formResult, trackResult] = await Promise.all([
+          api<{ forms: CfpForm[] }>(`/api/events/${eventId}/forms`),
+          api<{ tracks: Track[] }>(`/api/events/${eventId}/tracks`),
+        ]);
         setForms(formResult.forms);
         setSelectedId(formResult.forms[0]?.id);
+        setTracks(trackResult.tracks);
       })
       .catch((error: Error) =>
         setFeedback({ kind: "error", message: error.message }),
@@ -162,9 +173,10 @@ export function EventWorkspace({ user }: { user: User }) {
 
   async function createForm(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
+    const formElement = formEvent.currentTarget;
     setBusy(true);
     setFeedback(undefined);
-    const data = new FormData(formEvent.currentTarget);
+    const data = new FormData(formElement);
     try {
       const result = await api<{ form: CfpForm }>(
         `/api/events/${eventId}/forms`,
@@ -177,7 +189,7 @@ export function EventWorkspace({ user }: { user: User }) {
           }),
         },
       );
-      formEvent.currentTarget.reset();
+      formElement.reset();
       await loadForms(result.form.id);
       setPanel("fields");
       setFeedback({
@@ -198,9 +210,10 @@ export function EventWorkspace({ user }: { user: User }) {
   async function addField(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     if (!selectedId) return;
+    const formElement = formEvent.currentTarget;
     setBusy(true);
     setFeedback(undefined);
-    const data = new FormData(formEvent.currentTarget);
+    const data = new FormData(formElement);
     const fieldType = String(data.get("fieldType"));
     const options = String(data.get("options") ?? "")
       .split("\n")
@@ -233,7 +246,7 @@ export function EventWorkspace({ user }: { user: User }) {
             : item,
         ),
       );
-      formEvent.currentTarget.reset();
+      formElement.reset();
       setFeedback({
         kind: "success",
         message: `${result.field.label} was added.`,
@@ -243,6 +256,40 @@ export function EventWorkspace({ user }: { user: User }) {
         kind: "error",
         message:
           error instanceof Error ? error.message : "Could not add the field.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addTrack(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault();
+    const formElement = formEvent.currentTarget;
+    const data = new FormData(formElement);
+    setBusy(true);
+    setFeedback(undefined);
+    try {
+      const result = await api<{ track: Track }>(
+        `/api/events/${eventId}/tracks`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name: data.get("name"),
+            color: data.get("color"),
+          }),
+        },
+      );
+      setTracks((current) => [...current, result.track]);
+      formElement.reset();
+      setFeedback({
+        kind: "success",
+        message: `${result.track.name} is ready for forms and scheduling.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Could not add the track.",
       });
     } finally {
       setBusy(false);
@@ -373,8 +420,9 @@ export function EventWorkspace({ user }: { user: User }) {
   async function addCondition(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     if (!selectedId) return;
+    const formElement = formEvent.currentTarget;
     setBusy(true);
-    const data = new FormData(formEvent.currentTarget);
+    const data = new FormData(formElement);
     let compareValue: unknown = data.get("compareValue");
     if (data.get("operator") === "is_checked") compareValue = true;
     try {
@@ -392,7 +440,7 @@ export function EventWorkspace({ user }: { user: User }) {
         },
       );
       setConditions((current) => [...current, result.condition]);
-      formEvent.currentTarget.reset();
+      formElement.reset();
       setFeedback({ kind: "success", message: "Conditional rule added." });
     } catch (error) {
       setFeedback({
@@ -606,6 +654,59 @@ export function EventWorkspace({ user }: { user: User }) {
                 </div>
                 {panel === "fields" && (
                   <div className="builder-content">
+                    {canManage && (
+                      <section className="taxonomy-card">
+                        <div>
+                          <p className="kicker">Event taxonomy</p>
+                          <h2>Tracks</h2>
+                          <p>
+                            Create the event tracks here, then add a Single
+                            select field named Track with the same options. Add
+                            session formats such as “Talk (30 min)” as options
+                            on a Single select field named Format.
+                          </p>
+                        </div>
+                        <div
+                          className="track-chip-list"
+                          aria-label="Event tracks"
+                        >
+                          {tracks.length ? (
+                            tracks.map((track) => (
+                              <span key={track.id}>
+                                <i style={{ background: track.color }} />
+                                {track.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span>No tracks configured yet</span>
+                          )}
+                        </div>
+                        <form onSubmit={addTrack}>
+                          <label>
+                            Track name
+                            <input
+                              name="name"
+                              placeholder="AI Engineering"
+                              required
+                            />
+                          </label>
+                          <label>
+                            Color
+                            <input
+                              name="color"
+                              type="color"
+                              defaultValue="#315c45"
+                            />
+                          </label>
+                          <button
+                            className="button button-small"
+                            disabled={busy}
+                          >
+                            <Plus size={15} /> Add track
+                          </button>
+                        </form>
+                      </section>
+                    )}
                     <div className="field-stack">
                       {fields.length ? (
                         fields.map((field) => (

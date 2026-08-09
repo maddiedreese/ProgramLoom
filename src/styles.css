@@ -1716,6 +1716,59 @@ input {
 .builder-content {
   padding: 24px;
 }
+.taxonomy-card {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f7f5ee;
+}
+.taxonomy-card h2 {
+  margin: 2px 0 6px;
+  font-family: var(--display);
+  font-size: 20px;
+}
+.taxonomy-card p:not(.kicker) {
+  max-width: 760px;
+  margin: 0;
+  color: #656b62;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.taxonomy-card form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 96px auto;
+  gap: 12px;
+  align-items: end;
+}
+.taxonomy-card input[type="color"] {
+  min-height: 43px;
+  padding: 5px;
+}
+.track-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.track-chip-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: #535950;
+  font-size: 11px;
+  font-weight: 700;
+}
+.track-chip-list i {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
 .field-stack {
   display: grid;
   gap: 8px;
@@ -1941,6 +1994,9 @@ input {
   }
   .editor-grid,
   .condition-form {
+    grid-template-columns: 1fr;
+  }
+  .taxonomy-card form {
     grid-template-columns: 1fr;
   }
   .editor-grid .wide {

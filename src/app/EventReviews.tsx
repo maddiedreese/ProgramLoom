@@ -254,8 +254,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
   }, [eventId]);
   async function createRound(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setBusy(true);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(formElement);
     try {
       const result = await api<{ round: Round }>(
         `/api/reviews/events/${eventId}/rounds`,
@@ -267,7 +268,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           }),
         },
       );
-      event.currentTarget.reset();
+      formElement.reset();
       await load(result.round.id);
       setFeedback({
         kind: "success",
@@ -288,8 +289,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
   async function addField(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected) return;
+    const formElement = event.currentTarget;
     setBusy(true);
-    const data = new FormData(event.currentTarget);
+    const data = new FormData(formElement);
     const type = String(data.get("fieldType"));
     const options = String(data.get("options") ?? "")
       .split("\n")
@@ -314,7 +316,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           required: data.get("required") === "on",
         }),
       });
-      event.currentTarget.reset();
+      formElement.reset();
       await load(selected.id);
       setFeedback({ kind: "success", message: "Scorecard field added." });
     } catch (error) {
