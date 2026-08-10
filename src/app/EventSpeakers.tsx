@@ -926,6 +926,32 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function deleteTask(task: Task) {
+    if (
+      !window.confirm(
+        `Delete “${task.title}”? This removes its empty assignments and unfulfilled file requests. Tasks with uploaded file history cannot be deleted.`,
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await api(`/api/speakers/admin/events/${eventId}/tasks/${task.id}`, {
+        method: "DELETE",
+      });
+      await load();
+      setFeedback({
+        kind: "success",
+        message: `${task.title} deleted. Empty assignments and unfulfilled requests were removed; audit history was retained.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Task not deleted.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
   async function createFileRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -1184,6 +1210,13 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
               <strong>{task.title}</strong>
               <small>{task.description || "No description"}</small>
             </span>
+            <button
+              className="button button-ghost button-small"
+              onClick={() => deleteTask(task)}
+              disabled={busy}
+            >
+              Delete task
+            </button>
           </article>
         ))}
       </section>

@@ -658,6 +658,56 @@ router.post(
   },
 );
 
+router.delete("/admin/events/:eventId/tasks/:taskId", async (context) => {
+  const eventId = context.req.param("eventId");
+  const taskId = context.req.param("taskId");
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
+  const db = database(context.env);
+  const task = await db
+    .prepare(
+      `SELECT id,title,description,task_type AS taskType,due_at AS dueAt
+       FROM onboarding_tasks WHERE id=? AND event_id=?`,
+    )
+    .bind(taskId, eventId)
+    .first<Record<string, unknown>>();
+  if (!task) throw new HttpError(404, "task_not_found", "Task not found.");
+  const uploaded = await db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM file_versions fv
+       JOIN files f ON f.id=fv.file_id WHERE f.task_id=? AND f.event_id=?`,
+    )
+    .bind(taskId, eventId)
+    .first<{ count: number }>();
+  if (Number(uploaded?.count ?? 0) > 0)
+    throw new HttpError(
+      409,
+      "task_has_uploads",
+      "This task has uploaded file history and cannot be deleted. Keep it for auditability.",
+    );
+  await db.batch([
+    auditStatement(db, {
+      organizationId: access.organizationId,
+      eventId,
+      actorUserId: access.user.id,
+      action: "speaker_task.deleted",
+      entityType: "speaker_task",
+      entityId: taskId,
+      before: task,
+      after: { deleted: true, emptyFileRequestsRemoved: true },
+      requestId: context.get("requestId"),
+    }),
+    db
+      .prepare(
+        "DELETE FROM files WHERE task_id=? AND event_id=? AND current_version_id IS NULL",
+      )
+      .bind(taskId, eventId),
+    db
+      .prepare("DELETE FROM onboarding_tasks WHERE id=? AND event_id=?")
+      .bind(taskId, eventId),
+  ]);
+  return context.json({ ok: true });
+});
+
 router.get(
   "/events/:eventId/files/:fileId/versions/:versionId/download",
   async (context) => {

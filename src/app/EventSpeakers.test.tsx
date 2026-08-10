@@ -174,7 +174,15 @@ describe("speaker workspace", () => {
                   approvedFileCount: 1,
                 },
               ],
-              tasks: [],
+              tasks: [
+                {
+                  id: "task-1",
+                  title: "Confirm participation",
+                  description: "Confirm attendance.",
+                  taskType: "action",
+                  dueAt: null,
+                },
+              ],
               taskAssignments: [],
               resources: [],
               files: [],
@@ -211,6 +219,7 @@ describe("speaker workspace", () => {
     );
     expect(await screen.findByText("Priya Raman")).toBeVisible();
     expect(screen.getByLabelText("Filter speaker status")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Delete task" })).toBeVisible();
     expect(screen.getByLabelText("Filter task progress")).toBeVisible();
     fireEvent.change(screen.getByLabelText("Filter task progress"), {
       target: { value: "incomplete" },
