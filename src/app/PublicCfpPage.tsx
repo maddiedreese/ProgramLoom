@@ -114,6 +114,7 @@ export function PublicCfpPage() {
   const [locked, setLocked] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string>();
   const [signedIn, setSignedIn] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -139,7 +140,8 @@ export function PublicCfpPage() {
             }));
         },
       )
-      .catch(() => setSignedIn(false));
+      .catch(() => setSignedIn(false))
+      .finally(() => setSessionChecked(true));
   }, []);
 
   useEffect(() => {
@@ -416,7 +418,7 @@ export function PublicCfpPage() {
     );
   }
 
-  if (loading)
+  if (loading || !sessionChecked)
     return (
       <main className="public-cfp-loading" aria-busy="true">
         <LoaderCircle className="spin" /> Loading call for proposals…
