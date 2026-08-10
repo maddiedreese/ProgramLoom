@@ -1617,22 +1617,8 @@ router.post(
           "sending",
           user.id,
         ),
-      ...recipientRows.map((row) =>
-        db
-          .prepare(
-            "INSERT INTO crm_email_recipients(id,campaign_id,contact_id,recipient_email,recipient_name,rendered_subject,rendered_body,status,communication_message_id) VALUES(?,?,?,?,?,?,?,'queued',?)",
-          )
-          .bind(
-            row.id,
-            campaignId,
-            row.contact.id,
-            row.contact.email,
-            `${row.contact.firstName} ${row.contact.lastName}`,
-            row.subject,
-            row.body,
-            row.messageId,
-          ),
-      ),
+      // Communication rows must precede recipients because the CRM bridge has
+      // an immediate foreign key to communication_messages.
       ...recipientRows.map((row) => {
         const rendered = renderSimpleTransactionalEmail({
           recipientName: String(row.contact.firstName),
@@ -1657,6 +1643,22 @@ router.post(
           correlationId,
         });
       }),
+      ...recipientRows.map((row) =>
+        db
+          .prepare(
+            "INSERT INTO crm_email_recipients(id,campaign_id,contact_id,recipient_email,recipient_name,rendered_subject,rendered_body,status,communication_message_id) VALUES(?,?,?,?,?,?,?,'queued',?)",
+          )
+          .bind(
+            row.id,
+            campaignId,
+            row.contact.id,
+            row.contact.email,
+            `${row.contact.firstName} ${row.contact.lastName}`,
+            row.subject,
+            row.body,
+            row.messageId,
+          ),
+      ),
       domainEventStatement(db, {
         organizationId,
         eventId: input.eventId,
