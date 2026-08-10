@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
+  Download,
   EyeOff,
   FileInput,
   Files,
@@ -59,6 +60,21 @@ type Reviewer = {
   assignmentCount: number;
   completedCount: number;
 };
+type ReviewerPool = {
+  roundId: string;
+  reviewerUserId: string;
+  capacity: number;
+  assignmentCount: number;
+  completedCount: number;
+};
+type ReviewResult = {
+  roundId: string;
+  submissionId: string;
+  title: string;
+  aggregateScore: number | null;
+  assignmentCount: number;
+  completedCount: number;
+};
 type Submission = {
   id: string;
   title: string;
@@ -93,6 +109,13 @@ type Person = {
   role: string;
   organization: string | null;
 };
+
+function localDateTimeValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -207,6 +230,8 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [scorecards, setScorecards] = useState<ScoreField[]>([]);
   const [reviewers, setReviewers] = useState<Reviewer[]>([]);
+  const [reviewerPools, setReviewerPools] = useState<ReviewerPool[]>([]);
+  const [results, setResults] = useState<ReviewResult[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string>();
   const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
@@ -216,12 +241,25 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     message: string;
   }>();
   const [busy, setBusy] = useState(false);
+  const [resultSort, setResultSort] = useState<"desc" | "asc">("desc");
+  const [aiAssessment, setAiAssessment] = useState<{
+    id: string;
+    submissionId: string;
+    score: number;
+    effectiveScore: number;
+    reasoning: string;
+    overrideReason: string | null;
+  }>();
   const selected = rounds.find((round) => round.id === selectedRoundId);
   async function load(preferred?: string) {
     const [config, intake] = await Promise.all([
-      api<{ rounds: Round[]; scorecards: ScoreField[]; reviewers: Reviewer[] }>(
-        `/api/reviews/events/${eventId}`,
-      ),
+      api<{
+        rounds: Round[];
+        scorecards: ScoreField[];
+        reviewers: Reviewer[];
+        reviewerPools: ReviewerPool[];
+        results: ReviewResult[];
+      }>(`/api/reviews/events/${eventId}`),
       api<{ submissions: Submission[] }>(
         `/api/events/${eventId}/submissions?status=pending`,
       ),
@@ -229,6 +267,8 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     setRounds(config.rounds);
     setScorecards(config.scorecards);
     setReviewers(config.reviewers);
+    setReviewerPools(config.reviewerPools ?? []);
+    setResults(config.results ?? []);
     setSubmissions(intake.submissions);
     setSelectedRoundId(preferred ?? selectedRoundId ?? config.rounds[0]?.id);
   }
@@ -250,6 +290,12 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           body: JSON.stringify({
             name: data.get("name"),
             isBlind: data.get("isBlind") === "on",
+            opensAt: data.get("opensAt")
+              ? new Date(String(data.get("opensAt"))).toISOString()
+              : null,
+            closesAt: data.get("closesAt")
+              ? new Date(String(data.get("closesAt"))).toISOString()
+              : null,
           }),
         },
       );
@@ -316,6 +362,64 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function runAiAssessment(submissionId: string) {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const result = await api<{ assessment: typeof aiAssessment }>(
+        `/api/reviews/events/${eventId}/submissions/${submissionId}/ai-assessments`,
+        {
+          method: "POST",
+          body: JSON.stringify({ roundId: selected.id }),
+        },
+      );
+      setAiAssessment({ ...result.assessment!, submissionId });
+      setFeedback({
+        kind: "success",
+        message:
+          "Advisory assessment generated. Review the reasoning or record a human override.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Assessment failed.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function overrideAiAssessment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!aiAssessment) return;
+    const data = new FormData(event.currentTarget);
+    setBusy(true);
+    try {
+      const result = await api<{
+        assessment: { effectiveScore: number; overrideReason: string };
+      }>(
+        `/api/reviews/events/${eventId}/submissions/${aiAssessment.submissionId}/ai-assessments/${aiAssessment.id}/override`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            score: Number(data.get("score")),
+            reason: data.get("reason"),
+          }),
+        },
+      );
+      setAiAssessment({ ...aiAssessment, ...result.assessment });
+      setFeedback({
+        kind: "success",
+        message: "Human override saved with its reason and audit history.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Override failed.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
   async function setRoundStatus(status: string) {
     if (!selected) return;
     setBusy(true);
@@ -344,6 +448,41 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function updateRoundWindow(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected) return;
+    const data = new FormData(event.currentTarget);
+    setBusy(true);
+    try {
+      await api(`/api/reviews/events/${eventId}/rounds/${selected.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          opensAt: data.get("opensAt")
+            ? new Date(String(data.get("opensAt"))).toISOString()
+            : null,
+          closesAt: data.get("closesAt")
+            ? new Date(String(data.get("closesAt"))).toISOString()
+            : null,
+        }),
+      });
+      await load(selected.id);
+      setFeedback({
+        kind: "success",
+        message:
+          "Review window saved. Next, assign reviewers and open the round when scoring should begin.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not save the review window.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
   async function assign() {
     if (!selected || !selectedSubmissions.length || !selectedReviewers.length)
       return;
@@ -351,6 +490,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     try {
       const result = await api<{
         created: number;
+        capacitySkipped: number;
         conflicts: { reason: string }[];
       }>(`/api/reviews/events/${eventId}/assignments`, {
         method: "POST",
@@ -363,7 +503,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       await load(selected.id);
       setFeedback({
         kind: result.conflicts.length ? "error" : "success",
-        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
+        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.capacitySkipped ? ` ${result.capacitySkipped} exceeded configured reviewer capacity and were skipped.` : ""}${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
       });
     } catch (error) {
       setFeedback({
@@ -377,6 +517,49 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function saveReviewerPool(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected) return;
+    const data = new FormData(event.currentTarget);
+    const reviewerIds = data.getAll("reviewerUserId").map(String);
+    setBusy(true);
+    try {
+      await api(
+        `/api/reviews/events/${eventId}/rounds/${selected.id}/reviewer-pool`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            reviewers: reviewerIds.map((reviewerUserId) => ({
+              reviewerUserId,
+              capacity: Number(data.get(`capacity-${reviewerUserId}`) || 20),
+            })),
+          }),
+        },
+      );
+      await load(selected.id);
+      setFeedback({
+        kind: "success",
+        message:
+          "Reviewer pool saved for this round. Assignments now respect its membership and capacity limits.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Could not save the pool.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  const activePool = reviewerPools.filter(
+    (entry) => entry.roundId === selected?.id,
+  );
+  const assignableReviewers = activePool.length
+    ? reviewers.filter((reviewer) =>
+        activePool.some((entry) => entry.reviewerUserId === reviewer.id),
+      )
+    : reviewers;
   return (
     <>
       <header className="event-heading">
@@ -456,6 +639,14 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 </small>
               </span>
             </label>
+            <label>
+              Opens
+              <input name="opensAt" type="datetime-local" />
+            </label>
+            <label>
+              Closes
+              <input name="closesAt" type="datetime-local" />
+            </label>
             <button className="button button-small" disabled={busy}>
               <Plus size={15} /> Create round
             </button>
@@ -504,6 +695,96 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   <span>Reviewers</span>
                 </div>
               </div>
+              <form
+                className="review-window-form"
+                key={selected.id}
+                onSubmit={updateRoundWindow}
+              >
+                <div>
+                  <strong>Review window</strong>
+                  <small>
+                    Deadlines are stored durably for this round and shown to
+                    assigned reviewers.
+                  </small>
+                </div>
+                <label>
+                  Opens
+                  <input
+                    name="opensAt"
+                    type="datetime-local"
+                    defaultValue={localDateTimeValue(selected.opensAt)}
+                  />
+                </label>
+                <label>
+                  Closes
+                  <input
+                    name="closesAt"
+                    type="datetime-local"
+                    defaultValue={localDateTimeValue(selected.closesAt)}
+                  />
+                </label>
+                <button className="button button-small" disabled={busy}>
+                  Save review window
+                </button>
+              </form>
+              <form
+                className="reviewer-pool-form"
+                key={`pool-${selected.id}`}
+                onSubmit={saveReviewerPool}
+              >
+                <div>
+                  <h3>Reviewer pool and capacity</h3>
+                  <p>
+                    Choose who may review this round and cap each reviewer’s
+                    workload. Leave every reviewer unchecked to use the full
+                    event reviewer roster without caps.
+                  </p>
+                </div>
+                <div className="reviewer-pool-grid">
+                  {reviewers.map((reviewer) => {
+                    const membership = activePool.find(
+                      (entry) => entry.reviewerUserId === reviewer.id,
+                    );
+                    return (
+                      <div className="reviewer-pool-row" key={reviewer.id}>
+                        <label className="check-row">
+                          <input
+                            type="checkbox"
+                            name="reviewerUserId"
+                            value={reviewer.id}
+                            defaultChecked={Boolean(membership)}
+                          />
+                          <span>
+                            <strong>{reviewer.name}</strong>
+                            <small>{reviewer.email}</small>
+                          </span>
+                        </label>
+                        <label>
+                          Capacity
+                          <input
+                            name={`capacity-${reviewer.id}`}
+                            type="number"
+                            min="1"
+                            max="500"
+                            defaultValue={membership?.capacity ?? 20}
+                          />
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+                {!reviewers.length && (
+                  <p className="inline-empty">
+                    Invite a reviewer before configuring this round’s pool.
+                  </p>
+                )}
+                <button
+                  className="button button-small"
+                  disabled={busy || !reviewers.length}
+                >
+                  Save reviewer pool
+                </button>
+              </form>
               <section className="scorecard-section">
                 <div>
                   <h3>Scorecard</h3>
@@ -622,7 +903,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     </div>
                     <div>
                       <h4>Reviewers</h4>
-                      {reviewers.map((reviewer) => (
+                      {assignableReviewers.map((reviewer) => (
                         <label className="assignment-choice" key={reviewer.id}>
                           <input
                             type="checkbox"
@@ -669,6 +950,145 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 >
                   Assign reviewers
                 </button>
+              </section>
+              <section className="review-results-section">
+                <div>
+                  <h3>Review progress and aggregate results</h3>
+                  <p>
+                    Completion and weighted scores come from submitted reviews
+                    in this round. Sort or export the complete live result set.
+                  </p>
+                </div>
+                <div className="inline-actions">
+                  <label>
+                    Sort aggregate score
+                    <select
+                      value={resultSort}
+                      onChange={(event) =>
+                        setResultSort(event.target.value as "desc" | "asc")
+                      }
+                    >
+                      <option value="desc">Highest first</option>
+                      <option value="asc">Lowest first</option>
+                    </select>
+                  </label>
+                  <a
+                    className="button button-ghost button-small"
+                    href={`/api/reviews/events/${eventId}/export?roundId=${selected.id}`}
+                  >
+                    <Download size={14} /> Export review results CSV
+                  </a>
+                </div>
+                <div className="review-progress-grid">
+                  {assignableReviewers.map((reviewer) => {
+                    const progress = activePool.find(
+                      (entry) => entry.reviewerUserId === reviewer.id,
+                    );
+                    return (
+                      <article key={reviewer.id}>
+                        <strong>{reviewer.name}</strong>
+                        <span>
+                          {progress?.completedCount ?? reviewer.completedCount}/
+                          {progress?.assignmentCount ??
+                            reviewer.assignmentCount}{" "}
+                          complete
+                        </span>
+                        {progress && (
+                          <small>Capacity {progress.capacity}</small>
+                        )}
+                        <a
+                          className="text-link"
+                          href={`/app/events/${eventId}/communications?category=reviewer_reminder&reviewer=${reviewer.id}`}
+                        >
+                          Send reviewer reminder
+                        </a>
+                      </article>
+                    );
+                  })}
+                </div>
+                {results.some((result) => result.roundId === selected.id) ? (
+                  <div className="table-scroll" tabIndex={0}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Submission</th>
+                          <th>Progress</th>
+                          <th>Aggregate score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {results
+                          .filter((result) => result.roundId === selected.id)
+                          .sort((left, right) => {
+                            const leftScore = left.aggregateScore ?? -Infinity;
+                            const rightScore =
+                              right.aggregateScore ?? -Infinity;
+                            return resultSort === "desc"
+                              ? rightScore - leftScore
+                              : leftScore - rightScore;
+                          })
+                          .map((result) => (
+                            <tr key={result.submissionId}>
+                              <td>{result.title}</td>
+                              <td>
+                                {result.completedCount}/{result.assignmentCount}
+                              </td>
+                              <td>
+                                {result.aggregateScore ?? "Pending"}
+                                <button
+                                  className="text-button"
+                                  onClick={() =>
+                                    runAiAssessment(result.submissionId)
+                                  }
+                                  disabled={busy}
+                                >
+                                  Run AI assessment
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="inline-empty">
+                    Assign reviewers to populate aggregate results.
+                  </div>
+                )}
+                {aiAssessment && (
+                  <section className="ai-assessment-card" aria-live="polite">
+                    <div>
+                      <h4>Advisory AI assessment</h4>
+                      <strong>{aiAssessment.effectiveScore}/100</strong>
+                      <p>{aiAssessment.reasoning}</p>
+                      {aiAssessment.overrideReason && (
+                        <small>
+                          Human override: {aiAssessment.overrideReason}
+                        </small>
+                      )}
+                    </div>
+                    <form onSubmit={overrideAiAssessment}>
+                      <label>
+                        Human score
+                        <input
+                          name="score"
+                          type="number"
+                          min="0"
+                          max="100"
+                          defaultValue={aiAssessment.effectiveScore}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Override reason
+                        <input name="reason" minLength={3} required />
+                      </label>
+                      <button className="button button-small" disabled={busy}>
+                        Override assessment
+                      </button>
+                    </form>
+                  </section>
+                )}
               </section>
             </>
           )}
@@ -758,7 +1178,9 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
       await load();
       setFeedback({
         kind: "success",
-        message: submit ? "Review submitted." : "Review draft saved.",
+        message: submit
+          ? "Review completed. The organizer can now inspect the score and stage a decision."
+          : "Review draft saved. Complete review when every required answer is ready.",
       });
     } catch (error) {
       const typed = error as Error & { fields?: Record<string, string> };
@@ -917,11 +1339,11 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
                 <h2>{selected.title}</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close review details"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={() => setSelected(undefined)}
               >
-                <X size={19} />
+                <X size={16} /> Close review details
               </button>
             </header>
             <div className="review-proposal">
@@ -991,7 +1413,7 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
                   <Save size={15} /> Save draft
                 </button>
                 <button className="button" value="submit" disabled={busy}>
-                  <CheckCircle2 size={15} /> Submit review
+                  <CheckCircle2 size={15} /> Complete review
                 </button>
               </div>
               <button type="button" className="recuse-link" onClick={recuse}>

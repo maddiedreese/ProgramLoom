@@ -34,6 +34,13 @@ const speakerSchema = z.object({
   jobTitle: z.string().trim().max(160).nullable().optional(),
   company: z.string().trim().max(160).nullable().optional(),
   bio: z.string().trim().max(5000).nullable().optional(),
+  logistics: z
+    .object({
+      dietary: z.string().trim().max(1000).optional(),
+      accessibility: z.string().trim().max(1000).optional(),
+      travelNotes: z.string().trim().max(3000).optional(),
+    })
+    .default({}),
 });
 const exportSchema = z.object({
   fileIds: z.array(z.string().uuid()).min(1).max(100),
@@ -70,7 +77,7 @@ router.get("/admin/events/:eventId", async (context) => {
       db
         .prepare(
           `SELECT DISTINCT sp.id,sp.first_name AS firstName,sp.last_name AS lastName,
-                  sp.email,sp.job_title AS jobTitle,sp.company,sp.bio,
+                  sp.email,sp.job_title AS jobTitle,sp.company,sp.bio,sp.logistics_json AS logisticsJson,
                   CASE WHEN sp.headshot_key IS NULL THEN 0 ELSE 1 END AS hasHeadshot
            FROM speaker_profiles sp
            JOIN session_speakers ss ON ss.speaker_id=sp.id
@@ -122,6 +129,10 @@ router.get("/admin/events/:eventId", async (context) => {
     sessions: sessions.results,
     speakers: speakers.results.map((speaker: Record<string, unknown>) => ({
       ...speaker,
+      logistics: speaker.logisticsJson
+        ? JSON.parse(String(speaker.logisticsJson))
+        : {},
+      logisticsJson: undefined,
       hasHeadshot: Boolean(speaker.hasHeadshot),
       headshotUrl: speaker.hasHeadshot
         ? `/api/widgets/public/events/${eventId}/speakers/${speaker.id}/headshot`
@@ -537,7 +548,7 @@ router.patch(
     const db = database(context.env);
     const result = await db
       .prepare(
-        `UPDATE speaker_profiles SET first_name=?,last_name=?,job_title=?,company=?,bio=?,updated_at=CURRENT_TIMESTAMP
+        `UPDATE speaker_profiles SET first_name=?,last_name=?,job_title=?,company=?,bio=?,logistics_json=?,updated_at=CURRENT_TIMESTAMP
          WHERE id=? AND id IN (SELECT ss.speaker_id FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=?)`,
       )
       .bind(
@@ -546,6 +557,7 @@ router.patch(
         input.jobTitle ?? null,
         input.company ?? null,
         input.bio ?? null,
+        JSON.stringify(input.logistics),
         context.req.param("speakerId"),
         eventId,
       )
@@ -559,7 +571,7 @@ router.patch(
       action: "content.speaker_updated",
       entityType: "speaker",
       entityId: context.req.param("speakerId"),
-      after: input,
+      after: { ...input, logistics: "[private logistics updated]" },
       requestId: context.get("requestId"),
     }).run();
     return context.json({

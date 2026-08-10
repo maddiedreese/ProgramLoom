@@ -26,6 +26,17 @@ type PendingInvite = {
   expiresAt: string;
 };
 
+export function invitationDeliveryMessage(
+  deliveryStatus: "prepared" | "queued" | "sent",
+  email: string,
+) {
+  if (deliveryStatus === "queued")
+    return `Invitation created and queued for ${email}. Provider delivery evidence will appear in Communications.`;
+  if (deliveryStatus === "prepared")
+    return `Invitation created for ${email}, but delivery is only prepared. Open Communications to retry or inspect it.`;
+  return `The email provider accepted the workspace invitation for ${email}. Delivery is not claimed without provider evidence.`;
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -118,22 +129,22 @@ export function TeamPage({ user }: { user: User }) {
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     try {
-      const { invitation } = await api<{ invitation: PendingInvite }>(
-        `/api/organizations/${organizationId}/invitations`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            email: form.get("email"),
-            role,
-            eventId: role === "admin" ? undefined : form.get("eventId"),
-          }),
-        },
-      );
+      const { invitation, deliveryStatus } = await api<{
+        invitation: PendingInvite;
+        deliveryStatus: "prepared" | "queued" | "sent";
+      }>(`/api/organizations/${organizationId}/invitations`, {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.get("email"),
+          role,
+          eventId: role === "admin" ? undefined : form.get("eventId"),
+        }),
+      });
       setInvitations((current) => [invitation, ...current]);
       formElement.reset();
       setFeedback({
         kind: "success",
-        message: `Invitation sent to ${invitation.email}.`,
+        message: invitationDeliveryMessage(deliveryStatus, invitation.email),
       });
     } catch (error) {
       setFeedback({
@@ -141,7 +152,7 @@ export function TeamPage({ user }: { user: User }) {
         message:
           error instanceof Error
             ? error.message
-            : "Could not send the invitation.",
+            : "Could not create the invitation.",
       });
     } finally {
       setSubmitting(false);
@@ -293,7 +304,7 @@ export function TeamPage({ user }: { user: User }) {
                   </label>
                 )}
                 <button className="button button-large" disabled={submitting}>
-                  {submitting ? "Sending…" : "Send invitation"}
+                  {submitting ? "Creating…" : "Create and queue invitation"}
                   <ArrowRight size={18} />
                 </button>
               </form>

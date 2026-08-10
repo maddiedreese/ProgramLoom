@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Pencil,
   Plus,
+  Trash2,
   UsersRound,
   X,
 } from "lucide-react";
@@ -134,6 +135,37 @@ export function EventWidgets({ user }: { user: User }) {
       setBusy(false);
     }
   }
+  async function remove(widget: Widget) {
+    if (
+      !window.confirm(
+        `Delete “${widget.name}”? Its direct and embedded public URLs will stop working immediately. Organizer records and the other live widgets are unchanged.`,
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await api(`/api/widgets/admin/events/${eventId}/${widget.id}`, {
+        method: "DELETE",
+      });
+      if (editing?.id === widget.id) setEditing(undefined);
+      await load();
+      captureProductEvent("public_widget_deleted", {
+        event_id: eventId,
+        widget_type: widget.widgetType,
+      });
+      setFeedback({
+        message: `${widget.name} deleted. The remaining live widgets are unchanged.`,
+      });
+    } catch (error) {
+      setFeedback({
+        message:
+          error instanceof Error ? error.message : "Could not delete widget.",
+        error: true,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
   if (loading)
     return (
       <main className="loading-page">
@@ -176,6 +208,7 @@ export function EventWidgets({ user }: { user: User }) {
         )}
         <div className="widget-admin-layout">
           <form
+            id="widget-builder"
             className="widget-builder"
             key={editing?.id ?? "new"}
             onSubmit={create}
@@ -337,6 +370,14 @@ export function EventWidgets({ user }: { user: User }) {
                     >
                       <Clipboard size={14} /> Copy embed
                     </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      disabled={busy}
+                      onClick={() => void remove(widget)}
+                    >
+                      <Trash2 size={14} /> Delete widget
+                    </button>
                     <a
                       href={`/api/widgets/public/${widget.publicKey}/feed.json`}
                     >
@@ -353,7 +394,12 @@ export function EventWidgets({ user }: { user: User }) {
                       iCal
                     </a>
                   </div>
-                  <code>{snippet}</code>
+                  <code
+                    tabIndex={0}
+                    aria-label={`Embed code for ${widget.name}`}
+                  >
+                    {snippet}
+                  </code>
                 </article>
               );
             })}
@@ -362,6 +408,9 @@ export function EventWidgets({ user }: { user: User }) {
                 <Code2 size={28} />
                 <h2>No widgets yet</h2>
                 <p>Create the first live public surface.</p>
+                <a className="button button-small" href="#widget-builder">
+                  Create a widget
+                </a>
               </div>
             )}
           </section>

@@ -68,7 +68,7 @@ const categories = [
   ],
   [
     "decisions_uncommunicated",
-    "Decisions not sent",
+    "Decisions not communicated",
     "Staged outcomes awaiting communication",
   ],
   ["deliveries", "Delivery exceptions", "Pending and failed program messages"],
@@ -528,7 +528,9 @@ export function EventControlRoom({ user }: { user: User }) {
                             ? "Mark triaged"
                             : issue.category === "integration_failures"
                               ? "Acknowledge"
-                              : "Resolve"}
+                              : issue.category === "schedule_conflicts"
+                                ? "Resolve conflict"
+                                : "Resolve"}
                         </button>
                       )}
                   </div>

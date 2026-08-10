@@ -142,11 +142,8 @@ function MarketingPage() {
             >
               Build your first event <ArrowRight size={18} />
             </a>
-            <a
-              className="text-link"
-              href="https://github.com/maddiedreese/SaaS"
-            >
-              Open-source on GitHub
+            <a className="text-link" href="#walkthrough">
+              See the complete lifecycle
             </a>
           </div>
           <div className="proof-row" aria-label="Product principles">
@@ -160,6 +157,43 @@ function MarketingPage() {
               <Check size={16} /> AGPL open source
             </span>
           </div>
+        </section>
+        <section
+          id="walkthrough"
+          className="product-preview"
+          aria-labelledby="product-preview-title"
+        >
+          <div className="product-preview-copy">
+            <p className="kicker">The operational center</p>
+            <h2 id="product-preview-title">
+              Start with the blocker. Finish with a published program.
+            </h2>
+            <p>
+              The Control Room turns live program state into an ordered next
+              action. Every proposal remains connected as it moves through
+              review, decision delivery, speaker onboarding, content approval,
+              scheduling, calendar updates, and attendee publication.
+            </p>
+            <p className="decision-distinction">
+              <strong>Staging a decision sends nothing.</strong> Delivery begins
+              only after an organizer previews the real recipients and rendered
+              message in the Communications Center and chooses Send decision.
+            </p>
+            <a className="button button-large" href={applicationHref("/login")}>
+              Open the production workspace <ArrowRight size={18} />
+            </a>
+          </div>
+          <figure>
+            <img
+              src="/programloom-control-room.jpg"
+              alt="ProgramLoom Organizer Control Room showing every operational category clear"
+              loading="eager"
+            />
+            <figcaption>
+              Live persisted work is grouped by severity and workflow, with an
+              explicit next action and a clear state when no blockers remain.
+            </figcaption>
+          </figure>
         </section>
         <section
           id="product"

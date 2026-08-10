@@ -7,6 +7,12 @@ ProgramLoom shows organizers exactly what is blocking their program, gives them 
 - Public CFP directory: [app.programloom.com/cfp](https://app.programloom.com/cfp)
 - Source: [github.com/maddiedreese/SaaS](https://github.com/maddiedreese/SaaS)
 
+**Decision staging is not delivery.** Staging records the organizer's intended outcome and sends nothing. Communication begins only after an organizer opens the Communications Center, previews the real recipients and rendered message, and chooses **Send decision**.
+
+![ProgramLoom Organizer Control Room showing a clear, live operational program](public/programloom-control-room.jpg)
+
+Start with the [uninterrupted evaluator walkthrough](docs/evaluator-guide.md) and its [exact production route/persona map](docs/evaluator-route-map.md), which follow one proposal through review, decision delivery, onboarding, content, scheduling, publication, search, integration recovery, and cancellation.
+
 The Control Room is the operational center. Its live, prioritized records connect directly to submissions, review assignments, decisions, delivery failures, speaker access, onboarding, content approval, agenda placement, scheduling conflicts, Queue work, and Airtable recovery.
 
 ## Complete lifecycle
@@ -56,20 +62,18 @@ The [parity and evidence map](docs/parity-map.md) links required capabilities to
 ```bash
 npm run check
 npm run db:migrate:remote
-npm run deploy
+RELEASE_COMMIT="$(git rev-parse HEAD)" npm run deploy
 ```
 
-Deploy the committed release and supply its full Git commit as the Worker `RELEASE_COMMIT` variable. Record the returned Worker version, verify `/api/health`, run the production Playwright gate, and require Airtable to settle at zero pending work, zero failures, and zero open conflicts. Full recovery and secret-handling procedures are in the [runbook](docs/runbook.md).
+The deploy script rejects a missing, abbreviated, uppercase, or malformed source commit and binds the validated SHA directly to Wrangler. Record the returned Worker version, verify `/api/health`, run the production Playwright gate, and require Airtable to settle at zero pending work, zero failures, and zero open conflicts. Full recovery and secret-handling procedures are in the [runbook](docs/runbook.md).
 
 ## Evaluator walkthrough
 
-Follow the uninterrupted lifecycle in [submission.md](docs/submission.md): template → CFP → proposal → saved view → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule/calendar → conflict resolution → publish all five widgets → Command+K search → Airtable health → disposable cancellation → clear Control Room.
+Follow the uninterrupted lifecycle in [evaluator-guide.md](docs/evaluator-guide.md): template → CFP → proposal → saved view → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule/calendar → conflict resolution → publish all five widgets → Command+K search → Airtable health → disposable cancellation → clear Control Room.
 
 ## Honest limitations and waivers
 
 - Outlook calendar behavior is explicitly waived and untested because no account is available. Gmail and Apple Calendar are the only calendar clients eligible for final claims.
-- GitHub hosts the source because the Forge alpha was full.
-- Accelevents is excluded because the required access is paid.
 - No Sentry integration is present; Cloudflare structured observability is the operational source.
 - AI/evaluator usage is constrained by the account owner's approved OpenRouter ceiling. No paid plan or resource may be enabled without approval.
 

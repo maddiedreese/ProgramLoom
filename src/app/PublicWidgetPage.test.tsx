@@ -179,4 +179,21 @@ describe("public widgets", () => {
       within(sessionCard!).getByRole("button", { name: "View details" }),
     ).toBeVisible();
   });
+
+  it("uses polished singular itinerary copy", async () => {
+    localStorage.setItem(
+      "programloom-itinerary:agenda-test",
+      JSON.stringify(["agenda-1"]),
+    );
+    renderWidget("itinerary");
+    expect(
+      await screen.findByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          /1 session in your personal schedule/i.test(
+            element.textContent ?? "",
+          ),
+      ),
+    ).toBeVisible();
+  });
 });

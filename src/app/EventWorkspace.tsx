@@ -337,6 +337,10 @@ export function EventWorkspace({ user }: { user: User }) {
             : item,
         ),
       );
+      setFeedback({
+        kind: "success",
+        message: `“${field.label}” and any rules that used it were deleted. Next, review the remaining form fields before publishing.`,
+      });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -467,7 +471,13 @@ export function EventWorkspace({ user }: { user: User }) {
   }
 
   async function removeCondition(conditionId: string) {
-    if (!selectedId) return;
+    if (
+      !selectedId ||
+      !window.confirm(
+        "Remove this conditional rule? The affected field will return to its default visibility.",
+      )
+    )
+      return;
     try {
       await api(
         `/api/events/${eventId}/forms/${selectedId}/conditions/${conditionId}`,
@@ -476,6 +486,11 @@ export function EventWorkspace({ user }: { user: User }) {
       setConditions((current) =>
         current.filter((item) => item.id !== conditionId),
       );
+      setFeedback({
+        kind: "success",
+        message:
+          "Conditional rule removed. Next, preview the CFP to verify the field’s default visibility.",
+      });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -719,12 +734,12 @@ export function EventWorkspace({ user }: { user: User }) {
                             </div>
                             {canManage && (
                               <button
-                                className="plain-icon"
-                                title={`Delete ${field.label}`}
+                                className="button button-small button-ghost"
+                                aria-label={`Delete field: ${field.label}`}
                                 onClick={() => removeField(field)}
                                 disabled={busy}
                               >
-                                <Trash2 size={16} />
+                                <Trash2 size={16} /> Delete field
                               </button>
                             )}
                           </article>
@@ -870,10 +885,11 @@ export function EventWorkspace({ user }: { user: User }) {
                         </span>
                         {canManage && (
                           <button
-                            className="plain-icon"
+                            className="button button-small button-ghost"
+                            aria-label="Remove conditional rule"
                             onClick={() => removeCondition(condition.id)}
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={15} /> Remove rule
                           </button>
                         )}
                       </div>

@@ -43,3 +43,9 @@ Notification rows and preferences intentionally do not synchronize to Airtable. 
 # Speaker file requests
 
 File-request onboarding tasks require durable `speaker_files` rows, including for speakers accepted before the behavior was introduced. Migration `0019_backfill_speaker_file_requests.sql` adds those missing records idempotently. Airtable speaker-task external identities encode both task and speaker IDs, so reconciliation must parse the composite identity rather than treating an assignment join as a standalone record.
+
+# Reviewer routing and event speaker state
+
+`review_round_reviewers` stores the explicitly authorized reviewer pool and bounded assignment capacity for one review round. Assignment creation validates event reviewer membership, rejects reviewers outside a configured pool, applies capacity without unbounded reads, and retains the existing speaker-conflict checks. Aggregate scores and progress continue to derive from submitted `reviews`; the pool is routing configuration, not a duplicate score source.
+
+`event_speakers.status` stores the event-specific roster state independently from organization-wide profile and portal-access state. CSV/XLSX event import deduplicates through CRM email identity, links or creates the organization speaker profile, and adds the event relationship without replacing private logistics or historical records. Migration `0021_evaluator_workflow_depth.sql` adds both structures and their bounded lookup indexes.

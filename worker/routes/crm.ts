@@ -64,6 +64,7 @@ const importSchema = z.object({
     .enum(["create_and_update", "create_only", "update_only"])
     .default("create_and_update"),
   rows: z.array(contactSchema).min(1).max(1000),
+  eventId: z.string().uuid().optional(),
 });
 const fieldSchema = z.object({
   name: z.string().trim().min(1).max(255),
@@ -488,8 +489,16 @@ router.post(
     const { user } = await requireOrganizationRole(context, organizationId, [
       ...writeRoles,
     ]);
-    const { rows, mode } = context.req.valid("json");
+    const { rows, mode, eventId } = context.req.valid("json");
     const db = database(context.env);
+    if (
+      eventId &&
+      !(await db
+        .prepare("SELECT id FROM events WHERE id=? AND organization_id=?")
+        .bind(eventId, organizationId)
+        .first())
+    )
+      throw new HttpError(404, "event_not_found", "Event not found.");
     const existingResult = await db
       .prepare("SELECT id,email FROM crm_contacts WHERE organization_id=?")
       .bind(organizationId)
@@ -582,6 +591,82 @@ router.post(
       }
     });
     if (statements.length) await db.batch(statements);
+    const importedContactIds = [
+      ...new Set(
+        rows
+          .map((row) => existing.get(row.email.toLowerCase()))
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    let eventSpeakersProcessed = 0;
+    if (eventId && importedContactIds.length) {
+      const contacts: Record<string, unknown>[] = [];
+      for (let index = 0; index < importedContactIds.length; index += 90) {
+        const ids = importedContactIds.slice(index, index + 90);
+        const result = await db
+          .prepare(
+            `SELECT id,email,first_name AS firstName,last_name AS lastName,pronouns,company,job_title AS jobTitle,bio,social_json AS socialJson,speaker_profile_id AS speakerProfileId
+             FROM crm_contacts WHERE organization_id=? AND id IN (${ids.map(() => "?").join(",")})`,
+          )
+          .bind(organizationId, ...ids)
+          .all();
+        contacts.push(...result.results);
+      }
+      const emails = contacts.map((contact) => String(contact.email));
+      const existingProfiles = new Map<string, string>();
+      for (let index = 0; index < emails.length; index += 90) {
+        const chunk = emails.slice(index, index + 90);
+        const result = await db
+          .prepare(
+            `SELECT id,email FROM speaker_profiles WHERE organization_id=? AND email COLLATE NOCASE IN (${chunk.map(() => "?").join(",")})`,
+          )
+          .bind(organizationId, ...chunk)
+          .all<{ id: string; email: string }>();
+        for (const profile of result.results)
+          existingProfiles.set(profile.email.toLowerCase(), profile.id);
+      }
+      const handoffStatements: D1PreparedStatement[] = [];
+      for (const contact of contacts) {
+        const existingSpeakerId =
+          (contact.speakerProfileId && String(contact.speakerProfileId)) ||
+          existingProfiles.get(String(contact.email).toLowerCase());
+        const speakerId = existingSpeakerId ?? crypto.randomUUID();
+        if (!existingSpeakerId)
+          handoffStatements.push(
+            db
+              .prepare(
+                "INSERT INTO speaker_profiles(id,organization_id,email,first_name,last_name,pronouns,company,job_title,bio,social_json,portal_status) VALUES(?,?,?,?,?,?,?,?,?,?,'not_invited')",
+              )
+              .bind(
+                speakerId,
+                organizationId,
+                contact.email,
+                contact.firstName,
+                contact.lastName,
+                contact.pronouns ?? null,
+                contact.company ?? null,
+                contact.jobTitle ?? null,
+                contact.bio ?? null,
+                contact.socialJson ?? "{}",
+              ),
+          );
+        handoffStatements.push(
+          db
+            .prepare(
+              "UPDATE crm_contacts SET speaker_profile_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND organization_id=?",
+            )
+            .bind(speakerId, contact.id, organizationId),
+          db
+            .prepare(
+              "INSERT OR IGNORE INTO event_speakers(event_id,speaker_id,source,added_by,status) VALUES(?,?,?,?,'confirmed')",
+            )
+            .bind(eventId, speakerId, "import", user.id),
+        );
+      }
+      for (let index = 0; index < handoffStatements.length; index += 90)
+        await db.batch(handoffStatements.slice(index, index + 90));
+      eventSpeakersProcessed = contacts.length;
+    }
     await auditStatement(db, {
       organizationId,
       actorUserId: user.id,
@@ -594,6 +679,8 @@ router.post(
         updated,
         issues: issues.length,
         mode,
+        eventId: eventId ?? null,
+        eventSpeakersProcessed,
       },
       requestId: context.get("requestId"),
     }).run();
@@ -602,6 +689,7 @@ router.post(
       created,
       updated,
       issues,
+      eventSpeakersProcessed,
     });
   },
 );

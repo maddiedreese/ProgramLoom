@@ -73,6 +73,9 @@ const fileStatusSchema = z.object({
   status: z.enum(["approved", "needs_changes"]),
   note: z.string().trim().max(2000).optional(),
 });
+const speakerEventStatusSchema = z.object({
+  status: z.enum(["proposed", "invited", "confirmed", "withdrawn"]),
+});
 const fileCommentSchema = z.object({
   body: z.string().trim().min(1).max(5000),
 });
@@ -655,6 +658,129 @@ router.post(
   },
 );
 
+router.delete("/admin/events/:eventId/tasks/:taskId", async (context) => {
+  const eventId = context.req.param("eventId");
+  const taskId = context.req.param("taskId");
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
+  const db = database(context.env);
+  const task = await db
+    .prepare(
+      `SELECT id,title,description,task_type AS taskType,due_at AS dueAt
+       FROM onboarding_tasks WHERE id=? AND event_id=?`,
+    )
+    .bind(taskId, eventId)
+    .first<Record<string, unknown>>();
+  if (!task) throw new HttpError(404, "task_not_found", "Task not found.");
+  const uploaded = await db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM file_versions fv
+       JOIN files f ON f.id=fv.file_id WHERE f.task_id=? AND f.event_id=?`,
+    )
+    .bind(taskId, eventId)
+    .first<{ count: number }>();
+  if (Number(uploaded?.count ?? 0) > 0)
+    throw new HttpError(
+      409,
+      "task_has_uploads",
+      "This task has uploaded file history and cannot be deleted. Keep it for auditability.",
+    );
+  await db.batch([
+    auditStatement(db, {
+      organizationId: access.organizationId,
+      eventId,
+      actorUserId: access.user.id,
+      action: "speaker_task.deleted",
+      entityType: "speaker_task",
+      entityId: taskId,
+      before: task,
+      after: { deleted: true, emptyFileRequestsRemoved: true },
+      requestId: context.get("requestId"),
+    }),
+    db
+      .prepare(
+        "DELETE FROM files WHERE task_id=? AND event_id=? AND current_version_id IS NULL",
+      )
+      .bind(taskId, eventId),
+    db
+      .prepare("DELETE FROM onboarding_tasks WHERE id=? AND event_id=?")
+      .bind(taskId, eventId),
+  ]);
+  return context.json({ ok: true });
+});
+
+router.delete(
+  "/admin/events/:eventId/tasks/:taskId/assignments/:speakerId",
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const taskId = context.req.param("taskId");
+    const speakerId = context.req.param("speakerId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const db = database(context.env);
+    const assignment = await db
+      .prepare(
+        `SELECT sta.status,t.title,sp.first_name||' '||sp.last_name AS speakerName
+         FROM speaker_task_assignments sta
+         JOIN onboarding_tasks t ON t.id=sta.task_id
+         JOIN speaker_profiles sp ON sp.id=sta.speaker_id
+         WHERE sta.task_id=? AND sta.speaker_id=? AND t.event_id=?`,
+      )
+      .bind(taskId, speakerId, eventId)
+      .first<{ status: string; title: string; speakerName: string }>();
+    if (!assignment)
+      throw new HttpError(
+        404,
+        "assignment_not_found",
+        "Task assignment not found.",
+      );
+    if (!["todo", "in_progress"].includes(assignment.status))
+      throw new HttpError(
+        409,
+        "assignment_has_progress",
+        "Only untouched task assignments can be removed. Keep submitted or completed work for auditability.",
+      );
+    const uploaded = await db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM file_versions fv JOIN files f ON f.id=fv.file_id
+         WHERE f.task_id=? AND f.speaker_id=? AND f.event_id=?`,
+      )
+      .bind(taskId, speakerId, eventId)
+      .first<{ count: number }>();
+    if (Number(uploaded?.count ?? 0) > 0)
+      throw new HttpError(
+        409,
+        "assignment_has_uploads",
+        "This assignment has uploaded file history and cannot be removed.",
+      );
+    await db.batch([
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "speaker_task.assignment_removed",
+        entityType: "speaker_task",
+        entityId: `${taskId}:${speakerId}`,
+        before: assignment,
+        after: { removed: true, emptyFileRequestRemoved: true },
+        requestId: context.get("requestId"),
+      }),
+      db
+        .prepare(
+          `DELETE FROM files WHERE task_id=? AND speaker_id=? AND event_id=?
+           AND current_version_id IS NULL`,
+        )
+        .bind(taskId, speakerId, eventId),
+      db
+        .prepare(
+          "DELETE FROM speaker_task_assignments WHERE task_id=? AND speaker_id=?",
+        )
+        .bind(taskId, speakerId),
+    ]);
+    return context.json({ ok: true });
+  },
+);
+
 router.get(
   "/events/:eventId/files/:fileId/versions/:versionId/download",
   async (context) => {
@@ -681,9 +807,11 @@ router.get("/admin/events/:eventId", async (context) => {
   const db = database(context.env);
   const speakers = await db
     .prepare(
-      `SELECT sp.id,sp.email,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.portal_status AS portalStatus,COUNT(DISTINCT CASE WHEN session.event_id=? THEN ss.submission_id END) AS sessionCount,COUNT(DISTINCT task.id) AS taskCount,COUNT(DISTINCT CASE WHEN sta.status='complete' THEN task.id END) AS completedTaskCount,COUNT(DISTINCT f.id) AS fileRequestCount,COUNT(DISTINCT CASE WHEN f.status='approved' THEN f.id END) AS approvedFileCount FROM speaker_profiles sp JOIN (SELECT speaker_id FROM event_speakers WHERE event_id=? UNION SELECT ss2.speaker_id FROM session_speakers ss2 JOIN submissions s2 ON s2.id=ss2.submission_id WHERE s2.event_id=?) roster ON roster.speaker_id=sp.id LEFT JOIN session_speakers ss ON ss.speaker_id=sp.id LEFT JOIN submissions session ON session.id=ss.submission_id LEFT JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id LEFT JOIN onboarding_tasks task ON task.id=sta.task_id AND task.event_id=? LEFT JOIN files f ON f.speaker_id=sp.id AND f.event_id=? GROUP BY sp.id ORDER BY sp.last_name,sp.first_name`,
+      `SELECT sp.id,sp.email,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.portal_status AS portalStatus,
+              COALESCE((SELECT es.status FROM event_speakers es WHERE es.event_id=? AND es.speaker_id=sp.id),'confirmed') AS eventStatus,
+              COUNT(DISTINCT CASE WHEN session.event_id=? THEN ss.submission_id END) AS sessionCount,COUNT(DISTINCT task.id) AS taskCount,COUNT(DISTINCT CASE WHEN sta.status='complete' THEN task.id END) AS completedTaskCount,COUNT(DISTINCT f.id) AS fileRequestCount,COUNT(DISTINCT CASE WHEN f.status='approved' THEN f.id END) AS approvedFileCount FROM speaker_profiles sp JOIN (SELECT speaker_id FROM event_speakers WHERE event_id=? UNION SELECT ss2.speaker_id FROM session_speakers ss2 JOIN submissions s2 ON s2.id=ss2.submission_id WHERE s2.event_id=?) roster ON roster.speaker_id=sp.id LEFT JOIN session_speakers ss ON ss.speaker_id=sp.id LEFT JOIN submissions session ON session.id=ss.submission_id LEFT JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id LEFT JOIN onboarding_tasks task ON task.id=sta.task_id AND task.event_id=? LEFT JOIN files f ON f.speaker_id=sp.id AND f.event_id=? GROUP BY sp.id ORDER BY sp.last_name,sp.first_name`,
     )
-    .bind(eventId, eventId, eventId, eventId, eventId)
+    .bind(eventId, eventId, eventId, eventId, eventId, eventId)
     .all();
   const tasks = await db
     .prepare(
@@ -725,6 +853,57 @@ router.get("/admin/events/:eventId", async (context) => {
     files: files.results,
   });
 });
+
+router.patch(
+  "/admin/events/:eventId/speakers/:speakerId/status",
+  zValidator("json", speakerEventStatusSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const speakerId = context.req.param("speakerId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const input = context.req.valid("json");
+    const db = database(context.env);
+    const belongs = await db
+      .prepare(
+        `SELECT 1 FROM speaker_profiles sp WHERE sp.id=? AND
+         (EXISTS(SELECT 1 FROM event_speakers es WHERE es.event_id=? AND es.speaker_id=sp.id)
+          OR EXISTS(SELECT 1 FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=? AND ss.speaker_id=sp.id))`,
+      )
+      .bind(speakerId, eventId, eventId)
+      .first();
+    if (!belongs)
+      throw new HttpError(404, "speaker_not_found", "Speaker not found.");
+    const before = await db
+      .prepare(
+        "SELECT status FROM event_speakers WHERE event_id=? AND speaker_id=?",
+      )
+      .bind(eventId, speakerId)
+      .first<{ status: string }>();
+    await db.batch([
+      db
+        .prepare(
+          `INSERT INTO event_speakers(event_id,speaker_id,source,added_by,status)
+           VALUES(?,?,?, ?,?)
+           ON CONFLICT(event_id,speaker_id) DO UPDATE SET status=excluded.status`,
+        )
+        .bind(eventId, speakerId, "organizer", access.user.id, input.status),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "speaker.event_status_updated",
+        entityType: "speaker",
+        entityId: speakerId,
+        before: { status: before?.status ?? "confirmed" },
+        after: input,
+        requestId: context.get("requestId"),
+      }),
+    ]);
+    return context.json({ speaker: { id: speakerId, ...input } });
+  },
+);
 
 router.post(
   "/admin/events/:eventId/tasks",

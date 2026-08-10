@@ -430,7 +430,7 @@ export function EventCommunications({ user }: { user: User }) {
       );
       setFeedback({
         kind: "success",
-        message: `${result.count} communication${result.count === 1 ? "" : "s"} ${result.status}.`,
+        message: `${result.count} communication${result.count === 1 ? "" : "s"} ${result.status}. The durable state is visible in Outbox; open the recipient timeline or retry any failed delivery there.`,
       });
       setSelectedRecipients([]);
       setTab("outbox");
@@ -500,7 +500,7 @@ export function EventCommunications({ user }: { user: User }) {
     );
 
   return (
-    <div className="event-shell communications-shell">
+    <div className="event-workspace communications-shell">
       <aside className="event-sidebar">
         <a className="back-link" href={`/app/events/${eventId}`}>
           <ArrowLeft size={16} /> Event setup
@@ -709,20 +709,20 @@ export function EventCommunications({ user }: { user: User }) {
                   <span className="outbox-actions">
                     {message.status === "failed" && (
                       <button
-                        title="Retry communication"
+                        className="text-button"
                         onClick={() => messageAction(message, "retry")}
                       >
-                        <RotateCcw size={15} />
+                        <RotateCcw size={15} /> Retry delivery
                       </button>
                     )}
                     {["prepared", "queued", "failed"].includes(
                       message.status,
                     ) && (
                       <button
-                        title="Cancel communication"
+                        className="text-button"
                         onClick={() => messageAction(message, "cancel")}
                       >
-                        <XCircle size={15} />
+                        <XCircle size={15} /> Cancel communication
                       </button>
                     )}
                   </span>
@@ -733,9 +733,17 @@ export function EventCommunications({ user }: { user: User }) {
                   <Inbox size={26} />
                   <strong>No communications match this view.</strong>
                   <span>
-                    Prepared and delivered messages will appear here with
-                    provider evidence.
+                    Prepared messages will appear here with queued, processing,
+                    sent, delivered, bounced, failed, or cancelled evidence as
+                    it becomes available.
                   </span>
+                  <button
+                    className="button button-small"
+                    type="button"
+                    onClick={() => setTab("compose")}
+                  >
+                    Compose a communication
+                  </button>
                 </div>
               )}
             </div>
@@ -932,19 +940,25 @@ export function EventCommunications({ user }: { user: User }) {
                   </div>
                 )}
               </fieldset>
-              <fieldset>
+              <fieldset key={`delivery-${selectedTemplate.id}`}>
                 <legend>Delivery</legend>
                 <label className="radio-row">
                   <input
                     type="radio"
                     name="delivery"
                     value="prepared"
-                    defaultChecked
+                    defaultChecked={selectedTemplate.category !== "decision"}
                   />{" "}
                   Prepare only
                 </label>
                 <label className="radio-row">
-                  <input type="radio" name="delivery" value="now" /> Queue now
+                  <input
+                    type="radio"
+                    name="delivery"
+                    value="now"
+                    defaultChecked={selectedTemplate.category === "decision"}
+                  />{" "}
+                  Queue now
                 </label>
                 <label>
                   Or schedule for
@@ -966,7 +980,7 @@ export function EventCommunications({ user }: { user: User }) {
                     )
                   }
                 >
-                  Preview selected recipient
+                  Preview recipients
                 </button>
                 <button
                   type="button"
@@ -982,7 +996,10 @@ export function EventCommunications({ user }: { user: User }) {
                   className="button"
                   disabled={!selectedRecipients.length || busy}
                 >
-                  <Send size={16} /> Review and confirm
+                  <Send size={16} />{" "}
+                  {selectedTemplate.category === "decision"
+                    ? "Send decision"
+                    : "Review and confirm delivery"}
                 </button>
               </div>
             </form>

@@ -79,6 +79,16 @@ const assignmentsSchema = z.object({
   submissionIds: z.array(z.string().uuid()).min(1).max(500),
   reviewerUserIds: z.array(z.string().uuid()).min(1).max(100),
 });
+const reviewerPoolSchema = z.object({
+  reviewers: z
+    .array(
+      z.object({
+        reviewerUserId: z.string().uuid(),
+        capacity: z.number().int().min(1).max(500),
+      }),
+    )
+    .max(100),
+});
 const reviewSchema = z.object({
   answers: z.record(z.string().uuid(), z.unknown()),
   recommendation: z.enum(["approve", "maybe", "deny"]),
@@ -103,6 +113,13 @@ type RoundRecord = {
   closesAt: string | null;
   status: "draft" | "open" | "closed";
 };
+
+export function safeReviewSpreadsheetText(value: unknown) {
+  const text = String(value ?? "")
+    .replaceAll("\u0000", "")
+    .slice(0, 32767);
+  return /^[\t\r\n ]*[=+\-@]/.test(text) ? `'${text}` : text;
+}
 
 async function requireRound(
   db: D1Database,
@@ -206,6 +223,35 @@ router.get("/events/:eventId", async (context) => {
     )
     .bind(eventId, eventId)
     .all();
+  const reviewerPools = await db
+    .prepare(
+      `SELECT rrr.round_id AS roundId,rrr.reviewer_user_id AS reviewerUserId,rrr.capacity,
+              COUNT(DISTINCT ra.id) AS assignmentCount,
+              COUNT(DISTINCT CASE WHEN rv.submitted_at IS NOT NULL THEN ra.id END) AS completedCount
+       FROM review_round_reviewers rrr
+       LEFT JOIN review_assignments ra ON ra.round_id=rrr.round_id AND ra.reviewer_user_id=rrr.reviewer_user_id AND ra.recused_at IS NULL
+       LEFT JOIN reviews rv ON rv.assignment_id=ra.id
+       WHERE rrr.round_id IN (SELECT id FROM review_rounds WHERE event_id=?)
+       GROUP BY rrr.round_id,rrr.reviewer_user_id,rrr.capacity`,
+    )
+    .bind(eventId)
+    .all();
+  const results = await db
+    .prepare(
+      `SELECT ra.round_id AS roundId,s.id AS submissionId,s.title,
+              ROUND(AVG(CASE WHEN rv.submitted_at IS NOT NULL THEN rv.weighted_score END),2) AS aggregateScore,
+              COUNT(DISTINCT ra.id) AS assignmentCount,
+              COUNT(DISTINCT CASE WHEN rv.submitted_at IS NOT NULL THEN ra.id END) AS completedCount
+       FROM review_assignments ra
+       JOIN review_rounds rr ON rr.id=ra.round_id
+       JOIN submissions s ON s.id=ra.submission_id
+       LEFT JOIN reviews rv ON rv.assignment_id=ra.id
+       WHERE rr.event_id=? AND ra.recused_at IS NULL
+       GROUP BY ra.round_id,s.id
+       ORDER BY ra.round_id,aggregateScore DESC,s.title COLLATE NOCASE`,
+    )
+    .bind(eventId)
+    .all();
   return context.json({
     rounds: rounds.results.map((round: Record<string, unknown>) => ({
       ...round,
@@ -220,8 +266,162 @@ router.get("/events/:eventId", async (context) => {
       optionsJson: undefined,
     })),
     reviewers: reviewers.results,
+    reviewerPools: reviewerPools.results,
+    results: results.results,
   });
 });
+
+router.get("/events/:eventId/export", async (context) => {
+  const eventId = context.req.param("eventId");
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
+  const roundId = context.req.query("roundId");
+  if (!roundId)
+    throw new HttpError(400, "round_required", "Choose a review round.");
+  const db = database(context.env);
+  const round = await requireRound(db, eventId, roundId);
+  const rows = await db
+    .prepare(
+      `SELECT s.title,
+              COUNT(DISTINCT ra.id) AS assignmentCount,
+              COUNT(DISTINCT CASE WHEN rv.submitted_at IS NOT NULL THEN ra.id END) AS completedCount,
+              ROUND(AVG(CASE WHEN rv.submitted_at IS NOT NULL THEN rv.weighted_score END),2) AS aggregateScore
+       FROM review_assignments ra
+       JOIN submissions s ON s.id=ra.submission_id
+       LEFT JOIN reviews rv ON rv.assignment_id=ra.id
+       WHERE ra.round_id=? AND ra.recused_at IS NULL
+       GROUP BY s.id ORDER BY aggregateScore DESC,s.title COLLATE NOCASE`,
+    )
+    .bind(roundId)
+    .all<{
+      title: string;
+      assignmentCount: number;
+      completedCount: number;
+      aggregateScore: number | null;
+    }>();
+  const csv = `\uFEFF${[
+    ["Submission", "Completed reviews", "Assigned reviews", "Aggregate score"],
+    ...rows.results.map((row) => [
+      row.title,
+      row.completedCount,
+      row.assignmentCount,
+      row.aggregateScore ?? "Pending",
+    ]),
+  ]
+    .map((row) =>
+      row
+        .map(
+          (cell) =>
+            `"${safeReviewSpreadsheetText(cell).replaceAll('"', '""')}"`,
+        )
+        .join(","),
+    )
+    .join("\r\n")}\r\n`;
+  await auditStatement(db, {
+    organizationId: access.organizationId,
+    eventId,
+    actorUserId: access.user.id,
+    action: "review_results.exported",
+    entityType: "review_round",
+    entityId: roundId,
+    after: { rowCount: rows.results.length, format: "csv" },
+    requestId: context.get("requestId"),
+  }).run();
+  return new Response(csv, {
+    headers: {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="programloom-${round.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-results.csv"`,
+      "cache-control": "private, no-store",
+    },
+  });
+});
+
+router.put(
+  "/events/:eventId/rounds/:roundId/reviewer-pool",
+  zValidator("json", reviewerPoolSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const roundId = context.req.param("roundId");
+    const input = context.req.valid("json");
+    const db = database(context.env);
+    await requireRound(db, eventId, roundId);
+    const ids = [
+      ...new Set(input.reviewers.map(({ reviewerUserId }) => reviewerUserId)),
+    ];
+    if (ids.length !== input.reviewers.length)
+      throw new HttpError(
+        400,
+        "duplicate_reviewer",
+        "Each reviewer can appear in the pool only once.",
+      );
+    if (ids.length) {
+      const valid = await db
+        .prepare(
+          `SELECT COUNT(DISTINCT user_id) AS count FROM event_members
+           WHERE event_id=? AND role='reviewer' AND user_id IN (${ids.map(() => "?").join(",")})`,
+        )
+        .bind(eventId, ...ids)
+        .first<{ count: number }>();
+      if (valid?.count !== ids.length)
+        throw new HttpError(
+          400,
+          "invalid_reviewers",
+          "Every pool member must have reviewer access to this event.",
+        );
+    }
+    const assigned = await db
+      .prepare(
+        "SELECT reviewer_user_id AS reviewerUserId,COUNT(*) AS count FROM review_assignments WHERE round_id=? AND recused_at IS NULL GROUP BY reviewer_user_id",
+      )
+      .bind(roundId)
+      .all<{ reviewerUserId: string; count: number }>();
+    const assignedByReviewer = new Map(
+      assigned.results.map((row) => [row.reviewerUserId, Number(row.count)]),
+    );
+    for (const reviewer of input.reviewers)
+      if (
+        reviewer.capacity <
+        (assignedByReviewer.get(reviewer.reviewerUserId) ?? 0)
+      )
+        throw new HttpError(
+          409,
+          "capacity_below_assignments",
+          "A reviewer capacity cannot be lower than their current assignment count.",
+        );
+    const before = await db
+      .prepare(
+        "SELECT reviewer_user_id AS reviewerUserId,capacity FROM review_round_reviewers WHERE round_id=? ORDER BY reviewer_user_id",
+      )
+      .bind(roundId)
+      .all();
+    await db.batch([
+      db
+        .prepare("DELETE FROM review_round_reviewers WHERE round_id=?")
+        .bind(roundId),
+      ...input.reviewers.map((reviewer) =>
+        db
+          .prepare(
+            "INSERT INTO review_round_reviewers(round_id,reviewer_user_id,capacity) VALUES(?,?,?)",
+          )
+          .bind(roundId, reviewer.reviewerUserId, reviewer.capacity),
+      ),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "review_round.reviewer_pool_updated",
+        entityType: "review_round",
+        entityId: roundId,
+        before: before.results,
+        after: input.reviewers,
+        requestId: context.get("requestId"),
+      }),
+    ]);
+    return context.json({ reviewerPool: input.reviewers });
+  },
+);
 
 router.post(
   "/events/:eventId/rounds",
@@ -505,6 +705,24 @@ router.post(
         "invalid_reviewers",
         "Every reviewer must have reviewer access to this event.",
       );
+    const pool = await db
+      .prepare(
+        "SELECT reviewer_user_id AS reviewerUserId,capacity FROM review_round_reviewers WHERE round_id=?",
+      )
+      .bind(input.roundId)
+      .all<{ reviewerUserId: string; capacity: number }>();
+    const poolCapacity = new Map(
+      pool.results.map((row) => [row.reviewerUserId, Number(row.capacity)]),
+    );
+    if (
+      pool.results.length &&
+      reviewers.results.some((reviewer) => !poolCapacity.has(reviewer.id))
+    )
+      throw new HttpError(
+        400,
+        "reviewer_outside_pool",
+        "Choose reviewers from this round's configured pool.",
+      );
     const existingResult = await db
       .prepare(
         "SELECT submission_id AS submissionId, reviewer_user_id AS reviewerUserId FROM review_assignments WHERE round_id = ?",
@@ -516,6 +734,12 @@ router.post(
         (item) => `${item.submissionId}:${item.reviewerUserId}`,
       ),
     );
+    const assignmentCounts = new Map<string, number>();
+    for (const item of existingResult.results)
+      assignmentCounts.set(
+        item.reviewerUserId,
+        (assignmentCounts.get(item.reviewerUserId) ?? 0) + 1,
+      );
     const statements: D1PreparedStatement[] = [];
     const conflicts: {
       submissionId: string;
@@ -524,6 +748,7 @@ router.post(
     }[] = [];
     let created = 0;
     let alreadyAssigned = 0;
+    let capacitySkipped = 0;
     for (const submission of submissions.results)
       for (const reviewer of reviewers.results) {
         if (
@@ -595,6 +820,14 @@ router.post(
           alreadyAssigned += 1;
           continue;
         }
+        const capacity = poolCapacity.get(reviewer.id);
+        if (
+          capacity !== undefined &&
+          (assignmentCounts.get(reviewer.id) ?? 0) >= capacity
+        ) {
+          capacitySkipped += 1;
+          continue;
+        }
         statements.push(
           db
             .prepare(
@@ -608,6 +841,10 @@ router.post(
             ),
         );
         existingKeys.add(key);
+        assignmentCounts.set(
+          reviewer.id,
+          (assignmentCounts.get(reviewer.id) ?? 0) + 1,
+        );
         created += 1;
       }
     if (statements.length) await db.batch(statements);
@@ -622,11 +859,15 @@ router.post(
         requested: input.submissionIds.length * input.reviewerUserIds.length,
         created,
         alreadyAssigned,
+        capacitySkipped,
         conflicts,
       },
       requestId: context.get("requestId"),
     }).run();
-    return context.json({ created, alreadyAssigned, conflicts }, 201);
+    return context.json(
+      { created, alreadyAssigned, capacitySkipped, conflicts },
+      201,
+    );
   },
 );
 

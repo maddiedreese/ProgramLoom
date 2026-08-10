@@ -2,6 +2,7 @@ import {
   Archive,
   ArrowLeft,
   CheckCircle2,
+  CalendarClock,
   Clock3,
   Download,
   FileArchive,
@@ -47,6 +48,11 @@ type Speaker = {
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
+  logistics: {
+    dietary?: string;
+    accessibility?: string;
+    travelNotes?: string;
+  };
   hasHeadshot: boolean;
   headshotUrl: string | null;
 };
@@ -137,6 +143,9 @@ export function EventContent({ user }: { user: User }) {
   const requestedFileId = new URLSearchParams(window.location.search).get(
     "file",
   );
+  const requestedSpeakerId = new URLSearchParams(window.location.search).get(
+    "speaker",
+  );
   const [event, setEvent] = useState<EventRecord>();
   const [role, setRole] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -148,7 +157,13 @@ export function EventContent({ user }: { user: User }) {
   const [fileUploadsEnabled, setFileUploadsEnabled] = useState(true);
   const [tab, setTab] = useState<
     "deliverables" | "sessions" | "speakers" | "files"
-  >(requestedFileId ? "files" : "deliverables");
+  >(
+    requestedFileId
+      ? "files"
+      : requestedSpeakerId
+        ? "speakers"
+        : "deliverables",
+  );
   const [filter, setFilter] = useState("all");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [editingSession, setEditingSession] = useState<Session>();
@@ -233,6 +248,27 @@ export function EventContent({ user }: { user: User }) {
       setBusy(false);
     }
   }
+  function removeDetailQuery(name: "file" | "speaker") {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(name);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+  }
+  function closeSpeakerEditor() {
+    removeDetailQuery("speaker");
+    setEditingSpeaker(undefined);
+  }
+  function openSpeakerEditor(speaker: Speaker) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("speaker", speaker.id);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    setTab("speakers");
+    setEditingSpeaker(speaker);
+  }
+  function closeFileDetails() {
+    removeDetailQuery("file");
+    setSelectedFile(undefined);
+    setFileDetail(undefined);
+  }
   async function createTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -298,21 +334,42 @@ export function EventContent({ user }: { user: User }) {
   async function saveSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingSession) return;
-    const form = new FormData(event.currentTarget);
+    await run(
+      async () => {
+        await api(
+          `/api/content/admin/events/${eventId}/sessions/${editingSession.id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({
+              title: editingSession.title,
+              abstract: editingSession.abstract,
+              contentStatus: editingSession.contentStatus,
+            }),
+          },
+        );
+        setEditingSession(undefined);
+      },
+      editingSession.contentStatus === "approved"
+        ? "Content approved for public output. Next, schedule the session in Agenda."
+        : "Session content saved and versioned. Move it to Approved for public output when review is complete.",
+    );
+  }
+  async function approveContent() {
+    if (!editingSession) return;
     await run(async () => {
       await api(
         `/api/content/admin/events/${eventId}/sessions/${editingSession.id}`,
         {
           method: "PATCH",
           body: JSON.stringify({
-            title: form.get("title"),
-            abstract: form.get("abstract"),
-            contentStatus: form.get("contentStatus"),
+            title: editingSession.title,
+            abstract: editingSession.abstract,
+            contentStatus: "approved",
           }),
         },
       );
       setEditingSession(undefined);
-    }, "Session content saved and versioned.");
+    }, "Content approved for public output. Next, schedule the session in Agenda.");
   }
   async function restore(revision: Revision) {
     if (!editingSession) return;
@@ -342,6 +399,11 @@ export function EventContent({ user }: { user: User }) {
             jobTitle: form.get("jobTitle") || null,
             company: form.get("company") || null,
             bio: form.get("bio") || null,
+            logistics: {
+              dietary: String(form.get("dietary") ?? ""),
+              accessibility: String(form.get("accessibility") ?? ""),
+              travelNotes: String(form.get("travelNotes") ?? ""),
+            },
           }),
         },
       );
@@ -354,10 +416,14 @@ export function EventContent({ user }: { user: User }) {
           { method: "POST", body: upload },
         );
       }
-      setEditingSpeaker(undefined);
+      closeSpeakerEditor();
     }, "Speaker profile and headshot saved.");
   }
   async function openFile(file: ContentFile) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("file", file.id);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    setTab("files");
     setSelectedFile(file);
     const detail = await api<FileDetail>(
       `/api/speakers/admin/events/${eventId}/files/${file.id}`,
@@ -372,6 +438,13 @@ export function EventContent({ user }: { user: User }) {
         setFeedback({ kind: "error", message: error.message }),
       );
   }, [files, requestedFileId, selectedFile]);
+  useEffect(() => {
+    if (!requestedSpeakerId || editingSpeaker) return;
+    const target = speakers.find(
+      (speaker) => speaker.id === requestedSpeakerId,
+    );
+    if (target) openSpeakerEditor(target);
+  }, [speakers, requestedSpeakerId, editingSpeaker]);
   async function addComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFile) return;
@@ -644,7 +717,7 @@ export function EventContent({ user }: { user: User }) {
               <button
                 className="content-record-card speaker-content-card"
                 key={speaker.id}
-                onClick={() => setEditingSpeaker(speaker)}
+                onClick={() => openSpeakerEditor(speaker)}
               >
                 {speaker.headshotUrl ? (
                   <img src={speaker.headshotUrl} alt="" />
@@ -728,11 +801,11 @@ export function EventContent({ user }: { user: User }) {
                       </small>
                     </button>
                     <button
-                      className="plain-icon"
+                      className="button button-small button-ghost"
                       aria-label="Create share link"
                       onClick={() => share(file)}
                     >
-                      <Share2 size={17} />
+                      <Share2 size={17} /> Create share link
                     </button>
                   </article>
                 ))}
@@ -776,11 +849,11 @@ export function EventContent({ user }: { user: User }) {
                 <h2>Edit & approve</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close session editor"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={() => setEditingSession(undefined)}
               >
-                <X />
+                <X size={16} /> Close session editor
               </button>
             </header>
             <form onSubmit={saveSession}>
@@ -816,7 +889,14 @@ export function EventContent({ user }: { user: User }) {
                 Content status
                 <select
                   name="contentStatus"
-                  defaultValue={editingSession.contentStatus}
+                  value={editingSession.contentStatus}
+                  onChange={(event) =>
+                    setEditingSession({
+                      ...editingSession,
+                      contentStatus: event.target
+                        .value as Session["contentStatus"],
+                    })
+                  }
                 >
                   <option value="draft">Draft</option>
                   <option value="in_review">In review</option>
@@ -826,6 +906,16 @@ export function EventContent({ user }: { user: User }) {
               <button className="button" disabled={busy}>
                 Save session content
               </button>
+              {editingSession.contentStatus !== "approved" && (
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => void approveContent()}
+                  disabled={busy}
+                >
+                  Approve content
+                </button>
+              )}
               <button
                 className="button button-ghost"
                 type="button"
@@ -835,6 +925,12 @@ export function EventContent({ user }: { user: User }) {
                 <Sparkles size={15} /> Suggest clearer content
               </button>
             </form>
+            <a
+              className="button button-ghost"
+              href={`/app/events/${eventId}/agenda`}
+            >
+              <CalendarClock size={16} /> Schedule session
+            </a>
             {aiSuggestion && (
               <section className="ai-suggestion">
                 <small>Workers AI suggestion · review before applying</small>
@@ -900,11 +996,11 @@ export function EventContent({ user }: { user: User }) {
                 <h2>Edit profile</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close speaker editor"
-                onClick={() => setEditingSpeaker(undefined)}
+                className="button button-small button-ghost"
+                data-dismiss
+                onClick={closeSpeakerEditor}
               >
-                <X />
+                <X size={16} /> Close speaker editor
               </button>
             </header>
             <form onSubmit={saveSpeaker}>
@@ -948,6 +1044,32 @@ export function EventContent({ user }: { user: User }) {
                   defaultValue={editingSpeaker.bio ?? ""}
                 />
               </label>
+              <fieldset>
+                <legend>Private logistics</legend>
+                <p>Visible only to the authorized event team.</p>
+                <label>
+                  Dietary needs
+                  <input
+                    name="dietary"
+                    defaultValue={editingSpeaker.logistics?.dietary ?? ""}
+                  />
+                </label>
+                <label>
+                  Accessibility needs
+                  <input
+                    name="accessibility"
+                    defaultValue={editingSpeaker.logistics?.accessibility ?? ""}
+                  />
+                </label>
+                <label>
+                  Travel notes
+                  <textarea
+                    name="travelNotes"
+                    rows={4}
+                    defaultValue={editingSpeaker.logistics?.travelNotes ?? ""}
+                  />
+                </label>
+              </fieldset>
               <label>
                 Replace headshot
                 <input
@@ -958,7 +1080,7 @@ export function EventContent({ user }: { user: User }) {
                 <small>PNG, JPEG, or WebP · 5 MB max</small>
               </label>
               <button className="button" disabled={busy}>
-                <Upload size={15} /> Save profile
+                <Upload size={15} /> Save profile and logistics
               </button>
             </form>
           </aside>
@@ -980,14 +1102,11 @@ export function EventContent({ user }: { user: User }) {
                 <h2>{selectedFile.filename}</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close file details"
-                onClick={() => {
-                  setSelectedFile(undefined);
-                  setFileDetail(undefined);
-                }}
+                className="button button-small button-ghost"
+                data-dismiss
+                onClick={closeFileDetails}
               >
-                <X />
+                <X size={16} /> Close file details
               </button>
             </header>
             <section className="revision-list">

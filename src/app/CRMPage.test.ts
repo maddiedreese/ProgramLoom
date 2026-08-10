@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { canSaveCrmSegment, reconcileCrmSelection } from "./CRMPage";
+import {
+  canSaveCrmSegment,
+  reconcileCrmSelection,
+  resolveHandoffContacts,
+} from "./CRMPage";
 
 const empty = { companies: [], jobTitles: [], tags: [] };
 
@@ -20,5 +24,13 @@ describe("CRM segment availability", () => {
         [{ id: "contact-1" }, { id: "contact-2" }],
       ),
     ).toEqual(["contact-1"]);
+  });
+
+  it("shows every contact when event handoff opens without row selection", () => {
+    const contacts = [{ id: "contact-1" }, { id: "contact-2" }];
+    expect(resolveHandoffContacts(contacts, [])).toEqual(contacts);
+    expect(resolveHandoffContacts(contacts, ["contact-2"])).toEqual([
+      { id: "contact-2" },
+    ]);
   });
 });

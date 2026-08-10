@@ -191,16 +191,28 @@ export function reconcileCrmSelection(
   return selectedIds.filter((contactId) => visibleContactIds.has(contactId));
 }
 
+export function resolveHandoffContacts<T extends { id: string }>(
+  contacts: T[],
+  selectedIds: string[],
+) {
+  if (!selectedIds.length) return contacts;
+  const selected = new Set(selectedIds);
+  return contacts.filter((contact) => selected.has(contact.id));
+}
+
 export function CRMPage({ user }: { user: User }) {
   const initialQuery = new URLSearchParams(window.location.search);
   const addSpeakerEventId = initialQuery.get("eventId") ?? "";
   const requestedContactId = initialQuery.get("contact") ?? "";
   const opensSpeakerHandoff =
     initialQuery.get("action") === "add-speaker" && Boolean(addSpeakerEventId);
+  const importsSpeakers =
+    initialQuery.get("action") === "import-speakers" &&
+    Boolean(addSpeakerEventId);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState("");
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number][0]>(
-    opensSpeakerHandoff ? "directory" : "dashboard",
+    opensSpeakerHandoff || importsSpeakers ? "directory" : "dashboard",
   );
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
@@ -231,7 +243,7 @@ export function CRMPage({ user }: { user: User }) {
   const [pipelineDetail, setPipelineDetail] =
     useState<Record<string, unknown>>();
   const [modal, setModal] = useState<string | undefined>(
-    opensSpeakerHandoff ? "handoff" : undefined,
+    importsSpeakers ? "import" : opensSpeakerHandoff ? "handoff" : undefined,
   );
   const [feedback, setFeedback] = useState<Feedback>();
   const [loading, setLoading] = useState(true);
@@ -351,11 +363,21 @@ export function CRMPage({ user }: { user: User }) {
   }, [filter, organizationId]);
 
   async function openContact(contactId: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("contact", contactId);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
     const result = await api<Record<string, unknown>>(
       `/api/crm/organizations/${organizationId}/contacts/${contactId}`,
     );
     setDetail(result);
     setModal("contact");
+  }
+  function closeContact() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("contact");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    setModal(undefined);
+    setDetail(undefined);
   }
 
   useEffect(() => {
@@ -561,9 +583,16 @@ export function CRMPage({ user }: { user: User }) {
       {modal === "import" && (
         <ImportModal
           organizationId={organizationId}
+          eventId={importsSpeakers ? addSpeakerEventId : undefined}
           close={() => setModal(undefined)}
           complete={async () => {
             await loadAll();
+            if (importsSpeakers) {
+              window.location.assign(
+                `/app/events/${addSpeakerEventId}/speakers`,
+              );
+              return;
+            }
             setModal(undefined);
             setFeedback({
               kind: "success",
@@ -644,9 +673,7 @@ export function CRMPage({ user }: { user: User }) {
       )}
       {modal === "handoff" && (
         <HandoffModal
-          contacts={allContacts.filter((contact) =>
-            selected.includes(contact.id),
-          )}
+          contacts={resolveHandoffContacts(allContacts, selected)}
           events={events}
           defaultEventId={addSpeakerEventId}
           busy={busy}
@@ -711,10 +738,7 @@ export function CRMPage({ user }: { user: User }) {
           fields={fields}
           events={events}
           busy={busy}
-          close={() => {
-            setModal(undefined);
-            setDetail(undefined);
-          }}
+          close={closeContact}
           save={async (contactId, payload) => {
             const ok = await mutate(
               () =>
@@ -936,6 +960,7 @@ function DirectoryPanel({
           />
         </label>
         <div
+          id="crm-directory-filters"
           className="filter-popover filter-panel"
           aria-label="Directory filters"
         >
@@ -1102,13 +1127,16 @@ function DirectoryPanel({
                     className="contact-link"
                     onClick={() => openContact(contact.id)}
                   >
-                    <span>
+                    <span className="contact-avatar">
                       {contact.firstName[0]}
                       {contact.lastName[0]}
                     </span>
-                    <strong>
-                      {contact.firstName} {contact.lastName}
-                    </strong>
+                    <span className="contact-link-copy">
+                      <strong>
+                        {contact.firstName} {contact.lastName}
+                      </strong>
+                      <small>Open contact profile</small>
+                    </span>
                   </button>
                 </td>
                 <td>{contact.email}</td>
@@ -1287,6 +1315,9 @@ function SegmentsPanel({
           <ListFilter />
           <h2>No saved segments</h2>
           <p>Apply directory filters and choose Save segment.</p>
+          <a className="button button-small" href="#crm-directory-filters">
+            Open directory filters
+          </a>
         </div>
       )}
       {open && (
@@ -1297,7 +1328,7 @@ function SegmentsPanel({
               <h2>{open.segment.name}</h2>
             </div>
             <button onClick={() => setOpen(undefined)}>
-              <X />
+              <X /> Close segment
             </button>
           </header>
           {open.contacts.map((contact) => (
@@ -1377,6 +1408,9 @@ function InterestPanel({
               Publish a year-round intake that creates contacts and Identified
               pipeline cards automatically.
             </p>
+            <button className="button button-small" onClick={onCreate}>
+              <Plus size={15} /> Create interest form
+            </button>
           </div>
         )}
       </div>
@@ -1406,7 +1440,7 @@ function HistoryPanel({
           className={tab === "emails" ? "active" : ""}
           onClick={() => setTab("emails")}
         >
-          Sent emails
+          Email deliveries
         </button>
       </div>
       <table>
@@ -1418,16 +1452,16 @@ function HistoryPanel({
                   "Recipients",
                   "Unique opens",
                   "Status",
-                  "Sent by",
-                  "Sent at",
+                  "Created by",
+                  "Created at",
                 ]
               : [
                   "Recipient",
                   "Email",
                   "Subject",
                   "Status",
-                  "Sent by",
-                  "Sent at",
+                  "Prepared by",
+                  "Prepared at",
                 ]
             ).map((heading) => (
               <th key={heading}>{heading}</th>
@@ -1468,7 +1502,10 @@ function HistoryPanel({
         <div className="crm-empty">
           <Mail />
           <h2>No outreach history</h2>
-          <p>Messages sent from the directory will appear here.</p>
+          <p>
+            Messages prepared from the directory will appear here with their
+            exact delivery state.
+          </p>
         </div>
       )}
     </section>
@@ -1547,8 +1584,12 @@ function Modal({
             <p className="kicker">{subtitle}</p>
             <h2>{title}</h2>
           </div>
-          <button aria-label="Close" onClick={close}>
-            <X />
+          <button
+            className="button button-small button-ghost"
+            data-dismiss
+            onClick={close}
+          >
+            <X size={16} /> Close details
           </button>
         </header>
         {children}
@@ -1626,10 +1667,12 @@ function AddContactModal({
 
 function ImportModal({
   organizationId,
+  eventId,
   close,
   complete,
 }: {
   organizationId: string;
+  eventId?: string;
   close: () => void;
   complete: () => void;
 }) {
@@ -1728,6 +1771,7 @@ function ImportModal({
         method: "POST",
         body: JSON.stringify({
           mode: "create_and_update",
+          eventId,
           rows: preview.map(({ mapped }) => ({
             ...mapped,
             tags: mapped.tags
@@ -1748,8 +1792,12 @@ function ImportModal({
   }
   return (
     <Modal
-      title="Import contacts"
-      subtitle="CSV or XLSX · up to 1,000 rows"
+      title={eventId ? "Import speakers" : "Import contacts"}
+      subtitle={
+        eventId
+          ? "CSV or XLSX · deduplicated by email · added to this event"
+          : "CSV or XLSX · up to 1,000 rows"
+      }
       close={close}
       wide
     >
@@ -1835,7 +1883,9 @@ function ImportModal({
           )}
           <button className="button" onClick={commit} disabled={busy}>
             <Upload size={15} />{" "}
-            {busy ? "Importing…" : `Import ${rows.length} contacts`}
+            {busy
+              ? "Importing…"
+              : `Import ${rows.length} ${eventId ? "speakers" : "contacts"}`}
           </button>
         </>
       )}

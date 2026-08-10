@@ -12,7 +12,7 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler.log vite",
     "build": "tsc -b && WRANGLER_LOG_PATH=.wrangler.log vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && WRANGLER_LOG_PATH=.wrangler.log wrangler deploy",
+    "deploy": "node scripts/deploy.mjs",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run --exclude 'e2e/**'",
     "test:e2e": "playwright test",

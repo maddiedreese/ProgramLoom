@@ -31,7 +31,7 @@ Never print or commit environment values. `.env.local`, `.dev.vars`, evaluator a
 2. Run `npm run check`.
 3. Apply additive production migrations with `npm run db:migrate:remote` and retain the command result.
 4. Upload changed secrets individually with `zsh scripts/push-cloudflare-secrets.zsh`. The script skips absent keys and never prints values. Rotate `RESEND_WEBHOOK_SECRET` directly from the Resend webhook into the Cloudflare encrypted Worker secret; the bulk helper intentionally excludes it to prevent stale replacement.
-5. Commit the exact release, then deploy it with its full Git SHA as the `RELEASE_COMMIT` Worker variable. Record the returned Worker version ID; the configured Cloudflare version-metadata binding exposes the same ID through `/api/health`.
+5. Commit the exact release, then run `RELEASE_COMMIT="$(git rev-parse HEAD)" npm run deploy`. The deploy script validates and binds the SHA directly to Wrangler. Record the returned Worker version ID; the configured Cloudflare version-metadata binding exposes the same ID through `/api/health`.
 6. Verify `https://app.programloom.com/api/health`, both HTML domains, authenticated boundaries, and any changed workflow. Populate the restricted final evidence manifest with the source SHA and Worker version, then run `PROGRAMLOOM_EVIDENCE_MANIFEST=/absolute/restricted/manifest.json npm run verify:evidence -- --final`.
 7. Confirm the Airtable integration screen shows no pending jobs, failures, or open conflicts after any Airtable-authoritative mutation.
 
@@ -72,7 +72,7 @@ If a category fails while others remain available, retain the request ID and ins
 
 ## Evaluator procedure
 
-The authoritative upstream kit is `swyx/killmysaas-evals` at the commit recorded in `docs/evaluation-matrix.md`.
+Use the exact evaluator version and scenario inventory recorded in the restricted release evidence. Keep evaluator authentication state, controlled inboxes, and spend ledgers outside source.
 
 1. Configure the production URL and distinct organizer, speaker, and reviewer inbox aliases in the evaluator’s ignored `evalconfig.json`.
 2. Save each authenticated persona in the evaluator’s ignored `.auth` directory. Do not commit or print session cookies.

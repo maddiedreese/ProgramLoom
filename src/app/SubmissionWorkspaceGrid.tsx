@@ -580,7 +580,7 @@ export function SubmissionWorkspaceGrid({
     }
   }
   const visibleColumns = config.columns.filter((column) => column.visible);
-  const grid = `44px ${visibleColumns.map((column) => `${column.width}px`).join(" ")} 46px`;
+  const grid = `44px ${visibleColumns.map((column) => `${column.width}px`).join(" ")} 132px`;
   function cell(row: Row, column: string) {
     if (column.startsWith("field:")) {
       const field = meta?.fields.find((item) => `field:${item.id}` === column);
@@ -997,10 +997,14 @@ export function SubmissionWorkspaceGrid({
               <option value="tag_add">Add tag</option>
               <option value="tag_remove">Remove tag</option>
               <option value="decision:acceptance_staged">
-                Stage acceptance
+                Stage decision: Acceptance
               </option>
-              <option value="decision:waitlist_staged">Stage waitlist</option>
-              <option value="decision:rejection_staged">Stage rejection</option>
+              <option value="decision:waitlist_staged">
+                Stage decision: Waitlist
+              </option>
+              <option value="decision:rejection_staged">
+                Stage decision: Rejection
+              </option>
               <option value="status:pending">Move to review</option>
               <option value="status:withdrawn">Withdraw</option>
               <option value="communication:deadline_reminder">
@@ -1156,10 +1160,10 @@ export function SubmissionWorkspaceGrid({
               </button>
             ))}
             <button
-              aria-label={`Open ${row.title}`}
+              aria-label={`Open submission: ${row.title}`}
               onClick={() => onOpen(row.id)}
             >
-              ›
+              Open submission
             </button>
           </div>
         ))}
@@ -1229,8 +1233,12 @@ export function SubmissionWorkspaceGrid({
                   {preview.count === 1 ? "" : "s"}?
                 </h2>
               </div>
-              <button aria-label="Close" onClick={() => setPreview(undefined)}>
-                <X />
+              <button
+                className="button button-small button-ghost"
+                data-dismiss
+                onClick={() => setPreview(undefined)}
+              >
+                <X size={16} /> Close bulk-action preview
               </button>
             </header>
             <p>

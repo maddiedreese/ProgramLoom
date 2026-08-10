@@ -1493,14 +1493,18 @@ router.post(
         }),
       ];
       if (input.decision === "accepted") {
-        const nameParts = submission.name.trim().split(/\s+/);
-        const [existingSpeaker, fileTasks] = await Promise.all([
+        const [participants, fileTasks] = await Promise.all([
           db
             .prepare(
-              "SELECT id FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE",
+              "SELECT email,name,role,organization FROM submission_people WHERE submission_id=? ORDER BY position,id",
             )
-            .bind(event.organizationId, submission.email)
-            .first<{ id: string }>(),
+            .bind(submission.id)
+            .all<{
+              email: string;
+              name: string;
+              role: string;
+              organization: string | null;
+            }>(),
           db
             .prepare(
               "SELECT id,title FROM onboarding_tasks WHERE event_id=? AND task_type='file_request' ORDER BY position,id",
@@ -1508,53 +1512,72 @@ router.post(
             .bind(eventId)
             .all<{ id: string; title: string }>(),
         ]);
-        const speakerId = existingSpeaker?.id ?? crypto.randomUUID();
-        deliveryStatements.push(
-          db
-            .prepare(
-              "INSERT INTO speaker_profiles (id, organization_id, email, first_name, last_name, company, portal_status) VALUES (?, ?, ?, ?, ?, ?, 'invited') ON CONFLICT (organization_id, email) DO UPDATE SET portal_status=CASE WHEN portal_status='not_invited' THEN 'invited' ELSE portal_status END, updated_at=CURRENT_TIMESTAMP",
-            )
-            .bind(
-              speakerId,
-              event.organizationId,
-              submission.email,
-              nameParts[0] || submission.name,
-              nameParts.slice(1).join(" ") || "—",
-              submission.organization,
-            ),
-          db
-            .prepare(
-              "INSERT INTO session_speakers (submission_id, speaker_id, role) VALUES (?,?,'speaker') ON CONFLICT (submission_id, speaker_id) DO NOTHING",
-            )
-            .bind(submission.id, speakerId),
-          db
-            .prepare(
-              "INSERT OR IGNORE INTO event_speakers(event_id,speaker_id,source,added_by) VALUES (?,?,'accepted_submission',?)",
-            )
-            .bind(eventId, speakerId, access.user.id),
-          db
-            .prepare(
-              "INSERT INTO crm_contacts(id,organization_id,speaker_profile_id,email,first_name,last_name,company,bio,tags_json,source) SELECT ?,organization_id,id,email,first_name,last_name,company,bio,'[]','accepted_session' FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE ON CONFLICT(organization_id,email) DO UPDATE SET speaker_profile_id=excluded.speaker_profile_id,first_name=excluded.first_name,last_name=excluded.last_name,company=excluded.company,bio=COALESCE(excluded.bio,crm_contacts.bio),updated_at=CURRENT_TIMESTAMP",
-            )
-            .bind(crypto.randomUUID(), event.organizationId, submission.email),
-          db
-            .prepare(
-              "INSERT INTO speaker_task_assignments (task_id, speaker_id) SELECT task.id, ? FROM onboarding_tasks task WHERE task.event_id=? ON CONFLICT (task_id,speaker_id) DO NOTHING",
-            )
-            .bind(speakerId, eventId),
-        );
-        for (const task of fileTasks.results)
+        const speakerByEmail = new Map<string, string>();
+        for (const participant of participants.results) {
+          const email = participant.email.toLowerCase();
+          let speakerId = speakerByEmail.get(email);
+          if (!speakerId) {
+            const existingSpeaker = await db
+              .prepare(
+                "SELECT id FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE",
+              )
+              .bind(event.organizationId, email)
+              .first<{ id: string }>();
+            speakerId = existingSpeaker?.id ?? crypto.randomUUID();
+            speakerByEmail.set(email, speakerId);
+          }
+          const nameParts = participant.name.trim().split(/\s+/);
           deliveryStatements.push(
-            acceptedSpeakerFileRequestStatement(db, {
-              id: crypto.randomUUID(),
-              organizationId: event.organizationId,
-              eventId,
-              submissionId: submission.id,
-              speakerId,
-              taskId: task.id,
-              purpose: task.title,
-            }),
+            db
+              .prepare(
+                "INSERT INTO speaker_profiles (id, organization_id, email, first_name, last_name, company, portal_status) VALUES (?, ?, ?, ?, ?, ?, 'invited') ON CONFLICT (organization_id, email) DO UPDATE SET portal_status=CASE WHEN portal_status='not_invited' THEN 'invited' ELSE portal_status END, updated_at=CURRENT_TIMESTAMP",
+              )
+              .bind(
+                speakerId,
+                event.organizationId,
+                email,
+                nameParts[0] || participant.name,
+                nameParts.slice(1).join(" ") || "—",
+                participant.organization,
+              ),
+            db
+              .prepare(
+                "INSERT INTO session_speakers (submission_id, speaker_id, role) VALUES (?,?,?) ON CONFLICT (submission_id, speaker_id) DO UPDATE SET role=excluded.role",
+              )
+              .bind(
+                submission.id,
+                speakerId,
+                participant.role === "primary" ? "speaker" : participant.role,
+              ),
+            db
+              .prepare(
+                "INSERT OR IGNORE INTO event_speakers(event_id,speaker_id,source,added_by,status) VALUES (?,?,'accepted_submission',?,'confirmed')",
+              )
+              .bind(eventId, speakerId, access.user.id),
+            db
+              .prepare(
+                "INSERT INTO crm_contacts(id,organization_id,speaker_profile_id,email,first_name,last_name,company,bio,tags_json,source) SELECT ?,organization_id,id,email,first_name,last_name,company,bio,'[]','accepted_session' FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE ON CONFLICT(organization_id,email) DO UPDATE SET speaker_profile_id=excluded.speaker_profile_id,first_name=excluded.first_name,last_name=excluded.last_name,company=excluded.company,bio=COALESCE(excluded.bio,crm_contacts.bio),updated_at=CURRENT_TIMESTAMP",
+              )
+              .bind(crypto.randomUUID(), event.organizationId, email),
+            db
+              .prepare(
+                "INSERT INTO speaker_task_assignments (task_id, speaker_id) SELECT task.id, ? FROM onboarding_tasks task WHERE task.event_id=? ON CONFLICT (task_id,speaker_id) DO NOTHING",
+              )
+              .bind(speakerId, eventId),
           );
+          for (const task of fileTasks.results)
+            deliveryStatements.push(
+              acceptedSpeakerFileRequestStatement(db, {
+                id: crypto.randomUUID(),
+                organizationId: event.organizationId,
+                eventId,
+                submissionId: submission.id,
+                speakerId,
+                taskId: task.id,
+                purpose: task.title,
+              }),
+            );
+        }
       }
       await db.batch(deliveryStatements);
       let queued = false;

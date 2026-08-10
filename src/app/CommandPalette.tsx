@@ -319,8 +319,13 @@ export function CommandPalette() {
               {loading && (
                 <LoaderCircle className="spin" aria-label="Searching" />
               )}
-              <button type="button" onClick={close} aria-label="Close search">
-                <X size={18} />
+              <button
+                type="button"
+                data-dismiss
+                aria-label="Close search"
+                onClick={close}
+              >
+                <X size={18} /> Close
               </button>
             </div>
             <div

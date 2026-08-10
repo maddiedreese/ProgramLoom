@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Mail,
   MessageSquare,
+  Pencil,
   Plus,
   Save,
   Upload,
@@ -49,6 +50,7 @@ type Profile = {
   portalStatus: string;
 };
 type Speaker = Profile & {
+  eventStatus: "proposed" | "invited" | "confirmed" | "withdrawn";
   sessionCount: number;
   taskCount: number;
   completedTaskCount: number;
@@ -756,14 +758,14 @@ function SpeakerPortal({
                 <h2>{selectedFile.filename || selectedFile.purpose}</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close file details"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={() => {
                   setSelectedFile(undefined);
                   setFileDetail(undefined);
                 }}
               >
-                <X />
+                <X size={16} /> Close file details
               </button>
             </header>
             <section className="revision-list">
@@ -832,6 +834,8 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
     message: string;
   }>();
   const [busy, setBusy] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [taskProgressFilter, setTaskProgressFilter] = useState("all");
   async function load() {
     const result = await api<{
       speakers: Speaker[];
@@ -922,6 +926,60 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function deleteTask(task: Task) {
+    if (
+      !window.confirm(
+        `Delete “${task.title}”? This removes its empty assignments and unfulfilled file requests. Tasks with uploaded file history cannot be deleted.`,
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await api(`/api/speakers/admin/events/${eventId}/tasks/${task.id}`, {
+        method: "DELETE",
+      });
+      await load();
+      setFeedback({
+        kind: "success",
+        message: `${task.title} deleted. Empty assignments and unfulfilled requests were removed; audit history was retained.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Task not deleted.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function removeTaskAssignment(assignment: TaskAssignment) {
+    if (
+      !window.confirm(
+        `Remove “${assignment.title}” from ${assignment.speakerName}? Only this untouched assignment and its empty file request will be removed.`,
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await api(
+        `/api/speakers/admin/events/${eventId}/tasks/${assignment.taskId}/assignments/${assignment.speakerId}`,
+        { method: "DELETE" },
+      );
+      await load();
+      setFeedback({
+        kind: "success",
+        message: `Untouched assignment removed from ${assignment.speakerName}; audit history was retained.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Assignment not removed.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
   async function createFileRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -1001,6 +1059,37 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function updateSpeakerStatus(speaker: Speaker, status: string) {
+    setBusy(true);
+    try {
+      await api(
+        `/api/speakers/admin/events/${eventId}/speakers/${speaker.id}/status`,
+        { method: "PATCH", body: JSON.stringify({ status }) },
+      );
+      await load();
+      setFeedback({
+        kind: "success",
+        message: `${speaker.firstName} ${speaker.lastName} is now ${status}. Next, filter or communicate with the updated roster.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Could not update status.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  const visibleSpeakers = speakers.filter(
+    (speaker) =>
+      (statusFilter === "all" || speaker.eventStatus === statusFilter) &&
+      (taskProgressFilter === "all" ||
+        (taskProgressFilter === "complete"
+          ? speaker.taskCount > 0 &&
+            speaker.completedTaskCount === speaker.taskCount
+          : speaker.completedTaskCount < speaker.taskCount)),
+  );
   return (
     <>
       <header className="event-heading">
@@ -1016,20 +1105,60 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           <strong>{speakers.length}</strong>
           <span>Accepted speakers</span>
         </div>
-        <a
-          className="button"
-          href={`/app/crm?action=add-speaker&eventId=${eventId}`}
-        >
-          Add speaker
-        </a>
+        <div className="inline-actions">
+          <a
+            className="button"
+            href={`/app/events/${eventId}/communications?category=speaker_portal_invitation`}
+          >
+            <Mail size={14} /> Invite speaker
+          </a>
+          <a
+            className="button button-ghost"
+            href={`/app/crm?action=add-speaker&eventId=${eventId}`}
+          >
+            Add speaker record
+          </a>
+          <a
+            className="button button-ghost"
+            href={`/app/crm?action=import-speakers&eventId=${eventId}`}
+          >
+            Import speakers
+          </a>
+        </div>
       </header>
       {feedback && (
         <div className={`form-status form-status-${feedback.kind}`}>
           {feedback.message}
         </div>
       )}
+      <div className="speaker-filter-row">
+        <label className="speaker-status-filter">
+          Filter speaker status
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
+            <option value="all">All statuses</option>
+            <option value="proposed">Proposed</option>
+            <option value="invited">Invited</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="withdrawn">Withdrawn</option>
+          </select>
+        </label>
+        <label className="speaker-status-filter">
+          Filter task progress
+          <select
+            value={taskProgressFilter}
+            onChange={(event) => setTaskProgressFilter(event.target.value)}
+          >
+            <option value="all">All task progress</option>
+            <option value="incomplete">Incomplete tasks</option>
+            <option value="complete">All tasks complete</option>
+          </select>
+        </label>
+      </div>
       <section className="speaker-roster">
-        {speakers.map((speaker) => (
+        {visibleSpeakers.map((speaker) => (
           <article id={`speaker-${speaker.id}`} tabIndex={-1} key={speaker.id}>
             <div className="speaker-avatar">
               {speaker.firstName[0]}
@@ -1048,6 +1177,21 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             <em className={`submission-status status-${speaker.portalStatus}`}>
               {speaker.portalStatus.replaceAll("_", " ")}
             </em>
+            <label className="speaker-event-status">
+              Program status
+              <select
+                value={speaker.eventStatus}
+                disabled={busy}
+                onChange={(event) =>
+                  updateSpeakerStatus(speaker, event.target.value)
+                }
+              >
+                <option value="proposed">Proposed</option>
+                <option value="invited">Invited</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="withdrawn">Withdrawn</option>
+              </select>
+            </label>
             <div className="speaker-progress">
               <span>
                 <strong>
@@ -1064,12 +1208,24 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             </div>
             <a
               className="speaker-communication-link"
+              href={`/app/events/${eventId}/content?speaker=${speaker.id}`}
+            >
+              <Pencil size={14} /> Edit speaker profile
+            </a>
+            <a
+              className="speaker-communication-link"
               href={`/app/events/${eventId}/communications?speaker=${speaker.id}`}
             >
               <Mail size={14} /> Communication timeline
             </a>
           </article>
         ))}
+        {!visibleSpeakers.length && (
+          <div className="inline-empty">
+            No speakers match these filters. Clear the status or task-progress
+            filter, or import a speaker.
+          </div>
+        )}
       </section>
       <section
         className="file-review-list"
@@ -1082,8 +1238,47 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
               <strong>{task.title}</strong>
               <small>{task.description || "No description"}</small>
             </span>
+            <button
+              className="button button-ghost button-small"
+              onClick={() => deleteTask(task)}
+              disabled={busy}
+            >
+              Delete task
+            </button>
           </article>
         ))}
+      </section>
+      <section className="file-review-list" aria-label="Onboarding progress">
+        <h2>Onboarding progress</h2>
+        {taskAssignments.map((assignment) => (
+          <article
+            key={`${assignment.taskId}:${assignment.speakerId}:progress`}
+          >
+            <span>
+              <strong>{assignment.speakerName}</strong>
+              <small>{assignment.title}</small>
+            </span>
+            <em className={`submission-status status-${assignment.status}`}>
+              {assignment.status.replaceAll("_", " ")}
+            </em>
+            {(assignment.status === "todo" ||
+              assignment.status === "in_progress") && (
+              <button
+                className="button button-ghost button-small"
+                onClick={() => removeTaskAssignment(assignment)}
+                disabled={busy}
+              >
+                Remove assignment
+              </button>
+            )}
+          </article>
+        ))}
+        {!taskAssignments.length && (
+          <div className="inline-empty">
+            No onboarding assignments yet. Assign a task to populate this
+            progress view.
+          </div>
+        )}
       </section>
       <section className="file-review-list" aria-label="Speaker resources">
         <h2>Speaker resources</h2>

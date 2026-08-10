@@ -294,8 +294,8 @@ export function EventAgenda({ user }: { user: User }) {
         });
       },
       item.cancelledAt
-        ? `${item.title} explicitly rescheduled and restored.`
-        : `${item.title} placed without conflicts.`,
+        ? `${item.title} explicitly rescheduled and restored. Review its calendar sequence, then publish the agenda.`
+        : `${item.title} scheduled without conflicts. Next, send its calendar invitation or publish the agenda.`,
     );
   }
   async function cancel(item: AgendaItem) {
@@ -330,13 +330,19 @@ export function EventAgenda({ user }: { user: User }) {
     );
   }
   async function clear(item: AgendaItem) {
+    if (
+      !window.confirm(
+        `Clear the placement for “${item.title}”? The session will return to the unscheduled queue and its room and time will be removed.`,
+      )
+    )
+      return;
     await act(
       () =>
         api(`/api/agenda/admin/events/${eventId}/items/${item.id}`, {
           method: "PATCH",
           body: JSON.stringify({ roomId: null, startsAt: null, endsAt: null }),
         }),
-      `${item.title} returned to unscheduled.`,
+      `${item.title} returned to unscheduled. Next, choose a new room and time before publishing the agenda.`,
     );
   }
   async function assist(formEvent: FormEvent<HTMLFormElement>) {
@@ -378,7 +384,7 @@ export function EventAgenda({ user }: { user: User }) {
           method: "POST",
           body: "{}",
         }),
-      "Agenda published. Public views now use this schedule.",
+      "Agenda published and the event is active. Public views now use this schedule; next, verify the five attendee widgets.",
     );
   }
 
@@ -389,7 +395,9 @@ export function EventAgenda({ user }: { user: User }) {
       </main>
     );
   const scheduled = items.filter((item) => item.startsAt && !item.cancelledAt);
-  const unscheduled = items.filter((item) => !item.startsAt);
+  const unscheduled = items.filter(
+    (item) => !item.startsAt && !item.cancelledAt,
+  );
   const availableSessions = sessions.filter(
     (session) => !items.some((item) => item.submissionId === session.id),
   );
@@ -462,22 +470,20 @@ export function EventAgenda({ user }: { user: User }) {
                     {item.status}
                   </em>
                   <button
-                    className="plain-icon"
+                    className="button button-small button-ghost"
                     onClick={() => clear(item)}
-                    title="Clear placement"
                     aria-label={`Clear placement for ${item.title}`}
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={15} /> Clear placement
                   </button>
                   {item.itemType === "session" && (
                     <button
-                      className="plain-icon"
+                      className="button button-small button-danger"
                       onClick={() => cancel(item)}
-                      title="Cancel session"
-                      aria-label={`Cancel ${item.title}`}
+                      aria-label={`Cancel session: ${item.title}`}
                       disabled={busy}
                     >
-                      <CalendarX2 size={15} />
+                      <CalendarX2 size={15} /> Cancel session
                     </button>
                   )}
                   {item.itemType !== "session" && (
@@ -587,7 +593,7 @@ export function EventAgenda({ user }: { user: User }) {
                       <RotateCcw size={14} /> Reschedule
                     </>
                   ) : (
-                    "Save"
+                    "Schedule session"
                   )}
                 </button>
                 {item.itemType !== "session" && !item.cancelledAt && (

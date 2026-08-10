@@ -328,16 +328,25 @@ export function NotificationCenter() {
                   settings ? "Show notifications" : "Notification preferences"
                 }
               >
-                {settings ? <Bell size={18} /> : <Settings2 size={18} />}
+                {settings ? (
+                  <>
+                    <Bell size={18} /> Notifications
+                  </>
+                ) : (
+                  <>
+                    <Settings2 size={18} /> Preferences
+                  </>
+                )}
               </button>
               <button
                 type="button"
+                data-dismiss
+                aria-label="Close notifications"
                 onClick={() => {
                   closeCenter();
                 }}
-                aria-label="Close notifications"
               >
-                <X size={18} />
+                <X size={18} /> Close
               </button>
             </header>
             {error && (

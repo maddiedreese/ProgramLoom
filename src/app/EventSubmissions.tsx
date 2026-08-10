@@ -338,11 +338,11 @@ export function EventSubmissions({ user }: { user: User }) {
                 <h2>{selected.title || "Untitled proposal"}</h2>
               </div>
               <button
-                className="plain-icon"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={closeSubmission}
-                aria-label="Close submission details"
               >
-                <X size={19} />
+                <X size={16} /> Close submission details
               </button>
             </header>
             <div className="detail-speakers">
@@ -369,7 +369,7 @@ export function EventSubmissions({ user }: { user: User }) {
                 onClick={() => changeDecision("acceptance_staged")}
                 disabled={busy}
               >
-                <ThumbsUp size={16} /> Stage acceptance
+                <ThumbsUp size={16} /> Stage decision: Acceptance
               </button>
               <button
                 className={
@@ -378,7 +378,7 @@ export function EventSubmissions({ user }: { user: User }) {
                 onClick={() => changeDecision("waitlist_staged")}
                 disabled={busy}
               >
-                <Clock3 size={16} /> Stage waitlist
+                <Clock3 size={16} /> Stage decision: Waitlist
               </button>
               <button
                 className={
@@ -389,7 +389,7 @@ export function EventSubmissions({ user }: { user: User }) {
                 onClick={() => changeDecision("rejection_staged")}
                 disabled={busy}
               >
-                <ThumbsDown size={16} /> Stage rejection
+                <ThumbsDown size={16} /> Stage decision: Rejection
               </button>
               <button onClick={() => changeDecision("none")} disabled={busy}>
                 Clear staged decision

@@ -1,4 +1,4 @@
-# ProgramLoom competition submission
+# ProgramLoom evaluator guide
 
 ProgramLoom shows organizers exactly what is blocking their program, gives them the tools to resolve it, and carries every accepted proposal safely through communication, onboarding, scheduling, publication, and follow-up.
 
@@ -23,7 +23,7 @@ Use one coherent production-readiness event and the prescribed organizer, review
 4. Submit a proposal as the speaker persona, return as organizer, and locate it in **Submissions** using search and filters.
 5. Configure useful columns, save a personal review-readiness view, share an organization view, and reopen it.
 6. Choose **Assign reviewers**, assign the reviewer, switch personas, and complete the scorecard. Return as organizer.
-7. Open the proposal and choose **Stage acceptance**. Show the persistent **Staged, not sent** state; no email has been requested yet.
+7. Open the proposal and choose **Stage decision: Acceptance**. Show the persistent **Staged, not sent** state; no email has been requested yet.
 8. Choose **Preview recipients and send decision**. In **Communications**, verify merge fields against the real recipient and send through the Queue-backed outbox.
 9. Show the automatically connected speaker, session, portal access, onboarding task, audit event, notification, and communication timeline.
 10. As the speaker, update the profile, complete onboarding, and upload the requested headshot, slides, and content. Return as organizer and show corresponding Control Room blockers disappearing.
@@ -57,11 +57,11 @@ Email provider acceptance is not described as delivery unless the provider suppl
 
 The final evaluator report classifies each failed criterion as a genuine product defect, missing evidence, evaluator navigation failure, unsupported manual environment, or incorrect evaluator inference. Genuine defects and missing evidence must be closed before submission. Full run artifacts, private screenshots, manual checklist, inbox evidence, authentication state and OpenRouter spend ledger remain outside committed source.
 
-## Scope decisions
+## Operating boundaries
 
-- GitHub is the public source host because the Forge alpha was full.
-- Accelevents is excluded because it requires paid access.
 - Sentry is not used; structured logs and Cloudflare Workers Observability are the operational source.
-- No paid service, resource or plan change is allowed without owner approval. The final evaluator obeys the approved fresh OpenRouter ceiling.
+- No paid service, resource or plan change is allowed without owner approval. The final evaluator obeys the approved OpenRouter ceiling.
 
 See the [parity map](parity-map.md), [production evidence index](evidence/README.md), [traceability matrix](evaluation-matrix.md), and [operator runbook](runbook.md).
+
+Use the [exact production route and persona map](evaluator-route-map.md) to avoid event, role, or fixture ambiguity. On macOS, open search with **Command+K**.
