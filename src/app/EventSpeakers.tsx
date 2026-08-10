@@ -1016,12 +1016,20 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           <strong>{speakers.length}</strong>
           <span>Accepted speakers</span>
         </div>
-        <a
-          className="button"
-          href={`/app/crm?action=add-speaker&eventId=${eventId}`}
-        >
-          Add speaker
-        </a>
+        <div className="inline-actions">
+          <a
+            className="button"
+            href={`/app/events/${eventId}/communications?category=speaker_portal_invitation`}
+          >
+            <Mail size={14} /> Invite speaker
+          </a>
+          <a
+            className="button button-ghost"
+            href={`/app/crm?action=add-speaker&eventId=${eventId}`}
+          >
+            Add speaker record
+          </a>
+        </div>
       </header>
       {feedback && (
         <div className={`form-status form-status-${feedback.kind}`}>

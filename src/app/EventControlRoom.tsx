@@ -528,7 +528,9 @@ export function EventControlRoom({ user }: { user: User }) {
                             ? "Mark triaged"
                             : issue.category === "integration_failures"
                               ? "Acknowledge"
-                              : "Resolve"}
+                              : issue.category === "schedule_conflicts"
+                                ? "Resolve conflict"
+                                : "Resolve"}
                         </button>
                       )}
                   </div>

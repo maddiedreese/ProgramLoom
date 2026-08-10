@@ -709,20 +709,20 @@ export function EventCommunications({ user }: { user: User }) {
                   <span className="outbox-actions">
                     {message.status === "failed" && (
                       <button
-                        title="Retry communication"
+                        className="text-button"
                         onClick={() => messageAction(message, "retry")}
                       >
-                        <RotateCcw size={15} />
+                        <RotateCcw size={15} /> Retry delivery
                       </button>
                     )}
                     {["prepared", "queued", "failed"].includes(
                       message.status,
                     ) && (
                       <button
-                        title="Cancel communication"
+                        className="text-button"
                         onClick={() => messageAction(message, "cancel")}
                       >
-                        <XCircle size={15} />
+                        <XCircle size={15} /> Cancel communication
                       </button>
                     )}
                   </span>

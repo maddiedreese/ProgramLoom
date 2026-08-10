@@ -72,7 +72,7 @@ If a category fails while others remain available, retain the request ID and ins
 
 ## Evaluator procedure
 
-The authoritative upstream kit is `swyx/killmysaas-evals` at the commit recorded in `docs/evaluation-matrix.md`.
+Use the exact evaluator version and scenario inventory recorded in the restricted release evidence. Keep evaluator authentication state, controlled inboxes, and spend ledgers outside source.
 
 1. Configure the production URL and distinct organizer, speaker, and reviewer inbox aliases in the evaluator’s ignored `evalconfig.json`.
 2. Save each authenticated persona in the evaluator’s ignored `.auth` directory. Do not commit or print session cookies.

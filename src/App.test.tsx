@@ -26,6 +26,17 @@ describe("ProgramLoom application", () => {
       "href",
       "/cfp",
     );
+    expect(
+      screen.getByRole("link", { name: /see the complete lifecycle/i }),
+    ).toHaveAttribute("href", "#walkthrough");
+    expect(
+      screen.getByRole("heading", {
+        name: /start with the blocker. finish with a published program/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/staging a decision sends nothing/i),
+    ).toBeInTheDocument();
   });
 
   it("publishes the privacy notice", async () => {

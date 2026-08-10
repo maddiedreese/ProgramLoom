@@ -758,7 +758,9 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
       await load();
       setFeedback({
         kind: "success",
-        message: submit ? "Review submitted." : "Review draft saved.",
+        message: submit
+          ? "Review completed. The organizer can now inspect the score and stage a decision."
+          : "Review draft saved. Complete review when every required answer is ready.",
       });
     } catch (error) {
       const typed = error as Error & { fields?: Record<string, string> };
@@ -991,7 +993,7 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
                   <Save size={15} /> Save draft
                 </button>
                 <button className="button" value="submit" disabled={busy}>
-                  <CheckCircle2 size={15} /> Submit review
+                  <CheckCircle2 size={15} /> Complete review
                 </button>
               </div>
               <button type="button" className="recuse-link" onClick={recuse}>

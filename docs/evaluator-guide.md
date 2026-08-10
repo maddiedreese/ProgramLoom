@@ -1,4 +1,4 @@
-# ProgramLoom competition submission
+# ProgramLoom evaluator guide
 
 ProgramLoom shows organizers exactly what is blocking their program, gives them the tools to resolve it, and carries every accepted proposal safely through communication, onboarding, scheduling, publication, and follow-up.
 
@@ -57,11 +57,9 @@ Email provider acceptance is not described as delivery unless the provider suppl
 
 The final evaluator report classifies each failed criterion as a genuine product defect, missing evidence, evaluator navigation failure, unsupported manual environment, or incorrect evaluator inference. Genuine defects and missing evidence must be closed before submission. Full run artifacts, private screenshots, manual checklist, inbox evidence, authentication state and OpenRouter spend ledger remain outside committed source.
 
-## Scope decisions
+## Operating boundaries
 
-- GitHub is the public source host because the Forge alpha was full.
-- Accelevents is excluded because it requires paid access.
 - Sentry is not used; structured logs and Cloudflare Workers Observability are the operational source.
-- No paid service, resource or plan change is allowed without owner approval. The final evaluator obeys the approved fresh OpenRouter ceiling.
+- No paid service, resource or plan change is allowed without owner approval. The final evaluator obeys the approved OpenRouter ceiling.
 
 See the [parity map](parity-map.md), [production evidence index](evidence/README.md), [traceability matrix](evaluation-matrix.md), and [operator runbook](runbook.md).

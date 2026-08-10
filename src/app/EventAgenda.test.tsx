@@ -123,7 +123,9 @@ describe("agenda calendar lifecycle controls", () => {
     );
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Cancel Active session" }),
+      await screen.findByRole("button", {
+        name: "Cancel session: Active session",
+      }),
     );
     await waitFor(() =>
       expect(requests).toContainEqual(

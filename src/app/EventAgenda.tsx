@@ -294,8 +294,8 @@ export function EventAgenda({ user }: { user: User }) {
         });
       },
       item.cancelledAt
-        ? `${item.title} explicitly rescheduled and restored.`
-        : `${item.title} placed without conflicts.`,
+        ? `${item.title} explicitly rescheduled and restored. Review its calendar sequence, then publish the agenda.`
+        : `${item.title} scheduled without conflicts. Next, send its calendar invitation or publish the agenda.`,
     );
   }
   async function cancel(item: AgendaItem) {
@@ -471,13 +471,12 @@ export function EventAgenda({ user }: { user: User }) {
                   </button>
                   {item.itemType === "session" && (
                     <button
-                      className="plain-icon"
+                      className="button button-small button-danger"
                       onClick={() => cancel(item)}
-                      title="Cancel session"
-                      aria-label={`Cancel ${item.title}`}
+                      aria-label={`Cancel session: ${item.title}`}
                       disabled={busy}
                     >
-                      <CalendarX2 size={15} />
+                      <CalendarX2 size={15} /> Cancel session
                     </button>
                   )}
                   {item.itemType !== "session" && (
@@ -587,7 +586,7 @@ export function EventAgenda({ user }: { user: User }) {
                       <RotateCcw size={14} /> Reschedule
                     </>
                   ) : (
-                    "Save"
+                    "Schedule session"
                   )}
                 </button>
                 {item.itemType !== "session" && !item.cancelledAt && (

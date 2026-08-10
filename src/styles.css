@@ -243,6 +243,49 @@ blockquote {
 .proof-row svg {
   color: var(--moss);
 }
+.product-preview {
+  max-width: 1240px;
+  margin: 0 auto 120px;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+  gap: 52px;
+  align-items: center;
+}
+.product-preview-copy h2 {
+  margin: 10px 0 20px;
+  font-size: clamp(34px, 4.4vw, 58px);
+  line-height: 1.04;
+}
+.product-preview-copy > p:not(.kicker) {
+  color: #52584f;
+  font-size: 17px;
+  line-height: 1.65;
+}
+.product-preview-copy .decision-distinction {
+  margin: 24px 0;
+  padding: 16px 18px;
+  border-left: 4px solid var(--coral);
+  background: #fff9ef;
+}
+.product-preview figure {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 24px 70px rgba(31, 40, 32, 0.14);
+}
+.product-preview img {
+  width: 100%;
+  display: block;
+}
+.product-preview figcaption {
+  padding: 14px 18px 16px;
+  color: #5c625a;
+  font-size: 13px;
+  line-height: 1.5;
+}
 .capabilities {
   background: var(--ink);
   color: #f8f5eb;
@@ -2578,6 +2621,12 @@ input {
   }
   .hero-actions {
     flex-direction: column;
+  }
+  .product-preview {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    margin-bottom: 72px;
+    padding: 0 20px;
   }
   .card-grid {
     grid-template-columns: 1fr;

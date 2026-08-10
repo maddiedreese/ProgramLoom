@@ -325,7 +325,11 @@ export function Dashboard({ user }: { user: User }) {
               disabled={syncing || !airtableStatus.configured}
             >
               <RefreshCw className={syncing ? "spin" : ""} size={15} />
-              {syncing ? "Syncing…" : "Sync now"}
+              {syncing
+                ? "Recovering…"
+                : airtableStatus.failed || airtableStatus.conflicts.length
+                  ? "Recover integration"
+                  : "Sync now"}
             </button>
             {(airtableStatus.failed > 0 ||
               airtableStatus.conflicts.length > 0) && (
@@ -439,7 +443,7 @@ export function Dashboard({ user }: { user: User }) {
                     document.getElementById("new-event")?.scrollIntoView()
                   }
                 >
-                  <Plus size={16} /> New event
+                  <Plus size={16} /> Create event
                 </button>
               )}
             </div>

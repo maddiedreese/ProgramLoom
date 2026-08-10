@@ -298,21 +298,42 @@ export function EventContent({ user }: { user: User }) {
   async function saveSession(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editingSession) return;
-    const form = new FormData(event.currentTarget);
+    await run(
+      async () => {
+        await api(
+          `/api/content/admin/events/${eventId}/sessions/${editingSession.id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({
+              title: editingSession.title,
+              abstract: editingSession.abstract,
+              contentStatus: editingSession.contentStatus,
+            }),
+          },
+        );
+        setEditingSession(undefined);
+      },
+      editingSession.contentStatus === "approved"
+        ? "Content approved for public output. Next, schedule the session in Agenda."
+        : "Session content saved and versioned. Move it to Approved for public output when review is complete.",
+    );
+  }
+  async function approveContent() {
+    if (!editingSession) return;
     await run(async () => {
       await api(
         `/api/content/admin/events/${eventId}/sessions/${editingSession.id}`,
         {
           method: "PATCH",
           body: JSON.stringify({
-            title: form.get("title"),
-            abstract: form.get("abstract"),
-            contentStatus: form.get("contentStatus"),
+            title: editingSession.title,
+            abstract: editingSession.abstract,
+            contentStatus: "approved",
           }),
         },
       );
       setEditingSession(undefined);
-    }, "Session content saved and versioned.");
+    }, "Content approved for public output. Next, schedule the session in Agenda.");
   }
   async function restore(revision: Revision) {
     if (!editingSession) return;
@@ -816,7 +837,14 @@ export function EventContent({ user }: { user: User }) {
                 Content status
                 <select
                   name="contentStatus"
-                  defaultValue={editingSession.contentStatus}
+                  value={editingSession.contentStatus}
+                  onChange={(event) =>
+                    setEditingSession({
+                      ...editingSession,
+                      contentStatus: event.target
+                        .value as Session["contentStatus"],
+                    })
+                  }
                 >
                   <option value="draft">Draft</option>
                   <option value="in_review">In review</option>
@@ -826,6 +854,16 @@ export function EventContent({ user }: { user: User }) {
               <button className="button" disabled={busy}>
                 Save session content
               </button>
+              {editingSession.contentStatus !== "approved" && (
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => void approveContent()}
+                  disabled={busy}
+                >
+                  Approve content
+                </button>
+              )}
               <button
                 className="button button-ghost"
                 type="button"

@@ -179,7 +179,14 @@ export function EventCalendar({ user }: { user: User }) {
       });
       setFeedback({
         kind: "success",
-        message: "The calendar action was prepared for durable delivery.",
+        message:
+          operation === "cancel"
+            ? "Calendar cancellation prepared for durable delivery. Confirm the CANCEL revision and public removal next."
+            : operation === "reschedule"
+              ? "Calendar invitation explicitly rescheduled with the same UID and a higher sequence."
+              : record.sequence === 0
+                ? "Calendar invitation prepared for durable delivery. Its UID and sequence are recorded below."
+                : "Calendar update prepared with the same UID and a higher sequence.",
       });
       await load();
     } catch (error) {
@@ -398,14 +405,17 @@ export function EventCalendar({ user }: { user: User }) {
                         disabled={busy}
                         onClick={() => void sync(record, "create_or_update")}
                       >
-                        <RefreshCw size={14} /> Send current state
+                        <RefreshCw size={14} />{" "}
+                        {record.sequence === 0
+                          ? "Send calendar invitation"
+                          : "Send calendar update"}
                       </button>
                       <button
                         className="button button-small button-danger"
                         disabled={busy}
                         onClick={() => void sync(record, "cancel")}
                       >
-                        <XCircle size={14} /> Cancel
+                        <XCircle size={14} /> Cancel calendar invitation
                       </button>
                     </>
                   )}

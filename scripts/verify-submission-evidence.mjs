@@ -11,9 +11,9 @@ const errors = [];
 const manifestPath =
   process.env.PROGRAMLOOM_EVIDENCE_MANIFEST ??
   "docs/evidence/production-manifest.json";
-const [readme, submission, parity, evidence, manifestText] = await Promise.all([
+const [readme, guide, parity, evidence, manifestText] = await Promise.all([
   load("README.md"),
-  load("docs/submission.md"),
+  load("docs/evaluator-guide.md"),
   load("docs/parity-map.md"),
   load("docs/evidence/README.md"),
   manifestPath.startsWith("/")
@@ -24,7 +24,7 @@ const manifest = JSON.parse(manifestText);
 
 for (const [name, content] of [
   ["README", readme],
-  ["submission", submission],
+  ["evaluator guide", guide],
   ["parity map", parity],
 ]) {
   if (!content.includes(requiredPromise))
@@ -71,7 +71,7 @@ if (final) {
     );
   if (manifest.controlRoom?.reconciled !== true)
     errors.push("Final Control Room state is not marked reconciled.");
-  if (/^- \[ \]/m.test(submission))
+  if (/^- \[ \]/m.test(guide))
     errors.push(
       "Submission documentation still contains an unfinished checklist item.",
     );
