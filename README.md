@@ -62,10 +62,10 @@ The [parity and evidence map](docs/parity-map.md) links required capabilities to
 ```bash
 npm run check
 npm run db:migrate:remote
-npm run deploy
+RELEASE_COMMIT="$(git rev-parse HEAD)" npm run deploy
 ```
 
-Deploy the committed release and supply its full Git commit as the Worker `RELEASE_COMMIT` variable. Record the returned Worker version, verify `/api/health`, run the production Playwright gate, and require Airtable to settle at zero pending work, zero failures, and zero open conflicts. Full recovery and secret-handling procedures are in the [runbook](docs/runbook.md).
+The deploy script rejects a missing, abbreviated, uppercase, or malformed source commit and binds the validated SHA directly to Wrangler. Record the returned Worker version, verify `/api/health`, run the production Playwright gate, and require Airtable to settle at zero pending work, zero failures, and zero open conflicts. Full recovery and secret-handling procedures are in the [runbook](docs/runbook.md).
 
 ## Evaluator walkthrough
 

@@ -3,6 +3,10 @@ import { expectAccessible, expectNoHorizontalOverflow } from "./accessibility";
 
 const eventId = process.env.PROGRAMLOOM_E2E_EVENT_ID;
 const hasAuth = Boolean(process.env.PROGRAMLOOM_E2E_STORAGE_STATE && eventId);
+const reviewerStorage = process.env.PROGRAMLOOM_E2E_REVIEWER_STORAGE_STATE;
+const speakerStorage = process.env.PROGRAMLOOM_E2E_SPEAKER_STORAGE_STATE;
+const baseURL =
+  process.env.PROGRAMLOOM_E2E_URL ?? "https://app.programloom.com";
 
 test.describe("authenticated organizer operations", () => {
   test.skip(
@@ -55,6 +59,139 @@ test.describe("authenticated organizer operations", () => {
     ).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(bell).toBeFocused();
+  });
+
+  test("judge-first workflow controls are explicit and reachable", async ({
+    page,
+  }) => {
+    await page.goto(`/app/events/${eventId}/submissions`);
+    await expect(
+      page.getByRole("button", { name: /Open submission:/ }).first(),
+    ).toBeVisible();
+
+    await page.goto(`/app/events/${eventId}/reviews`);
+    await expect(
+      page.getByRole("button", { name: "Assign reviewers" }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Save review window" }),
+    ).toBeVisible();
+
+    await page.goto(`/app/events/${eventId}/speakers`);
+    await expect(
+      page.getByRole("link", { name: "Invite speaker" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Edit speaker profile" }).first(),
+    ).toBeVisible();
+
+    await page.goto(`/app/events/${eventId}/content`);
+    await page.getByRole("button", { name: "Session content" }).click();
+    await page.locator(".content-record-card").first().click();
+    await expect(
+      page.getByRole("link", { name: "Schedule session" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Close session editor" }),
+    ).toBeVisible();
+
+    await page.goto(`/app/events/${eventId}/agenda`);
+    await expect(
+      page.getByRole("button", { name: "Publish agenda" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Cancel session:/ }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Clear placement for/ }).first(),
+    ).toBeVisible();
+
+    await page.goto(`/app/events/${eventId}/calendar`);
+    await expect(
+      page
+        .getByRole("button", { name: /Send calendar (invitation|update)/ })
+        .first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Cancel calendar invitation" }).first(),
+    ).toBeVisible();
+
+    await page.goto(`/app/events/${eventId}/communications`);
+    await expect(page.getByRole("tab", { name: "Compose" })).toBeVisible();
+    await page.getByRole("tab", { name: "Compose" }).click();
+    await expect(
+      page.getByRole("button", { name: "Preview recipients" }),
+    ).toBeVisible();
+
+    await page.goto(`/app/events/${eventId}/widgets`);
+    await expect(
+      page.getByRole("button", { name: "Delete widget" }),
+    ).toHaveCount(5);
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page);
+  });
+
+  test("reviewer and speaker land in isolated role workspaces", async ({
+    browser,
+  }) => {
+    test.skip(
+      !reviewerStorage || !speakerStorage,
+      "Provide ignored reviewer and speaker storage states.",
+    );
+    const reviewer = await browser.newContext({
+      baseURL,
+      storageState: reviewerStorage,
+    });
+    const speaker = await browser.newContext({
+      baseURL,
+      storageState: speakerStorage,
+    });
+    try {
+      const reviewerPage = await reviewer.newPage();
+      await reviewerPage.goto(`/app/events/${eventId}/reviews`);
+      await expect(
+        reviewerPage.getByRole("heading", { name: "Your review queue" }),
+      ).toBeVisible();
+      const reviewerLifecycle = reviewerPage.getByRole("combobox", {
+        name: "Event lifecycle",
+      });
+      if (await reviewerLifecycle.isVisible()) {
+        await expect(reviewerLifecycle).toHaveValue("reviews");
+        await expect(reviewerLifecycle.locator("option")).toHaveCount(1);
+      } else {
+        await expect(
+          reviewerPage.getByRole("link", { name: "Reviews" }),
+        ).toBeVisible();
+      }
+      await expect(
+        reviewerPage.getByRole("link", { name: "Submissions" }),
+      ).toHaveCount(0);
+      await expectAccessible(reviewerPage);
+
+      const speakerPage = await speaker.newPage();
+      await speakerPage.goto(`/app/events/${eventId}/speakers`);
+      await expect(
+        speakerPage.getByRole("heading", { name: /^Welcome,/ }),
+      ).toBeVisible();
+      const speakerLifecycle = speakerPage.getByRole("combobox", {
+        name: "Event lifecycle",
+      });
+      if (await speakerLifecycle.isVisible()) {
+        await expect(speakerLifecycle).toHaveValue("speakers");
+        await expect(speakerLifecycle.locator("option")).toHaveCount(1);
+      } else {
+        await expect(
+          speakerPage.getByRole("link", { name: "Speakers" }),
+        ).toBeVisible();
+      }
+      await expect(
+        speakerPage.getByRole("link", { name: "Content" }),
+      ).toHaveCount(0);
+      await expectAccessible(speakerPage);
+    } finally {
+      await reviewer.close();
+      await speaker.close();
+    }
   });
 
   test("server authorization fails closed across events", async ({
