@@ -8,9 +8,6 @@ import {
   UsersRound,
 } from "lucide-react";
 import {
-  lazy,
-  Suspense,
-  type ComponentType,
   type FormEvent,
   useEffect,
   useState,
@@ -30,65 +27,14 @@ import { EventCommunications } from "./app/EventCommunications";
 import { CommandPalette } from "./app/CommandPalette";
 import { NotificationCenter } from "./app/NotificationCenter";
 import { PublicWidgetPage } from "./app/PublicWidgetPage";
-
-function deploymentSafeLazy<T extends ComponentType<any>>(
-  key: string,
-  load: () => Promise<{ default: T }>,
-) {
-  return lazy(async () => {
-    const recoveryKey = `programloom:lazy-recovery:${key}`;
-    try {
-      const module = await load();
-      sessionStorage.removeItem(recoveryKey);
-      return module;
-    } catch (error) {
-      if (!sessionStorage.getItem(recoveryKey)) {
-        sessionStorage.setItem(recoveryKey, "1");
-        window.location.reload();
-        return new Promise<{ default: T }>(() => undefined);
-      }
-      sessionStorage.removeItem(recoveryKey);
-      throw error;
-    }
-  });
-}
-
-const LazyCRMPage = deploymentSafeLazy("crm", () =>
-  import("./app/CRMPage").then(({ CRMPage }) => ({ default: CRMPage })),
-);
-const LazyEventContent = deploymentSafeLazy("content", () =>
-  import("./app/EventContent").then(({ EventContent }) => ({
-    default: EventContent,
-  })),
-);
-const LazyEventCalendar = deploymentSafeLazy("calendar", () =>
-  import("./app/EventCalendar").then(({ EventCalendar }) => ({
-    default: EventCalendar,
-  })),
-);
-const LazyEventControlRoom = deploymentSafeLazy("control-room", () =>
-  import("./app/EventControlRoom").then(({ EventControlRoom }) => ({
-    default: EventControlRoom,
-  })),
-);
-const LazySubmissionEditAction = deploymentSafeLazy("submission-edit", () =>
-  import("./app/SubmissionEditActionPage").then(
-    ({ SubmissionEditActionPage }) => ({ default: SubmissionEditActionPage }),
-  ),
-);
-const LazyEventSpeakers = deploymentSafeLazy("speakers", () =>
-  import("./app/EventSpeakers").then(({ EventSpeakers }) => ({
-    default: EventSpeakers,
-  })),
-);
-const LazyPublicInterestPage = deploymentSafeLazy("interest", () =>
-  import("./app/PublicInterestPage").then(({ PublicInterestPage }) => ({
-    default: PublicInterestPage,
-  })),
-);
-const LazyLegalPage = deploymentSafeLazy("legal", () =>
-  import("./app/LegalPage").then(({ LegalPage }) => ({ default: LegalPage })),
-);
+import { CRMPage } from "./app/CRMPage";
+import { EventContent } from "./app/EventContent";
+import { EventCalendar } from "./app/EventCalendar";
+import { EventControlRoom } from "./app/EventControlRoom";
+import { SubmissionEditActionPage } from "./app/SubmissionEditActionPage";
+import { EventSpeakers } from "./app/EventSpeakers";
+import { PublicInterestPage } from "./app/PublicInterestPage";
+import { LegalPage } from "./app/LegalPage";
 
 function LoadingRoute({ label }: { label: string }) {
   return (
@@ -438,41 +384,19 @@ function AuthenticatedPage({
     content = <EventSubmissions user={session.user} />;
   else if (page === "reviews") content = <EventReviews user={session.user} />;
   else if (page === "speakers")
-    content = (
-      <Suspense fallback={<LoadingRoute label="Loading speaker operations…" />}>
-        <LazyEventSpeakers user={session.user} />
-      </Suspense>
-    );
+    content = <EventSpeakers user={session.user} />;
   else if (page === "content")
-    content = (
-      <Suspense fallback={<LoadingRoute label="Loading content workspace…" />}>
-        <LazyEventContent user={session.user} />
-      </Suspense>
-    );
+    content = <EventContent user={session.user} />;
   else if (page === "agenda") content = <EventAgenda user={session.user} />;
   else if (page === "widgets") content = <EventWidgets user={session.user} />;
   else if (page === "communications")
     content = <EventCommunications user={session.user} />;
   else if (page === "calendar")
-    content = (
-      <Suspense fallback={<LoadingRoute label="Loading calendar lifecycle…" />}>
-        <LazyEventCalendar user={session.user} />
-      </Suspense>
-    );
+    content = <EventCalendar user={session.user} />;
   else if (page === "control-room")
-    content = (
-      <Suspense fallback={<LoadingRoute label="Loading the Control Room…" />}>
-        <LazyEventControlRoom user={session.user} />
-      </Suspense>
-    );
+    content = <EventControlRoom user={session.user} />;
   else if (page === "crm")
-    content = (
-      <Suspense
-        fallback={<LoadingRoute label="Loading the speaker network…" />}
-      >
-        <LazyCRMPage user={session.user} />
-      </Suspense>
-    );
+    content = <CRMPage user={session.user} />;
   else content = <Dashboard user={session.user} />;
   return (
     <>
@@ -502,42 +426,20 @@ export function App() {
         path="/cfp/:organizationSlug/:eventSlug/:formSlug"
         element={<PublicCfpAlias />}
       />
-      <Route
-        path="/privacy"
-        element={
-          <Suspense fallback={<LoadingRoute label="Loading privacy notice…" />}>
-            <LazyLegalPage kind="privacy" />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/terms"
-        element={
-          <Suspense fallback={<LoadingRoute label="Loading terms…" />}>
-            <LazyLegalPage kind="terms" />
-          </Suspense>
-        }
-      />
+      <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+      <Route path="/terms" element={<LegalPage kind="terms" />} />
       <Route
         path="/c/:organizationSlug/:eventSlug/:formSlug"
         element={<PublicCfpPage />}
       />
       <Route
         path="/interest/:organizationSlug/:formSlug"
-        element={
-          <Suspense fallback={<LoadingRoute label="Loading interest form…" />}>
-            <LazyPublicInterestPage />
-          </Suspense>
-        }
+        element={<PublicInterestPage />}
       />
       <Route path="/embed/:publicKey" element={<PublicWidgetPage />} />
       <Route
         path="/action/submission-edit"
-        element={
-          <Suspense fallback={<LoadingRoute label="Opening proposal…" />}>
-            <LazySubmissionEditAction />
-          </Suspense>
-        }
+        element={<SubmissionEditActionPage />}
       />
       <Route path="/app" element={<AuthenticatedPage page="dashboard" />} />
       <Route path="/dashboard" element={<Navigate to="/app" replace />} />
