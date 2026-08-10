@@ -394,7 +394,12 @@ export function EventWidgets({ user }: { user: User }) {
                       iCal
                     </a>
                   </div>
-                  <code>{snippet}</code>
+                  <code
+                    tabIndex={0}
+                    aria-label={`Embed code for ${widget.name}`}
+                  >
+                    {snippet}
+                  </code>
                 </article>
               );
             })}

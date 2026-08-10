@@ -68,9 +68,11 @@ describe("EventWidgets", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Delete widget" }),
-    );
+    expect(
+      await screen.findByLabelText("Embed code for Old sessions widget"),
+    ).toHaveAttribute("tabindex", "0");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete widget" }));
     expect(confirm).toHaveBeenCalledWith(
       expect.stringMatching(/public URLs will stop working immediately/i),
     );

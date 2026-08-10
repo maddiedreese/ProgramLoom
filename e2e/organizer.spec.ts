@@ -185,7 +185,7 @@ test.describe("authenticated organizer operations", () => {
         ).toBeVisible();
       }
       await expect(
-        speakerPage.getByRole("link", { name: "Content" }),
+        speakerPage.getByRole("link", { name: "Content", exact: true }),
       ).toHaveCount(0);
       await expectAccessible(speakerPage);
     } finally {
