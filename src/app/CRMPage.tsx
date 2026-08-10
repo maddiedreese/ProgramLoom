@@ -170,6 +170,19 @@ function slugHeader(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+export function canSaveCrmSegment(
+  filter: DirectoryFilter,
+  selectedCount: number,
+) {
+  return Boolean(
+    filter.search ||
+    filter.companies.length ||
+    filter.jobTitles.length ||
+    filter.tags.length ||
+    selectedCount > 0,
+  );
+}
+
 export function CRMPage({ user }: { user: User }) {
   const initialQuery = new URLSearchParams(window.location.search);
   const addSpeakerEventId = initialQuery.get("eventId") ?? "";
@@ -897,6 +910,7 @@ function DirectoryPanel({
     filter.jobTitles.length ||
     filter.tags.length,
   );
+  const canSaveSegment = canSaveCrmSegment(filter, selected.length);
   return (
     <section className="directory-panel">
       <div className="directory-toolbar">
@@ -982,8 +996,12 @@ function DirectoryPanel({
         <button
           className="button button-ghost"
           onClick={onSaveSegment}
-          disabled={!hasFilter}
-          title={hasFilter ? "Save these filters" : "Choose a filter first"}
+          disabled={!canSaveSegment}
+          title={
+            canSaveSegment
+              ? "Save this audience"
+              : "Choose a filter or select contacts first"
+          }
         >
           <Save size={15} /> Save segment
         </button>
