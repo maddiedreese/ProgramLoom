@@ -11,6 +11,19 @@ type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const organizerRoles = ["owner", "admin"] as const;
 
+export async function assignAllFileTargets(db: D1Database, eventId: string) {
+  return db
+    .prepare(
+      `SELECT ss.speaker_id AS speakerId,MIN(s.id) AS submissionId
+       FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id
+       WHERE s.event_id=? AND s.status='accepted'
+       GROUP BY ss.speaker_id
+       ORDER BY ss.speaker_id`,
+    )
+    .bind(eventId)
+    .all<{ speakerId: string; submissionId: string }>();
+}
+
 const profileSchema = z.object({
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().min(1).max(100),
@@ -736,14 +749,7 @@ router.post(
     );
     const fileTargets =
       input.assignAll && input.taskType === "file_request"
-        ? await db
-            .prepare(
-              `SELECT DISTINCT ss.speaker_id AS speakerId,s.id AS submissionId
-               FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id
-               WHERE s.event_id=? AND s.status='accepted'`,
-            )
-            .bind(eventId)
-            .all<{ speakerId: string; submissionId: string }>()
+        ? await assignAllFileTargets(db, eventId)
         : { results: [] };
     const statements = [
       db
