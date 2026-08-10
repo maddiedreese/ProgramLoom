@@ -61,7 +61,18 @@ async function widgetData(db: D1Database, eventId: string) {
       .all(),
     db
       .prepare(
-        `SELECT s.id,s.title,s.abstract,s.format,s.duration_minutes AS durationMinutes,MIN(st.track_id) AS trackId,GROUP_CONCAT(DISTINCT sp.id) AS speakerIds,GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames FROM submissions s JOIN session_content_state cs ON cs.submission_id=s.id AND cs.status='approved' LEFT JOIN submission_tracks st ON st.submission_id=s.id LEFT JOIN session_speakers ss ON ss.submission_id=s.id LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id WHERE s.event_id=? AND s.status='accepted' GROUP BY s.id ORDER BY s.title`,
+        `SELECT s.id,s.title,s.abstract,s.format,s.duration_minutes AS durationMinutes,
+                COALESCE(MIN(a.track_id),MIN(st.track_id)) AS trackId,
+                GROUP_CONCAT(DISTINCT sp.id) AS speakerIds,
+                GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames
+         FROM submissions s
+         JOIN session_content_state cs ON cs.submission_id=s.id AND cs.status='approved'
+         LEFT JOIN agenda_items a ON a.submission_id=s.id AND a.cancelled_at IS NULL
+         LEFT JOIN submission_tracks st ON st.submission_id=s.id
+         LEFT JOIN session_speakers ss ON ss.submission_id=s.id
+         LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id
+         WHERE s.event_id=? AND s.status='accepted'
+         GROUP BY s.id ORDER BY s.title`,
       )
       .bind(eventId)
       .all(),

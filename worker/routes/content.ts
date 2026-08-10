@@ -6,6 +6,7 @@ import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
 import { randomToken, sha256 } from "../lib/crypto";
+import { syncAgendaCalendarInvitations } from "../lib/calendarLifecycle";
 import {
   enqueueCommunication,
   prepareCommunicationStatement,
@@ -224,6 +225,13 @@ router.patch(
             "UPDATE submissions SET title=?,abstract=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=?",
           )
           .bind(input.title, input.abstract, current.id, eventId),
+        db
+          .prepare(
+            `UPDATE agenda_items SET title=?,description=?,status='draft',
+             version=version+1,updated_at=CURRENT_TIMESTAMP
+             WHERE submission_id=? AND event_id=? AND cancelled_at IS NULL`,
+          )
+          .bind(input.title, input.abstract, current.id, eventId),
       );
     }
     statements.push(
@@ -274,7 +282,34 @@ router.patch(
         : []),
     );
     await db.batch(statements);
-    return context.json({ session: { id: current.id, ...input } });
+    let calendarFailures = 0;
+    if (contentChanged) {
+      const agendaItems = await db
+        .prepare(
+          `SELECT id FROM agenda_items WHERE submission_id=? AND event_id=?
+           AND cancelled_at IS NULL AND starts_at IS NOT NULL AND ends_at IS NOT NULL
+           ORDER BY id LIMIT 20`,
+        )
+        .bind(current.id, eventId)
+        .all<{ id: string }>();
+      for (const item of agendaItems.results) {
+        try {
+          await syncAgendaCalendarInvitations(context.env, {
+            eventId,
+            agendaItemId: item.id,
+            actorUserId: access.user.id,
+            correlationId: context.get("requestId"),
+            action: "material_change",
+          });
+        } catch {
+          calendarFailures += 1;
+        }
+      }
+    }
+    return context.json({
+      session: { id: current.id, ...input },
+      calendarFailures,
+    });
   },
 );
 
