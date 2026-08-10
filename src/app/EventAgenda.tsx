@@ -384,7 +384,7 @@ export function EventAgenda({ user }: { user: User }) {
           method: "POST",
           body: "{}",
         }),
-      "Agenda published. Public views now use this schedule.",
+      "Agenda published and the event is active. Public views now use this schedule; next, verify the five attendee widgets.",
     );
   }
 

@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Pencil,
   Plus,
+  Trash2,
   UsersRound,
   X,
 } from "lucide-react";
@@ -128,6 +129,37 @@ export function EventWidgets({ user }: { user: User }) {
       setFeedback({
         message:
           error instanceof Error ? error.message : "Could not save widget.",
+        error: true,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(widget: Widget) {
+    if (
+      !window.confirm(
+        `Delete “${widget.name}”? Its direct and embedded public URLs will stop working immediately. Organizer records and the other live widgets are unchanged.`,
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await api(`/api/widgets/admin/events/${eventId}/${widget.id}`, {
+        method: "DELETE",
+      });
+      if (editing?.id === widget.id) setEditing(undefined);
+      await load();
+      captureProductEvent("public_widget_deleted", {
+        event_id: eventId,
+        widget_type: widget.widgetType,
+      });
+      setFeedback({
+        message: `${widget.name} deleted. The remaining live widgets are unchanged.`,
+      });
+    } catch (error) {
+      setFeedback({
+        message:
+          error instanceof Error ? error.message : "Could not delete widget.",
         error: true,
       });
     } finally {
@@ -337,6 +369,14 @@ export function EventWidgets({ user }: { user: User }) {
                       onClick={() => navigator.clipboard.writeText(snippet)}
                     >
                       <Clipboard size={14} /> Copy embed
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      disabled={busy}
+                      onClick={() => void remove(widget)}
+                    >
+                      <Trash2 size={14} /> Delete widget
                     </button>
                     <a
                       href={`/api/widgets/public/${widget.publicKey}/feed.json`}

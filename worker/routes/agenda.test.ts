@@ -1,11 +1,35 @@
 import { describe, expect, it } from "vitest";
 import {
+  eventActivationStatement,
   publishedAgendaItemAuditStatements,
   requiresExplicitReschedule,
   sessionSpeakersSchema,
 } from "./agenda";
 
 describe("agenda publication audits", () => {
+  it("activates a draft event when its conflict-free agenda is published", () => {
+    const prepared: Array<{ sql: string; bindings: unknown[] }> = [];
+    const db = {
+      prepare(sql: string) {
+        const record = { sql, bindings: [] as unknown[] };
+        prepared.push(record);
+        return {
+          bind(...bindings: unknown[]) {
+            record.bindings = bindings;
+            return this;
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    eventActivationStatement(db, "event-id");
+
+    expect(prepared[0]).toMatchObject({
+      sql: "UPDATE events SET status='active',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='draft'",
+      bindings: ["event-id"],
+    });
+  });
+
   it("emits one Airtable-addressable audit for every real agenda item id", () => {
     const prepared: Array<{ sql: string; bindings: unknown[] }> = [];
     const db = {

@@ -9,6 +9,34 @@ type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const organizerRoles = ["owner", "admin"] as const;
 
+export function widgetRemovalStatements(
+  db: D1Database,
+  input: {
+    widgetId: string;
+    eventId: string;
+    organizationId: string;
+    actorUserId: string;
+    requestId: string;
+    before: Record<string, unknown>;
+  },
+) {
+  return [
+    db
+      .prepare("DELETE FROM widget_configs WHERE id=? AND event_id=?")
+      .bind(input.widgetId, input.eventId),
+    auditStatement(db, {
+      organizationId: input.organizationId,
+      eventId: input.eventId,
+      actorUserId: input.actorUserId,
+      action: "widget.deleted",
+      entityType: "widget_config",
+      entityId: input.widgetId,
+      before: input.before,
+      requestId: input.requestId,
+    }),
+  ];
+}
+
 const configSchema = z.object({
   name: z.string().trim().min(2).max(120),
   widgetType: z.enum([
@@ -290,6 +318,37 @@ router.patch(
     });
   },
 );
+
+router.delete("/admin/events/:eventId/:widgetId", async (context) => {
+  const eventId = context.req.param("eventId");
+  const widgetId = context.req.param("widgetId");
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
+  const db = database(context.env);
+  const widget = await db
+    .prepare(
+      "SELECT id,name,widget_type AS widgetType,public_key AS publicKey,config_json AS configJson FROM widget_configs WHERE id=? AND event_id=?",
+    )
+    .bind(widgetId, eventId)
+    .first<Record<string, unknown>>();
+  if (!widget)
+    throw new HttpError(404, "widget_not_found", "Widget not found.");
+  await db.batch(
+    widgetRemovalStatements(db, {
+      widgetId,
+      eventId,
+      organizationId: access.organizationId,
+      actorUserId: access.user.id,
+      requestId: context.get("requestId"),
+      before: {
+        name: widget.name,
+        widgetType: widget.widgetType,
+        publicKey: widget.publicKey,
+        config: JSON.parse(String(widget.configJson)),
+      },
+    }),
+  );
+  return context.json({ deleted: true, widgetId });
+});
 
 router.get("/public/:publicKey", async (context) => {
   const db = database(context.env);

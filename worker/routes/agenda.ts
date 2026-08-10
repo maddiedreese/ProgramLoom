@@ -49,6 +49,14 @@ export function publishedAgendaItemAuditStatements(
   );
 }
 
+export function eventActivationStatement(db: D1Database, eventId: string) {
+  return db
+    .prepare(
+      "UPDATE events SET status='active',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='draft'",
+    )
+    .bind(eventId);
+}
+
 export function requiresExplicitReschedule(
   cancelledAt: string | null,
   reschedule: boolean,
@@ -692,6 +700,7 @@ router.post("/admin/events/:eventId/items/:itemId/cancel", async (context) => {
     });
   const cancelledAt = new Date().toISOString();
   await db.batch([
+    eventActivationStatement(db, eventId),
     db
       .prepare(
         `UPDATE agenda_items SET room_id=NULL,starts_at=NULL,ends_at=NULL,status='draft',
@@ -1045,7 +1054,7 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       action: "agenda.published",
       entityType: "event",
       entityId: eventId,
-      after: { itemCount: total.count },
+      after: { itemCount: total.count, eventStatus: "active" },
       requestId: context.get("requestId"),
     }),
     ...publishedAgendaItemAuditStatements(
