@@ -48,6 +48,11 @@ type Speaker = {
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
+  logistics: {
+    dietary?: string;
+    accessibility?: string;
+    travelNotes?: string;
+  };
   hasHeadshot: boolean;
   headshotUrl: string | null;
 };
@@ -394,6 +399,11 @@ export function EventContent({ user }: { user: User }) {
             jobTitle: form.get("jobTitle") || null,
             company: form.get("company") || null,
             bio: form.get("bio") || null,
+            logistics: {
+              dietary: String(form.get("dietary") ?? ""),
+              accessibility: String(form.get("accessibility") ?? ""),
+              travelNotes: String(form.get("travelNotes") ?? ""),
+            },
           }),
         },
       );
@@ -1034,6 +1044,32 @@ export function EventContent({ user }: { user: User }) {
                   defaultValue={editingSpeaker.bio ?? ""}
                 />
               </label>
+              <fieldset>
+                <legend>Private logistics</legend>
+                <p>Visible only to the authorized event team.</p>
+                <label>
+                  Dietary needs
+                  <input
+                    name="dietary"
+                    defaultValue={editingSpeaker.logistics?.dietary ?? ""}
+                  />
+                </label>
+                <label>
+                  Accessibility needs
+                  <input
+                    name="accessibility"
+                    defaultValue={editingSpeaker.logistics?.accessibility ?? ""}
+                  />
+                </label>
+                <label>
+                  Travel notes
+                  <textarea
+                    name="travelNotes"
+                    rows={4}
+                    defaultValue={editingSpeaker.logistics?.travelNotes ?? ""}
+                  />
+                </label>
+              </fieldset>
               <label>
                 Replace headshot
                 <input
@@ -1044,7 +1080,7 @@ export function EventContent({ user }: { user: User }) {
                 <small>PNG, JPEG, or WebP · 5 MB max</small>
               </label>
               <button className="button" disabled={busy}>
-                <Upload size={15} /> Save profile
+                <Upload size={15} /> Save profile and logistics
               </button>
             </form>
           </aside>

@@ -50,6 +50,11 @@ describe("EventContent detail navigation", () => {
                   jobTitle: "Principal architect",
                   company: "Reliable Systems",
                   bio: "Builds calm programs.",
+                  logistics: {
+                    dietary: "Vegetarian",
+                    accessibility: "Aisle seating",
+                    travelNotes: "Arrives the evening before.",
+                  },
                   headshotUrl: null,
                 },
               ],
@@ -83,6 +88,12 @@ describe("EventContent detail navigation", () => {
 
     expect(
       await screen.findByRole("dialog", { name: "Edit speaker profile" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Travel notes")).toHaveValue(
+      "Arrives the evening before.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Save profile and logistics" }),
     ).toBeVisible();
     fireEvent.click(
       screen.getByRole("button", { name: "Close speaker editor" }),

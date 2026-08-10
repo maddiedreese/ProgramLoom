@@ -114,6 +114,13 @@ type RoundRecord = {
   status: "draft" | "open" | "closed";
 };
 
+export function safeReviewSpreadsheetText(value: unknown) {
+  const text = String(value ?? "")
+    .replaceAll("\u0000", "")
+    .slice(0, 32767);
+  return /^[\t\r\n ]*[=+\-@]/.test(text) ? `'${text}` : text;
+}
+
 async function requireRound(
   db: D1Database,
   eventId: string,
@@ -261,6 +268,70 @@ router.get("/events/:eventId", async (context) => {
     reviewers: reviewers.results,
     reviewerPools: reviewerPools.results,
     results: results.results,
+  });
+});
+
+router.get("/events/:eventId/export", async (context) => {
+  const eventId = context.req.param("eventId");
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
+  const roundId = context.req.query("roundId");
+  if (!roundId)
+    throw new HttpError(400, "round_required", "Choose a review round.");
+  const db = database(context.env);
+  const round = await requireRound(db, eventId, roundId);
+  const rows = await db
+    .prepare(
+      `SELECT s.title,
+              COUNT(DISTINCT ra.id) AS assignmentCount,
+              COUNT(DISTINCT CASE WHEN rv.submitted_at IS NOT NULL THEN ra.id END) AS completedCount,
+              ROUND(AVG(CASE WHEN rv.submitted_at IS NOT NULL THEN rv.weighted_score END),2) AS aggregateScore
+       FROM review_assignments ra
+       JOIN submissions s ON s.id=ra.submission_id
+       LEFT JOIN reviews rv ON rv.assignment_id=ra.id
+       WHERE ra.round_id=? AND ra.recused_at IS NULL
+       GROUP BY s.id ORDER BY aggregateScore DESC,s.title COLLATE NOCASE`,
+    )
+    .bind(roundId)
+    .all<{
+      title: string;
+      assignmentCount: number;
+      completedCount: number;
+      aggregateScore: number | null;
+    }>();
+  const csv = `\uFEFF${[
+    ["Submission", "Completed reviews", "Assigned reviews", "Aggregate score"],
+    ...rows.results.map((row) => [
+      row.title,
+      row.completedCount,
+      row.assignmentCount,
+      row.aggregateScore ?? "Pending",
+    ]),
+  ]
+    .map((row) =>
+      row
+        .map(
+          (cell) =>
+            `"${safeReviewSpreadsheetText(cell).replaceAll('"', '""')}"`,
+        )
+        .join(","),
+    )
+    .join("\r\n")}\r\n`;
+  await auditStatement(db, {
+    organizationId: access.organizationId,
+    eventId,
+    actorUserId: access.user.id,
+    action: "review_results.exported",
+    entityType: "review_round",
+    entityId: roundId,
+    after: { rowCount: rows.results.length, format: "csv" },
+    requestId: context.get("requestId"),
+  }).run();
+  return new Response(csv, {
+    headers: {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="programloom-${round.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-results.csv"`,
+      "cache-control": "private, no-store",
+    },
   });
 });
 

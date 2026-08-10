@@ -835,6 +835,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
   }>();
   const [busy, setBusy] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [taskProgressFilter, setTaskProgressFilter] = useState("all");
   async function load() {
     const result = await api<{
       speakers: Speaker[];
@@ -1027,7 +1028,13 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
     }
   }
   const visibleSpeakers = speakers.filter(
-    (speaker) => statusFilter === "all" || speaker.eventStatus === statusFilter,
+    (speaker) =>
+      (statusFilter === "all" || speaker.eventStatus === statusFilter) &&
+      (taskProgressFilter === "all" ||
+        (taskProgressFilter === "complete"
+          ? speaker.taskCount > 0 &&
+            speaker.completedTaskCount === speaker.taskCount
+          : speaker.completedTaskCount < speaker.taskCount)),
   );
   return (
     <>
@@ -1070,19 +1077,32 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           {feedback.message}
         </div>
       )}
-      <label className="speaker-status-filter">
-        Filter speaker status
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-        >
-          <option value="all">All statuses</option>
-          <option value="proposed">Proposed</option>
-          <option value="invited">Invited</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="withdrawn">Withdrawn</option>
-        </select>
-      </label>
+      <div className="speaker-filter-row">
+        <label className="speaker-status-filter">
+          Filter speaker status
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
+            <option value="all">All statuses</option>
+            <option value="proposed">Proposed</option>
+            <option value="invited">Invited</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="withdrawn">Withdrawn</option>
+          </select>
+        </label>
+        <label className="speaker-status-filter">
+          Filter task progress
+          <select
+            value={taskProgressFilter}
+            onChange={(event) => setTaskProgressFilter(event.target.value)}
+          >
+            <option value="all">All task progress</option>
+            <option value="incomplete">Incomplete tasks</option>
+            <option value="complete">All tasks complete</option>
+          </select>
+        </label>
+      </div>
       <section className="speaker-roster">
         {visibleSpeakers.map((speaker) => (
           <article id={`speaker-${speaker.id}`} tabIndex={-1} key={speaker.id}>
@@ -1148,8 +1168,8 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
         ))}
         {!visibleSpeakers.length && (
           <div className="inline-empty">
-            No speakers match this status. Choose All statuses or import a
-            speaker.
+            No speakers match these filters. Clear the status or task-progress
+            filter, or import a speaker.
           </div>
         )}
       </section>

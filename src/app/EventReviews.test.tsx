@@ -162,6 +162,16 @@ describe("reviewer workspace", () => {
     expect(
       await screen.findByRole("button", { name: "Save review window" }),
     ).toBeVisible();
+    expect(screen.getByLabelText("Sort aggregate score")).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Export review results CSV" }),
+    ).toHaveAttribute(
+      "href",
+      `/api/reviews/events/${eventId}/export?roundId=round-1`,
+    );
+    expect(
+      screen.getByRole("link", { name: "Send reviewer reminder" }),
+    ).toBeVisible();
     const opens = screen.getAllByLabelText("Opens");
     const closes = screen.getAllByLabelText("Closes");
     fireEvent.change(opens[1], { target: { value: "2027-01-11T09:00" } });

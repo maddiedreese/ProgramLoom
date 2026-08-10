@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
+  Download,
   EyeOff,
   FileInput,
   Files,
@@ -240,6 +241,15 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     message: string;
   }>();
   const [busy, setBusy] = useState(false);
+  const [resultSort, setResultSort] = useState<"desc" | "asc">("desc");
+  const [aiAssessment, setAiAssessment] = useState<{
+    id: string;
+    submissionId: string;
+    score: number;
+    effectiveScore: number;
+    reasoning: string;
+    overrideReason: string | null;
+  }>();
   const selected = rounds.find((round) => round.id === selectedRoundId);
   async function load(preferred?: string) {
     const [config, intake] = await Promise.all([
@@ -347,6 +357,64 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           error instanceof Error
             ? error.message
             : "Could not add the score field.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function runAiAssessment(submissionId: string) {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const result = await api<{ assessment: typeof aiAssessment }>(
+        `/api/reviews/events/${eventId}/submissions/${submissionId}/ai-assessments`,
+        {
+          method: "POST",
+          body: JSON.stringify({ roundId: selected.id }),
+        },
+      );
+      setAiAssessment({ ...result.assessment!, submissionId });
+      setFeedback({
+        kind: "success",
+        message:
+          "Advisory assessment generated. Review the reasoning or record a human override.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Assessment failed.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function overrideAiAssessment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!aiAssessment) return;
+    const data = new FormData(event.currentTarget);
+    setBusy(true);
+    try {
+      const result = await api<{
+        assessment: { effectiveScore: number; overrideReason: string };
+      }>(
+        `/api/reviews/events/${eventId}/submissions/${aiAssessment.submissionId}/ai-assessments/${aiAssessment.id}/override`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            score: Number(data.get("score")),
+            reason: data.get("reason"),
+          }),
+        },
+      );
+      setAiAssessment({ ...aiAssessment, ...result.assessment });
+      setFeedback({
+        kind: "success",
+        message: "Human override saved with its reason and audit history.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Override failed.",
       });
     } finally {
       setBusy(false);
@@ -888,8 +956,28 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   <h3>Review progress and aggregate results</h3>
                   <p>
                     Completion and weighted scores come from submitted reviews
-                    in this round. Results are ordered by aggregate score.
+                    in this round. Sort or export the complete live result set.
                   </p>
+                </div>
+                <div className="inline-actions">
+                  <label>
+                    Sort aggregate score
+                    <select
+                      value={resultSort}
+                      onChange={(event) =>
+                        setResultSort(event.target.value as "desc" | "asc")
+                      }
+                    >
+                      <option value="desc">Highest first</option>
+                      <option value="asc">Lowest first</option>
+                    </select>
+                  </label>
+                  <a
+                    className="button button-ghost button-small"
+                    href={`/api/reviews/events/${eventId}/export?roundId=${selected.id}`}
+                  >
+                    <Download size={14} /> Export review results CSV
+                  </a>
                 </div>
                 <div className="review-progress-grid">
                   {assignableReviewers.map((reviewer) => {
@@ -908,6 +996,12 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                         {progress && (
                           <small>Capacity {progress.capacity}</small>
                         )}
+                        <a
+                          className="text-link"
+                          href={`/app/events/${eventId}/communications?category=reviewer_reminder&reviewer=${reviewer.id}`}
+                        >
+                          Send reviewer reminder
+                        </a>
                       </article>
                     );
                   })}
@@ -925,13 +1019,32 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                       <tbody>
                         {results
                           .filter((result) => result.roundId === selected.id)
+                          .sort((left, right) => {
+                            const leftScore = left.aggregateScore ?? -Infinity;
+                            const rightScore =
+                              right.aggregateScore ?? -Infinity;
+                            return resultSort === "desc"
+                              ? rightScore - leftScore
+                              : leftScore - rightScore;
+                          })
                           .map((result) => (
                             <tr key={result.submissionId}>
                               <td>{result.title}</td>
                               <td>
                                 {result.completedCount}/{result.assignmentCount}
                               </td>
-                              <td>{result.aggregateScore ?? "Pending"}</td>
+                              <td>
+                                {result.aggregateScore ?? "Pending"}
+                                <button
+                                  className="text-button"
+                                  onClick={() =>
+                                    runAiAssessment(result.submissionId)
+                                  }
+                                  disabled={busy}
+                                >
+                                  Run AI assessment
+                                </button>
+                              </td>
                             </tr>
                           ))}
                       </tbody>
@@ -941,6 +1054,40 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   <div className="inline-empty">
                     Assign reviewers to populate aggregate results.
                   </div>
+                )}
+                {aiAssessment && (
+                  <section className="ai-assessment-card" aria-live="polite">
+                    <div>
+                      <h4>Advisory AI assessment</h4>
+                      <strong>{aiAssessment.effectiveScore}/100</strong>
+                      <p>{aiAssessment.reasoning}</p>
+                      {aiAssessment.overrideReason && (
+                        <small>
+                          Human override: {aiAssessment.overrideReason}
+                        </small>
+                      )}
+                    </div>
+                    <form onSubmit={overrideAiAssessment}>
+                      <label>
+                        Human score
+                        <input
+                          name="score"
+                          type="number"
+                          min="0"
+                          max="100"
+                          defaultValue={aiAssessment.effectiveScore}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Override reason
+                        <input name="reason" minLength={3} required />
+                      </label>
+                      <button className="button button-small" disabled={busy}>
+                        Override assessment
+                      </button>
+                    </form>
+                  </section>
                 )}
               </section>
             </>

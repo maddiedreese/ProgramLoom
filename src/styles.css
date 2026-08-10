@@ -4917,6 +4917,45 @@ input {
   border-bottom: 1px solid var(--line);
   text-align: left;
 }
+.review-results-section .inline-actions {
+  margin: 16px 0;
+  align-items: end;
+}
+.review-results-section .inline-actions label {
+  display: grid;
+  gap: 5px;
+  color: #5f645c;
+  font-size: 10px;
+  font-weight: 800;
+}
+.review-results-section .text-button {
+  margin-top: 4px;
+  display: block;
+}
+.ai-assessment-card {
+  margin-top: 18px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.7fr);
+  gap: 18px;
+  border: 1px solid #9fb9a7;
+  border-radius: 10px;
+  background: #f2f8f3;
+}
+.ai-assessment-card h4,
+.ai-assessment-card p {
+  margin: 0 0 8px;
+}
+.ai-assessment-card form {
+  display: grid;
+  gap: 9px;
+}
+.ai-assessment-card form label {
+  display: grid;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+}
 .scorecard-list {
   display: grid;
   gap: 7px;
@@ -5664,6 +5703,11 @@ input {
   font-size: 11px;
   font-weight: 800;
 }
+.speaker-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 .speaker-status-filter select,
 .speaker-event-status select {
   min-height: 39px;
@@ -5679,6 +5723,11 @@ input {
   color: #5f645c;
   font-size: 9px;
   font-weight: 800;
+}
+@media (max-width: 720px) {
+  .ai-assessment-card {
+    grid-template-columns: 1fr;
+  }
 }
 .speaker-avatar {
   width: 42px;

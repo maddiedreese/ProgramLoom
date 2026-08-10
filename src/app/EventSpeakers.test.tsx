@@ -211,6 +211,14 @@ describe("speaker workspace", () => {
     );
     expect(await screen.findByText("Priya Raman")).toBeVisible();
     expect(screen.getByLabelText("Filter speaker status")).toBeVisible();
+    expect(screen.getByLabelText("Filter task progress")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Filter task progress"), {
+      target: { value: "incomplete" },
+    });
+    expect(screen.queryByText("Priya Raman")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Filter task progress"), {
+      target: { value: "all" },
+    });
     fireEvent.change(screen.getByLabelText("Program status"), {
       target: { value: "invited" },
     });
