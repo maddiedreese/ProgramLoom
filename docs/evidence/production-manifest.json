@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "status": "draft",
+  "production": {
+    "marketingUrl": "https://programloom.com",
+    "applicationUrl": "https://app.programloom.com",
+    "healthUrl": "https://app.programloom.com/api/health"
+  },
+  "release": {
+    "sourceCommit": null,
+    "workerVersion": null,
+    "verifiedAt": null
+  },
+  "calendarClients": {
+    "tested": ["Gmail", "Apple Calendar"],
+    "waived": ["Outlook"]
+  },
+  "airtable": {
+    "pending": null,
+    "failed": null,
+    "openConflicts": null
+  },
+  "controlRoom": {
+    "openItems": null,
+    "reconciled": false
+  }
+}
