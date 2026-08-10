@@ -41,7 +41,7 @@ describe("EventCommunications", () => {
         });
       }),
     );
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/app/events/event-1/communications"]}>
         <Routes>
           <Route
@@ -59,6 +59,9 @@ describe("EventCommunications", () => {
       await screen.findByRole("heading", {
         name: /every message, one accountable outbox/i,
       }),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(".event-workspace.communications-shell"),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/no communications match this view/i),

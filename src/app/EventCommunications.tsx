@@ -500,7 +500,7 @@ export function EventCommunications({ user }: { user: User }) {
     );
 
   return (
-    <div className="event-shell communications-shell">
+    <div className="event-workspace communications-shell">
       <aside className="event-sidebar">
         <a className="back-link" href={`/app/events/${eventId}`}>
           <ArrowLeft size={16} /> Event setup

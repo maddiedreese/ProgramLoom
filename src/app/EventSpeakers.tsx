@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Mail,
   MessageSquare,
+  Pencil,
   Plus,
   Save,
   Upload,
@@ -1070,6 +1071,12 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
                 files
               </span>
             </div>
+            <a
+              className="speaker-communication-link"
+              href={`/app/events/${eventId}/content?speaker=${speaker.id}`}
+            >
+              <Pencil size={14} /> Edit speaker profile
+            </a>
             <a
               className="speaker-communication-link"
               href={`/app/events/${eventId}/communications?speaker=${speaker.id}`}

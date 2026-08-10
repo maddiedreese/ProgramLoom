@@ -94,6 +94,13 @@ type Person = {
   organization: string | null;
 };
 
+function localDateTimeValue(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -250,6 +257,12 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           body: JSON.stringify({
             name: data.get("name"),
             isBlind: data.get("isBlind") === "on",
+            opensAt: data.get("opensAt")
+              ? new Date(String(data.get("opensAt"))).toISOString()
+              : null,
+            closesAt: data.get("closesAt")
+              ? new Date(String(data.get("closesAt"))).toISOString()
+              : null,
           }),
         },
       );
@@ -339,6 +352,41 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           error instanceof Error
             ? error.message
             : "Could not update the round.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function updateRoundWindow(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected) return;
+    const data = new FormData(event.currentTarget);
+    setBusy(true);
+    try {
+      await api(`/api/reviews/events/${eventId}/rounds/${selected.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          opensAt: data.get("opensAt")
+            ? new Date(String(data.get("opensAt"))).toISOString()
+            : null,
+          closesAt: data.get("closesAt")
+            ? new Date(String(data.get("closesAt"))).toISOString()
+            : null,
+        }),
+      });
+      await load(selected.id);
+      setFeedback({
+        kind: "success",
+        message:
+          "Review window saved. Next, assign reviewers and open the round when scoring should begin.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not save the review window.",
       });
     } finally {
       setBusy(false);
@@ -456,6 +504,14 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 </small>
               </span>
             </label>
+            <label>
+              Opens
+              <input name="opensAt" type="datetime-local" />
+            </label>
+            <label>
+              Closes
+              <input name="closesAt" type="datetime-local" />
+            </label>
             <button className="button button-small" disabled={busy}>
               <Plus size={15} /> Create round
             </button>
@@ -504,6 +560,38 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   <span>Reviewers</span>
                 </div>
               </div>
+              <form
+                className="review-window-form"
+                key={selected.id}
+                onSubmit={updateRoundWindow}
+              >
+                <div>
+                  <strong>Review window</strong>
+                  <small>
+                    Deadlines are stored durably for this round and shown to
+                    assigned reviewers.
+                  </small>
+                </div>
+                <label>
+                  Opens
+                  <input
+                    name="opensAt"
+                    type="datetime-local"
+                    defaultValue={localDateTimeValue(selected.opensAt)}
+                  />
+                </label>
+                <label>
+                  Closes
+                  <input
+                    name="closesAt"
+                    type="datetime-local"
+                    defaultValue={localDateTimeValue(selected.closesAt)}
+                  />
+                </label>
+                <button className="button button-small" disabled={busy}>
+                  Save review window
+                </button>
+              </form>
               <section className="scorecard-section">
                 <div>
                   <h3>Scorecard</h3>

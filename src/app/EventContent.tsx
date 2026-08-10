@@ -137,6 +137,9 @@ export function EventContent({ user }: { user: User }) {
   const requestedFileId = new URLSearchParams(window.location.search).get(
     "file",
   );
+  const requestedSpeakerId = new URLSearchParams(window.location.search).get(
+    "speaker",
+  );
   const [event, setEvent] = useState<EventRecord>();
   const [role, setRole] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -148,7 +151,13 @@ export function EventContent({ user }: { user: User }) {
   const [fileUploadsEnabled, setFileUploadsEnabled] = useState(true);
   const [tab, setTab] = useState<
     "deliverables" | "sessions" | "speakers" | "files"
-  >(requestedFileId ? "files" : "deliverables");
+  >(
+    requestedFileId
+      ? "files"
+      : requestedSpeakerId
+        ? "speakers"
+        : "deliverables",
+  );
   const [filter, setFilter] = useState("all");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [editingSession, setEditingSession] = useState<Session>();
@@ -232,6 +241,27 @@ export function EventContent({ user }: { user: User }) {
     } finally {
       setBusy(false);
     }
+  }
+  function removeDetailQuery(name: "file" | "speaker") {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(name);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+  }
+  function closeSpeakerEditor() {
+    removeDetailQuery("speaker");
+    setEditingSpeaker(undefined);
+  }
+  function openSpeakerEditor(speaker: Speaker) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("speaker", speaker.id);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    setTab("speakers");
+    setEditingSpeaker(speaker);
+  }
+  function closeFileDetails() {
+    removeDetailQuery("file");
+    setSelectedFile(undefined);
+    setFileDetail(undefined);
   }
   async function createTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -375,10 +405,14 @@ export function EventContent({ user }: { user: User }) {
           { method: "POST", body: upload },
         );
       }
-      setEditingSpeaker(undefined);
+      closeSpeakerEditor();
     }, "Speaker profile and headshot saved.");
   }
   async function openFile(file: ContentFile) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("file", file.id);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    setTab("files");
     setSelectedFile(file);
     const detail = await api<FileDetail>(
       `/api/speakers/admin/events/${eventId}/files/${file.id}`,
@@ -393,6 +427,13 @@ export function EventContent({ user }: { user: User }) {
         setFeedback({ kind: "error", message: error.message }),
       );
   }, [files, requestedFileId, selectedFile]);
+  useEffect(() => {
+    if (!requestedSpeakerId || editingSpeaker) return;
+    const target = speakers.find(
+      (speaker) => speaker.id === requestedSpeakerId,
+    );
+    if (target) openSpeakerEditor(target);
+  }, [speakers, requestedSpeakerId, editingSpeaker]);
   async function addComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFile) return;
@@ -665,7 +706,7 @@ export function EventContent({ user }: { user: User }) {
               <button
                 className="content-record-card speaker-content-card"
                 key={speaker.id}
-                onClick={() => setEditingSpeaker(speaker)}
+                onClick={() => openSpeakerEditor(speaker)}
               >
                 {speaker.headshotUrl ? (
                   <img src={speaker.headshotUrl} alt="" />
@@ -940,7 +981,7 @@ export function EventContent({ user }: { user: User }) {
               <button
                 className="button button-small button-ghost"
                 data-dismiss
-                onClick={() => setEditingSpeaker(undefined)}
+                onClick={closeSpeakerEditor}
               >
                 <X size={16} /> Close speaker editor
               </button>
@@ -1020,10 +1061,7 @@ export function EventContent({ user }: { user: User }) {
               <button
                 className="button button-small button-ghost"
                 data-dismiss
-                onClick={() => {
-                  setSelectedFile(undefined);
-                  setFileDetail(undefined);
-                }}
+                onClick={closeFileDetails}
               >
                 <X size={16} /> Close file details
               </button>

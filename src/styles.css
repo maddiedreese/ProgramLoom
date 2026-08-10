@@ -4828,6 +4828,23 @@ input {
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
+.review-window-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) repeat(2, minmax(170px, 0.7fr)) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 18px 25px;
+  border-bottom: 1px solid var(--line);
+  background: #f8f6ef;
+}
+.review-window-form > div {
+  display: grid;
+  gap: 4px;
+}
+.review-window-form small {
+  color: #666b64;
+  line-height: 1.4;
+}
 .scorecard-section,
 .assignment-section {
   padding: 28px 25px;
@@ -5119,8 +5136,20 @@ input {
   .assignment-columns {
     grid-template-columns: 1fr;
   }
+  .review-window-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .review-window-form > div {
+    grid-column: 1 / -1;
+  }
 }
 @media (max-width: 650px) {
+  .review-window-form {
+    grid-template-columns: 1fr;
+  }
+  .review-window-form > div {
+    grid-column: auto;
+  }
   .score-field-form {
     grid-template-columns: 1fr;
   }
@@ -7087,7 +7116,7 @@ input {
   color: var(--ink);
   cursor: pointer;
 }
-.contact-link > span {
+.contact-link > .contact-avatar {
   width: 29px;
   height: 29px;
   display: grid;
@@ -7097,6 +7126,15 @@ input {
   color: var(--moss);
   font-size: 8px;
   font-weight: 800;
+}
+.contact-link-copy {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+.contact-link-copy small {
+  color: #6a7068;
+  font-size: 9px;
 }
 .tag-row {
   display: flex;

@@ -191,6 +191,15 @@ export function reconcileCrmSelection(
   return selectedIds.filter((contactId) => visibleContactIds.has(contactId));
 }
 
+export function resolveHandoffContacts<T extends { id: string }>(
+  contacts: T[],
+  selectedIds: string[],
+) {
+  if (!selectedIds.length) return contacts;
+  const selected = new Set(selectedIds);
+  return contacts.filter((contact) => selected.has(contact.id));
+}
+
 export function CRMPage({ user }: { user: User }) {
   const initialQuery = new URLSearchParams(window.location.search);
   const addSpeakerEventId = initialQuery.get("eventId") ?? "";
@@ -351,11 +360,21 @@ export function CRMPage({ user }: { user: User }) {
   }, [filter, organizationId]);
 
   async function openContact(contactId: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("contact", contactId);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
     const result = await api<Record<string, unknown>>(
       `/api/crm/organizations/${organizationId}/contacts/${contactId}`,
     );
     setDetail(result);
     setModal("contact");
+  }
+  function closeContact() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("contact");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    setModal(undefined);
+    setDetail(undefined);
   }
 
   useEffect(() => {
@@ -644,9 +663,7 @@ export function CRMPage({ user }: { user: User }) {
       )}
       {modal === "handoff" && (
         <HandoffModal
-          contacts={allContacts.filter((contact) =>
-            selected.includes(contact.id),
-          )}
+          contacts={resolveHandoffContacts(allContacts, selected)}
           events={events}
           defaultEventId={addSpeakerEventId}
           busy={busy}
@@ -711,10 +728,7 @@ export function CRMPage({ user }: { user: User }) {
           fields={fields}
           events={events}
           busy={busy}
-          close={() => {
-            setModal(undefined);
-            setDetail(undefined);
-          }}
+          close={closeContact}
           save={async (contactId, payload) => {
             const ok = await mutate(
               () =>
@@ -1102,13 +1116,16 @@ function DirectoryPanel({
                     className="contact-link"
                     onClick={() => openContact(contact.id)}
                   >
-                    <span>
+                    <span className="contact-avatar">
                       {contact.firstName[0]}
                       {contact.lastName[0]}
                     </span>
-                    <strong>
-                      {contact.firstName} {contact.lastName}
-                    </strong>
+                    <span className="contact-link-copy">
+                      <strong>
+                        {contact.firstName} {contact.lastName}
+                      </strong>
+                      <small>Open contact profile</small>
+                    </span>
                   </button>
                 </td>
                 <td>{contact.email}</td>

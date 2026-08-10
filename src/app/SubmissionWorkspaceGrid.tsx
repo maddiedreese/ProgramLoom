@@ -580,7 +580,7 @@ export function SubmissionWorkspaceGrid({
     }
   }
   const visibleColumns = config.columns.filter((column) => column.visible);
-  const grid = `44px ${visibleColumns.map((column) => `${column.width}px`).join(" ")} 46px`;
+  const grid = `44px ${visibleColumns.map((column) => `${column.width}px`).join(" ")} 132px`;
   function cell(row: Row, column: string) {
     if (column.startsWith("field:")) {
       const field = meta?.fields.find((item) => `field:${item.id}` === column);
@@ -1156,10 +1156,10 @@ export function SubmissionWorkspaceGrid({
               </button>
             ))}
             <button
-              aria-label={`Open ${row.title}`}
+              aria-label={`Open submission: ${row.title}`}
               onClick={() => onOpen(row.id)}
             >
-              ›
+              Open submission
             </button>
           </div>
         ))}
