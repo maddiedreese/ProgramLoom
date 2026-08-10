@@ -11,7 +11,7 @@ import {
   prepareCommunicationStatement,
 } from "../lib/communications";
 import { renderSimpleTransactionalEmail } from "../lib/email";
-import { domainEventStatement } from "../lib/operations";
+import { domainEventStatement, notificationStatement } from "../lib/operations";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -170,7 +170,10 @@ router.patch(
     const db = database(context.env);
     const current = await db
       .prepare(
-        "SELECT id,title,abstract,answers_json AS answersJson FROM submissions WHERE id=? AND event_id=? AND status='accepted'",
+        `SELECT s.id,s.title,s.abstract,s.answers_json AS answersJson,
+         COALESCE(cs.status,'draft') contentStatus FROM submissions s
+         LEFT JOIN session_content_state cs ON cs.submission_id=s.id
+         WHERE s.id=? AND s.event_id=? AND s.status='accepted'`,
       )
       .bind(context.req.param("submissionId"), eventId)
       .first<{
@@ -178,11 +181,20 @@ router.patch(
         title: string;
         abstract: string;
         answersJson: string;
+        contentStatus: string;
       }>();
     if (!current)
       throw new HttpError(404, "session_not_found", "Session not found.");
     const contentChanged =
       current.title !== input.title || current.abstract !== input.abstract;
+    const speakerUsers = await db
+      .prepare(
+        `SELECT DISTINCT sp.user_id userId FROM session_speakers ss
+         JOIN speaker_profiles sp ON sp.id=ss.speaker_id
+         WHERE ss.submission_id=? AND sp.user_id IS NOT NULL LIMIT 20`,
+      )
+      .bind(current.id)
+      .all<{ userId: string }>();
     const statements: D1PreparedStatement[] = [];
     if (contentChanged) {
       const next = await db
@@ -235,6 +247,31 @@ router.patch(
         after: input,
         requestId: context.get("requestId"),
       }),
+      ...(current.contentStatus !== input.contentStatus &&
+      ["approved", "draft"].includes(input.contentStatus)
+        ? speakerUsers.results.map((speaker) =>
+            notificationStatement(db, {
+              organizationId: access.organizationId,
+              eventId,
+              recipientUserId: speaker.userId,
+              category: "content",
+              notificationType:
+                input.contentStatus === "approved"
+                  ? "content.session_approved"
+                  : "content.session_returned",
+              severity: input.contentStatus === "approved" ? "info" : "warning",
+              title:
+                input.contentStatus === "approved"
+                  ? "Your session content was approved"
+                  : "Your session content was returned for changes",
+              body: input.title,
+              actionUrl: `/app/events/${eventId}/speaker`,
+              entityType: "submission",
+              entityId: current.id,
+              coalesceKey: `session-content:${current.id}`,
+            }),
+          )
+        : []),
     );
     await db.batch(statements);
     return context.json({ session: { id: current.id, ...input } });

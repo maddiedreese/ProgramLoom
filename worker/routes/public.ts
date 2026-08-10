@@ -9,6 +9,7 @@ import {
 } from "../lib/communications";
 import { randomToken, sha256 } from "../lib/crypto";
 import { renderSimpleTransactionalEmail } from "../lib/email";
+import { eventManagerNotificationStatement } from "../lib/notifications";
 import { verifyTurnstile } from "../lib/turnstile";
 
 type Variables = { requestId: string };
@@ -675,6 +676,24 @@ router.post(
         context.get("requestId"),
       )
       .run();
+    if (status === "pending")
+      await eventManagerNotificationStatement(db, {
+        organizationId: form.organizationId,
+        eventId: form.eventId,
+        category: "submission",
+        notificationType: previousStatus
+          ? "submission.updated"
+          : "submission.created",
+        severity: "info",
+        title: previousStatus
+          ? "A proposal was updated"
+          : "A new proposal was submitted",
+        body: title || "Open the submission workspace to review the proposal.",
+        actionUrl: `/app/events/${form.eventId}/submissions?submission=${submissionId}`,
+        entityType: "submission",
+        entityId: submissionId,
+        coalesceKey: `submission:${submissionId}:${previousStatus ? "updated" : "created"}`,
+      }).run();
     const editLink = `${context.env.MARKETING_URL}/c/${context.req.param("organizationSlug")}/${form.eventSlug}/${form.slug}#edit=${encodeURIComponent(rawEditToken!)}`;
     let emailQueued = false;
     if (

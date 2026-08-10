@@ -19,6 +19,12 @@ import controlRoomRoutes from "./routes/control-room";
 import submissionWorkspaceRoutes from "./routes/submission-workspace";
 import eventTemplateRoutes from "./routes/event-templates";
 import searchRoutes from "./routes/search";
+import notificationRoutes from "./routes/notifications";
+import {
+  cleanupNotificationRetention,
+  createOverdueTaskNotifications,
+  dispatchNotificationEmails,
+} from "./lib/notifications";
 import {
   beginAirtableReconciliation,
   dispatchPendingAirtableOutbox,
@@ -152,6 +158,7 @@ app.route("/api/control-room", controlRoomRoutes);
 app.route("/api/submission-workspace", submissionWorkspaceRoutes);
 app.route("/api/event-templates", eventTemplateRoutes);
 app.route("/api/search", searchRoutes);
+app.route("/api/notifications", notificationRoutes);
 
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);
@@ -256,6 +263,16 @@ const worker: ExportedHandler<Env, ProgramLoomJob> = {
         dispatchScheduledCommunications(env),
       ),
     );
+    context.waitUntil(
+      observeOperation("notification_email_dispatch", () =>
+        dispatchNotificationEmails(env),
+      ),
+    );
+    context.waitUntil(
+      observeOperation("overdue_task_notifications", () =>
+        createOverdueTaskNotifications(env),
+      ),
+    );
     if (event.cron === "0 3 * * *") {
       context.waitUntil(
         observeOperation("airtable_webhook_refresh", () =>
@@ -265,6 +282,11 @@ const worker: ExportedHandler<Env, ProgramLoomJob> = {
       context.waitUntil(
         observeOperation("workspace_ephemeral_cleanup", () =>
           cleanupEphemeralWorkspaceState(env),
+        ),
+      );
+      context.waitUntil(
+        observeOperation("notification_retention_cleanup", () =>
+          cleanupNotificationRetention(env),
         ),
       );
     }

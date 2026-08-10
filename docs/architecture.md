@@ -31,6 +31,8 @@ Reusable event configuration is represented by event-scoped program settings and
 
 Organizer search is a bounded server-side federation over indexed domain tables, not a replicated global index. The Worker first derives the caller's effective organization and event roles, then runs entity-specific queries that enforce reviewer assignment, speaker identity, publication, blind-review, and private-field boundaries before ranking. Exact, prefix, word-prefix, contained, contextual, and limited fuzzy matches are ordered deterministically. Recent destinations are durable D1 preferences capped at twenty per user and are reauthorized against their source record every time they are read or written.
 
+Notifications are durable per-recipient operational records. Domain mutations fan out only to role-appropriate users and stable coalescing keys prevent repetitive updates from creating noise. Channel preferences are evaluated independently: in-app visibility is enforced by scoped read queries, while email defaults off and is prepared through the existing idempotent communications/Queue pipeline only when explicitly enabled. Personal notification state, preferences, and channel attempts remain in D1 rather than Airtable because they are application operations—not authoritative event business records.
+
 ## Trust boundaries
 
 - Organizer registration is public and protected by verified email and Turnstile.

@@ -1048,17 +1048,20 @@ function quickActions(
   return actions;
 }
 
-function searchTerms(query: string): unknown[] {
+export function searchTerms(query: string): unknown[] {
   const normalized = query.toLocaleLowerCase();
-  const contains = `%${normalized}%`;
-  const first =
-    normalized.length >= 3 ? `%${normalized.slice(0, 2)}%` : contains;
-  const last = normalized.length >= 3 ? `%${normalized.slice(-2)}%` : contains;
+  const escaped = normalized
+    .replaceAll("\\", "\\\\")
+    .replaceAll("%", "\\%")
+    .replaceAll("_", "\\_");
+  const contains = `%${escaped}%`;
+  const first = escaped.length >= 3 ? `%${escaped.slice(0, 2)}%` : contains;
+  const last = escaped.length >= 3 ? `%${escaped.slice(-2)}%` : contains;
   return [normalized, contains, contains, first, last];
 }
 
 function match(label: string, context: string) {
-  return `(?='' OR LOWER(${label}) LIKE ? OR LOWER(${context}) LIKE ? OR LOWER(${label}) LIKE ? OR LOWER(${label}) LIKE ?)`;
+  return `(?='' OR LOWER(${label}) LIKE ? ESCAPE '\\' OR LOWER(${context}) LIKE ? ESCAPE '\\' OR LOWER(${label}) LIKE ? ESCAPE '\\' OR LOWER(${label}) LIKE ? ESCAPE '\\')`;
 }
 
 function rankResults(results: SearchResult[], query: string) {

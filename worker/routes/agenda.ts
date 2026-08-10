@@ -5,7 +5,12 @@ import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
 import { syncAgendaCalendarInvitations } from "../lib/calendarLifecycle";
-import { logOperationalEvent, safeOperationalError } from "../lib/operations";
+import {
+  logOperationalEvent,
+  notificationStatement,
+  safeOperationalError,
+} from "../lib/operations";
+import { eventManagerNotificationStatement } from "../lib/notifications";
 
 type Variables = { requestId: string };
 type AgendaItem = {
@@ -412,6 +417,19 @@ router.patch(
               },
               requestId: context.get("requestId"),
             }),
+            eventManagerNotificationStatement(db, {
+              organizationId: access.organizationId,
+              eventId,
+              category: "agenda",
+              notificationType: "agenda.conflict_introduced",
+              severity: "blocking",
+              title: "A scheduling conflict was introduced",
+              body: conflict.message,
+              actionUrl: `/app/events/${eventId}/control-room?category=schedule_conflicts`,
+              entityType: "schedule_conflict",
+              entityId: conflictId,
+              coalesceKey: `schedule-conflict:${conflictId}`,
+            }),
           );
         }
         await db.batch(conflictStatements);
@@ -722,6 +740,15 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       "agenda_conflicts",
       "Resolve every room and speaker conflict before publishing.",
     );
+  const speakerUsers = await db
+    .prepare(
+      `SELECT DISTINCT sp.user_id userId FROM agenda_items a
+       JOIN session_speakers ss ON ss.submission_id=a.submission_id
+       JOIN speaker_profiles sp ON sp.id=ss.speaker_id
+       WHERE a.event_id=? AND sp.user_id IS NOT NULL LIMIT 500`,
+    )
+    .bind(eventId)
+    .all<{ userId: string }>();
   await db.batch([
     db
       .prepare(
@@ -738,6 +765,22 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       after: { itemCount: total.count },
       requestId: context.get("requestId"),
     }),
+    ...speakerUsers.results.map((speaker) =>
+      notificationStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        recipientUserId: speaker.userId,
+        category: "agenda",
+        notificationType: "agenda.published",
+        severity: "info",
+        title: "The event agenda was published",
+        body: "Open the agenda to review your current session schedule.",
+        actionUrl: `/app/events/${eventId}/speaker`,
+        entityType: "event",
+        entityId: eventId,
+        coalesceKey: `agenda-published:${eventId}`,
+      }),
+    ),
   ]);
   const items = await db
     .prepare(

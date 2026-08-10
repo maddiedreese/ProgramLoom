@@ -80,3 +80,11 @@ Event creation from reusable configuration is synchronous and records an `event_
 The command palette is available from every authenticated route through the visible Search control or Command/Ctrl+K. Search logs contain the request ID, caller ID, authorized event count, result count, query length, and duration; they intentionally omit the query and result contents. PostHog records palette opening, selected entity type/rank bucket, and quick-action identifier only.
 
 If search is slow, filter Cloudflare Observability on `service=organizer_search` and compare duration with the caller's authorized-event count. Requests cap input at 100 characters, event scope at 100, organization scope at 50, entity candidates at bounded windows, and the final response at 50. Do not add query text to logs while diagnosing. A recent destination that is no longer authorized disappears automatically because every read resolves the source record again.
+
+## Notification operations
+
+The bell count is a global unread count; panel filters report their own matching count without changing the bell. A twenty-second client refresh picks up domain changes, read state, and coalesced occurrences. If the API partially fails, the current application page remains usable and the panel exposes a retryable error rather than clearing stored work.
+
+Scheduled work creates overdue-task notifications, dispatches explicitly enabled notification emails, and performs daily 180-day archive/30-day deletion cleanup. Filter Cloudflare logs by `service=notifications` and `operation=email_dispatch` or `retention_cleanup`. Logs must not include recipient addresses, titles, bodies, preference values tied to a person, or action URLs.
+
+For an email-channel incident, inspect `notification_channel_deliveries`, the linked Communications outbox record, operational job, provider attempt, and correlation ID. Do not insert a second message manually: the deterministic notification idempotency key makes the normal dispatcher/retry path safe. In-app delivery remains independent of email provider state.

@@ -29,3 +29,9 @@ Template materialization regenerates all copied IDs and never reads from submiss
 # Organizer search
 
 `search_recent_destinations` stores only a user ID, tenant scope, entity type/ID, and access timestamp. It never stores search text, record labels, message content, or private fields. Source tables remain authoritative; recent rows are authorization-revalidated, cascade with deleted users/organizations/events, and are pruned to the newest twenty records per user. Migration `0017_organizer_search.sql` adds compound tenant/name/time indexes to the participating domain tables so search requests never require an unbounded table response.
+
+# Notification center
+
+`notifications` stores the authorized recipient, tenant/event scope, fixed category/type, severity, user-facing summary, relative action URL, optional source identity, coalescing key, occurrence timestamps/count, read state, archive state, and expiry. `notification_preferences` stores per-user category choices at organization or event scope. `notification_channel_deliveries` links an opt-in email channel to its real `communication_messages` record and retains prepared/queued/sent/failed state and attempts.
+
+Notification rows and preferences intentionally do not synchronize to Airtable. They are user-specific application operations; event/submission/speaker/file business records remain authoritative in their existing D1/Airtable projections.

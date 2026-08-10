@@ -293,6 +293,10 @@ export async function processCommunication(
         `UPDATE operational_jobs SET status='succeeded',completed_at=CURRENT_TIMESTAMP,
              updated_at=CURRENT_TIMESTAMP WHERE id=?`,
       ).bind(input.jobId),
+      env.DB.prepare(
+        `UPDATE notification_channel_deliveries SET status='sent',updated_at=CURRENT_TIMESTAMP
+         WHERE message_id=? AND channel='email'`,
+      ).bind(message.id),
     ]);
     await syncCrmCommunicationState(env.DB, message.id, "sent", providerId);
     logOperationalEvent("info", {
@@ -338,6 +342,10 @@ export async function processCommunication(
         exhausted,
         input.jobId,
       ),
+      env.DB.prepare(
+        `UPDATE notification_channel_deliveries SET status='failed',last_error=?,updated_at=CURRENT_TIMESTAMP
+         WHERE message_id=? AND channel='email'`,
+      ).bind(safeError, message.id),
       ...(exhausted
         ? [
             domainEventStatement(env.DB, {

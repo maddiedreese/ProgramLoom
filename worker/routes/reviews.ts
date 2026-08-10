@@ -9,6 +9,7 @@ import {
   requireEventRole,
   requireUser,
 } from "../lib/authz";
+import { eventManagerNotificationStatement } from "../lib/notifications";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -573,6 +574,19 @@ router.post(
               },
               requestId: context.get("requestId"),
             }),
+            eventManagerNotificationStatement(db, {
+              organizationId: access.organizationId,
+              eventId,
+              category: "review",
+              notificationType: "review.conflict_detected",
+              severity: "blocking",
+              title: "A reviewer conflict needs resolution",
+              body: "Review the detected speaker/reviewer overlap before assigning this proposal.",
+              actionUrl: `/app/events/${eventId}/reviews?conflict=${conflictId}`,
+              entityType: "review_conflict",
+              entityId: conflictId,
+              coalesceKey: `review-conflict:${conflictId}`,
+            }),
           );
           continue;
         }
@@ -807,6 +821,23 @@ router.post(
         after: { weightedScore, recommendation: input.recommendation },
         requestId: context.get("requestId"),
       }),
+      ...(input.submit
+        ? [
+            eventManagerNotificationStatement(db, {
+              organizationId: assignment.organizationId,
+              eventId: assignment.eventId,
+              category: "review",
+              notificationType: "review.completed",
+              severity: "info",
+              title: "A review was completed",
+              body: "Open the review workspace to inspect the submitted scorecard.",
+              actionUrl: `/app/events/${assignment.eventId}/reviews?assignment=${assignmentId}`,
+              entityType: "review_assignment",
+              entityId: assignmentId,
+              coalesceKey: `review-completed:${assignmentId}`,
+            }),
+          ]
+        : []),
     ]);
     return context.json({
       review: {
@@ -892,6 +923,19 @@ router.post(
           conflictType: "recusal",
         },
         requestId: context.get("requestId"),
+      }),
+      eventManagerNotificationStatement(db, {
+        organizationId: assignment.organizationId,
+        eventId: assignment.eventId,
+        category: "review",
+        notificationType: "review.reviewer_recused",
+        severity: "blocking",
+        title: "A reviewer recused from an assignment",
+        body: "Reassign the proposal or resolve the recorded conflict.",
+        actionUrl: `/app/events/${assignment.eventId}/reviews?conflict=${conflictId}`,
+        entityType: "review_conflict",
+        entityId: conflictId,
+        coalesceKey: `review-recusal:${conflictId}`,
       }),
     ]);
     return context.json({ ok: true });

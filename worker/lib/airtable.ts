@@ -1,5 +1,6 @@
 import type { Env } from "../env";
 import { database } from "./authz";
+import { eventManagerNotificationStatement } from "./notifications";
 
 const supportedEntityTypes = [
   "organization",
@@ -155,6 +156,13 @@ export async function processAirtableOutbox(
   // A queue retry can arrive before the durable backoff expires. Acknowledge it;
   // the scheduled dispatcher will enqueue it once it is available again.
   if (new Date(outbox.availableAt).getTime() > Date.now()) return;
+  const priorConflict = await db
+    .prepare(
+      `SELECT id FROM integration_conflicts WHERE organization_id=? AND integration='airtable'
+       AND entity_type=? AND entity_id=? AND status='open' LIMIT 1`,
+    )
+    .bind(outbox.organizationId, outbox.entityType, outbox.entityId)
+    .first<{ id: string }>();
   try {
     if (outbox.entityType === "crm_import") {
       await syncCrmCollection(env, outbox.organizationId);
@@ -180,6 +188,23 @@ export async function processAirtableOutbox(
           outbox.entityType,
           outbox.entityId,
         ),
+      ...(priorConflict
+        ? [
+            eventManagerNotificationStatement(db, {
+              organizationId: outbox.organizationId,
+              eventId: outbox.eventId ?? undefined,
+              category: "integration",
+              notificationType: "integration.recovered",
+              severity: "info",
+              title: "Airtable synchronization recovered",
+              body: "The previously conflicted record synchronized successfully.",
+              actionUrl: `/app?organization=${outbox.organizationId}#airtable-integration`,
+              entityType: outbox.entityType,
+              entityId: outbox.entityId,
+              coalesceKey: `airtable-recovered:${outbox.entityType}:${outbox.entityId}`,
+            }),
+          ]
+        : []),
     ]);
   } catch (error) {
     const message =
@@ -208,6 +233,19 @@ export async function processAirtableOutbox(
           string,
           unknown
         >,
+      }),
+      eventManagerNotificationStatement(db, {
+        organizationId: outbox.organizationId,
+        eventId: outbox.eventId ?? undefined,
+        category: "airtable",
+        notificationType: "airtable.sync_conflict",
+        severity: "blocking",
+        title: "An Airtable record could not synchronize",
+        body: "Review the integration conflict before retrying this record.",
+        actionUrl: `/app?organization=${outbox.organizationId}#airtable-integration`,
+        entityType: outbox.entityType,
+        entityId: outbox.entityId,
+        coalesceKey: `airtable-conflict:${outbox.entityType}:${outbox.entityId}`,
       }),
     ]);
     throw error;

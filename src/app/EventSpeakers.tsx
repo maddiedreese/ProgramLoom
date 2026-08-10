@@ -282,14 +282,14 @@ function SpeakerPortal({
   }, [eventId]);
   useEffect(() => {
     if (
-      (!profile && !tasks.length && !resources.length) ||
+      (!profile && !tasks.length && !resources.length && !files.length) ||
       !window.location.hash
     )
       return;
     const target = document.getElementById(window.location.hash.slice(1));
     target?.scrollIntoView({ block: "center" });
     target?.focus({ preventScroll: true });
-  }, [profile, resources, tasks]);
+  }, [files, profile, resources, tasks]);
   async function saveProfile(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     if (!profile) return;
@@ -505,7 +505,12 @@ function SpeakerPortal({
             </div>
             {tasks.length ? (
               tasks.map((task) => (
-                <div className="portal-task" key={task.id}>
+                <div
+                  className="portal-task"
+                  id={`task-${task.id}`}
+                  tabIndex={-1}
+                  key={task.id}
+                >
                   <span className={`task-dot task-${task.status}`} />
                   <div>
                     <strong>{task.title}</strong>
@@ -702,7 +707,7 @@ function SpeakerPortal({
         <div className="speaker-file-list">
           {files.length ? (
             files.map((file) => (
-              <article key={file.id}>
+              <article id={`file-${file.id}`} tabIndex={-1} key={file.id}>
                 <div>
                   <FileInput size={20} />
                   <span>

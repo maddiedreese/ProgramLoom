@@ -4,6 +4,8 @@ import { z } from "zod";
 import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
+import { eventManagerNotificationStatement } from "../lib/notifications";
+import { notificationStatement } from "../lib/operations";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -192,6 +194,19 @@ router.patch(
         after: { ...input, logistics: "[private logistics updated]" },
         requestId: context.get("requestId"),
       }),
+      eventManagerNotificationStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        category: "speaker",
+        notificationType: "speaker.profile_updated",
+        severity: "info",
+        title: "A speaker updated their profile",
+        body: `${input.firstName} ${input.lastName}`,
+        actionUrl: `/app/events/${eventId}/speakers#speaker-${profile.id}`,
+        entityType: "speaker",
+        entityId: String(profile.id),
+        coalesceKey: `speaker-profile:${profile.id}`,
+      }),
     ]);
     return context.json({
       profile: { ...profile, ...input, portalStatus: "active" },
@@ -253,6 +268,21 @@ router.post("/events/:eventId/headshot", async (context) => {
         entityId: String(profile.id),
         after: { contentType: upload.type, size: upload.size },
         requestId: context.get("requestId"),
+      }),
+      eventManagerNotificationStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        category: "file",
+        notificationType: previousKey ? "file.replaced" : "file.uploaded",
+        severity: "info",
+        title: previousKey
+          ? "A speaker replaced their headshot"
+          : "A speaker uploaded a headshot",
+        body: `${profile.firstName} ${profile.lastName}`,
+        actionUrl: `/app/events/${eventId}/speakers#speaker-${profile.id}`,
+        entityType: "speaker",
+        entityId: String(profile.id),
+        coalesceKey: `speaker-headshot:${profile.id}`,
       }),
     ]);
   } catch (error) {
@@ -318,6 +348,20 @@ router.patch(
       after: { status: input.status },
       requestId: context.get("requestId"),
     }).run();
+    if (input.status === "submitted")
+      await eventManagerNotificationStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        category: "task",
+        notificationType: "task.completed",
+        severity: "info",
+        title: "A speaker completed an onboarding task",
+        body: `${profile.firstName} ${profile.lastName}`,
+        actionUrl: `/app/events/${eventId}/speakers#task-${context.req.param("taskId")}`,
+        entityType: "speaker_task",
+        entityId: `${context.req.param("taskId")}:${profile.id}`,
+        coalesceKey: `speaker-task:${context.req.param("taskId")}:${profile.id}`,
+      }).run();
     return context.json({
       task: {
         id: context.req.param("taskId"),
@@ -443,6 +487,22 @@ router.post("/events/:eventId/files/:fileId/upload", async (context) => {
         },
         requestId: context.get("requestId"),
       }),
+      eventManagerNotificationStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        category: "file",
+        notificationType: version > 1 ? "file.replaced" : "file.uploaded",
+        severity: "info",
+        title:
+          version > 1
+            ? "A speaker replaced a requested file"
+            : "A speaker uploaded a requested file",
+        body: upload.name,
+        actionUrl: `/app/events/${eventId}/content?file=${context.req.param("fileId")}`,
+        entityType: "file",
+        entityId: context.req.param("fileId"),
+        coalesceKey: `file-upload:${context.req.param("fileId")}`,
+      }),
     ];
     if (request.taskId)
       statements.push(
@@ -553,6 +613,19 @@ router.post(
         entityId: context.req.param("fileId"),
         after: { commentId: id },
         requestId: context.get("requestId"),
+      }),
+      eventManagerNotificationStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        category: "file",
+        notificationType: "file.comment_added",
+        severity: "info",
+        title: "A speaker commented on a file",
+        body: "Open the file thread to review the comment.",
+        actionUrl: `/app/events/${eventId}/content?file=${context.req.param("fileId")}`,
+        entityType: "file",
+        entityId: context.req.param("fileId"),
+        coalesceKey: `file-comment:${context.req.param("fileId")}`,
       }),
     ]);
     return context.json(
@@ -871,6 +944,13 @@ router.patch(
     ]);
     const input = context.req.valid("json");
     const db = database(context.env);
+    const fileRecipient = await db
+      .prepare(
+        `SELECT sp.user_id userId FROM files f JOIN speaker_profiles sp ON sp.id=f.speaker_id
+         WHERE f.id=? AND f.event_id=?`,
+      )
+      .bind(context.req.param("fileId"), eventId)
+      .first<{ userId: string | null }>();
     const result = await db
       .prepare(
         "UPDATE files SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND current_version_id IS NOT NULL",
@@ -904,6 +984,24 @@ router.patch(
             access.user.id,
             input.note,
           ),
+      );
+    if (input.status === "needs_changes" && fileRecipient?.userId)
+      statements.push(
+        notificationStatement(db, {
+          organizationId: access.organizationId,
+          eventId,
+          recipientUserId: fileRecipient.userId,
+          category: "file",
+          notificationType: "file.needs_changes",
+          severity: "warning",
+          title: "A requested file needs changes",
+          body:
+            input.note || "Open the file thread for the organizer's feedback.",
+          actionUrl: `/app/events/${eventId}/speaker#file-${context.req.param("fileId")}`,
+          entityType: "file",
+          entityId: context.req.param("fileId"),
+          coalesceKey: `file-needs-changes:${context.req.param("fileId")}`,
+        }),
       );
     await db.batch(statements);
     return context.json({

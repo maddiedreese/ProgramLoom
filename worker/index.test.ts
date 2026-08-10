@@ -166,6 +166,14 @@ describe("ProgramLoom Worker", () => {
     });
   });
 
+  it("protects the notification center before database access", async () => {
+    const response = await app.request("/api/notifications", {}, env);
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "authentication_required" },
+    });
+  });
+
   it("does not disclose an unconfigured Resend webhook", async () => {
     const response = await app.request(
       "/api/communications/resend/webhook",

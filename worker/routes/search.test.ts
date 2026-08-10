@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rank } from "./search";
+import { rank, searchTerms } from "./search";
 
 describe("organizer search ranking", () => {
   const item = (label: string, context = "") => ({ label, context });
@@ -12,5 +12,12 @@ describe("organizer search ranking", () => {
     expect(rank(item("Opening keynote", "Ada Lovelace"), "ada")).toBe(4);
     expect(rank(item("Speaker"), "speker")).toBeGreaterThan(5);
     expect(rank(item("Completely unrelated"), "ada")).toBe(99);
+  });
+
+  it("treats user wildcard characters as text in bounded LIKE candidates", () => {
+    const terms = searchTerms("100%_complete").slice(1).map(String);
+    expect(terms[0]).toContain("\\%");
+    expect(terms[0]).toContain("\\_");
+    expect(terms.every((term) => term.length < 110)).toBe(true);
   });
 });

@@ -26,6 +26,7 @@
     "smoke:content": "node scripts/smoke-content.mjs",
     "seed:control-room": "wrangler d1 execute programloom-production --local --file scripts/seed-control-room.sql",
     "seed:submission-workspace": "wrangler d1 execute programloom-production --local --file scripts/seed-submission-workspace.sql",
+    "seed:notifications": "wrangler d1 execute programloom-production --local --file scripts/seed-notifications.sql",
     "airtable:provision": "node scripts/provision-airtable.mjs --apply",
     "airtable:webhook": "node scripts/configure-airtable-webhook.mjs"
   },

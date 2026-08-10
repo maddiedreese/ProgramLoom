@@ -21,6 +21,7 @@ import { EventAgenda } from "./app/EventAgenda";
 import { EventWidgets } from "./app/EventWidgets";
 import { EventCommunications } from "./app/EventCommunications";
 import { CommandPalette } from "./app/CommandPalette";
+import { NotificationCenter } from "./app/NotificationCenter";
 import { PublicWidgetPage } from "./app/PublicWidgetPage";
 
 const LazyCRMPage = lazy(() =>
@@ -442,6 +443,7 @@ function AuthenticatedPage({
   return (
     <>
       <CommandPalette />
+      <NotificationCenter />
       {content}
     </>
   );

@@ -1218,6 +1218,332 @@ input {
   cursor: pointer;
 }
 
+.notification-trigger {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 55;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(49, 92, 69, 0.24);
+  border-radius: 50%;
+  color: #183d2b;
+  background: #fffdf8;
+  box-shadow: 0 7px 24px rgba(16, 42, 29, 0.18);
+  cursor: pointer;
+}
+
+.notification-trigger > span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  place-items: center;
+  border: 2px solid #fffdf8;
+  border-radius: 10px;
+  color: white;
+  background: #ad332e;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.notification-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(18, 25, 21, 0.5);
+}
+
+.notification-center {
+  display: flex;
+  width: min(580px, 100%);
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  outline: 0;
+  background: #fffdf8;
+  box-shadow: -20px 0 70px rgba(9, 24, 16, 0.26);
+}
+
+.notification-center > header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.notification-center > header h2,
+.notification-center > header p {
+  margin: 0;
+}
+
+.notification-center > header button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notification-center > header button:hover,
+.notification-center > header button:focus-visible {
+  background: #edf3ee;
+}
+
+.notification-error {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1rem;
+  color: #8d2b27;
+  background: #fff0ed;
+}
+
+.notification-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.notification-filters label,
+.notification-settings > label {
+  display: grid;
+  gap: 0.25rem;
+  color: #667069;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.notification-filters select,
+.notification-settings select {
+  min-width: 0;
+  padding: 0.48rem 0.55rem;
+}
+
+.notification-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  color: #68736b;
+  font-size: 0.78rem;
+}
+
+.notification-actions button,
+.notification-center > footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  color: #315c45;
+  background: transparent;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.notification-actions button:disabled,
+.notification-center > footer button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.notification-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+
+.notification-item {
+  display: grid;
+  grid-template-columns: 5px minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: #fffdf8;
+}
+
+.notification-item.is-read {
+  background: #f8f7f2;
+}
+
+.notification-item > i {
+  width: 5px;
+  border-radius: 3px;
+  background: #668c76;
+}
+
+.notification-item.severity-warning > i {
+  background: #c98619;
+}
+
+.notification-item.severity-blocking > i {
+  background: #b63c35;
+}
+
+.notification-item > div {
+  min-width: 0;
+}
+
+.notification-item > div > span,
+.notification-item small {
+  display: block;
+  color: #707971;
+  font-size: 0.7rem;
+}
+
+.notification-item a {
+  display: block;
+  margin-top: 0.16rem;
+  color: #1d3f2d;
+  font-weight: 780;
+  text-decoration: none;
+}
+
+.notification-item a:hover {
+  text-decoration: underline;
+}
+
+.notification-item p {
+  margin: 0.25rem 0 0.4rem;
+  color: #526057;
+  font-size: 0.86rem;
+}
+
+.notification-item > button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notification-item > button span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  margin: auto;
+  border: 2px solid #668c76;
+  border-radius: 50%;
+  background: #668c76;
+}
+
+.notification-item.is-read > button span {
+  background: transparent;
+}
+
+.notification-state {
+  display: grid;
+  min-height: 260px;
+  place-content: center;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 2rem;
+  color: #69736c;
+  text-align: center;
+}
+
+.notification-center > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--line);
+  color: #68736b;
+  font-size: 0.78rem;
+}
+
+.notification-settings {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.preference-table {
+  margin-top: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.preference-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px 70px;
+  align-items: center;
+  min-height: 46px;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.preference-row:last-child {
+  border-bottom: 0;
+}
+
+.preference-row label,
+.preference-row > span:not(:first-child) {
+  display: grid;
+  place-items: center;
+}
+
+.preference-row strong {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.preference-row strong small {
+  color: #788179;
+  font-size: 0.65rem;
+  font-weight: 500;
+}
+
+.preference-heading {
+  color: #68736b;
+  background: #f1f4ef;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.notification-policy {
+  color: #69736c;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .notification-trigger {
+    top: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .notification-center {
+    width: 100%;
+  }
+
+  .notification-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .notification-item {
+    padding-inline: 0.75rem;
+  }
+}
+
 .command-palette-trigger kbd,
 .command-palette footer kbd {
   padding: 0.15rem 0.35rem;

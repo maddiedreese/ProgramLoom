@@ -16,6 +16,7 @@ import {
 } from "../lib/communications";
 import { renderSimpleTransactionalEmail } from "../lib/email";
 import { domainEventStatement } from "../lib/operations";
+import { eventManagerNotificationStatement } from "../lib/notifications";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -1100,6 +1101,23 @@ router.patch(
         after: { from: current.status, to: status },
         requestId: context.get("requestId"),
       }),
+      ...(status === "withdrawn"
+        ? [
+            eventManagerNotificationStatement(db, {
+              organizationId: access.organizationId,
+              eventId,
+              category: "submission",
+              notificationType: "submission.withdrawn",
+              severity: "warning",
+              title: "A proposal was withdrawn",
+              body: "Review assignments, decisions, and schedule records that may need cleanup.",
+              actionUrl: `/app/events/${eventId}/submissions?submission=${submissionId}`,
+              entityType: "submission",
+              entityId: submissionId,
+              coalesceKey: `submission-withdrawn:${submissionId}`,
+            }),
+          ]
+        : []),
     ]);
     return context.json({
       submission: { id: submissionId, status, updatedAt: now },
@@ -1193,6 +1211,23 @@ router.patch(
         payload: { from: current.decisionState, to: state },
         correlationId: context.get("requestId"),
       }),
+      ...(state !== "none"
+        ? [
+            eventManagerNotificationStatement(db, {
+              organizationId: access.organizationId,
+              eventId,
+              category: "decision",
+              notificationType: "decision.awaiting_communication",
+              severity: "warning",
+              title: "A staged decision is awaiting communication",
+              body: "Review the recipient and message before sending the decision.",
+              actionUrl: `/app/events/${eventId}/communications?category=decision`,
+              entityType: "submission",
+              entityId: submissionId,
+              coalesceKey: `decision-awaiting:${submissionId}`,
+            }),
+          ]
+        : []),
     ]);
     return context.json({
       submission: {
