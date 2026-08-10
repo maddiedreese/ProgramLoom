@@ -395,7 +395,9 @@ export function EventAgenda({ user }: { user: User }) {
       </main>
     );
   const scheduled = items.filter((item) => item.startsAt && !item.cancelledAt);
-  const unscheduled = items.filter((item) => !item.startsAt);
+  const unscheduled = items.filter(
+    (item) => !item.startsAt && !item.cancelledAt,
+  );
   const availableSessions = sessions.filter(
     (session) => !items.some((item) => item.submissionId === session.id),
   );

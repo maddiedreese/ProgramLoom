@@ -99,7 +99,13 @@ describe("public CFP validation", () => {
   it("accepts an authenticated proposal resume with bounded co-presenters", () => {
     const input = submissionSchema.parse({
       submitter: { name: "Priya Raman", email: "PRIYA@example.com" },
-      coSubmitters: [{ name: "Marcus Chen", email: "MARCUS@example.com" }],
+      coSubmitters: [
+        {
+          name: "Marcus Chen",
+          email: "MARCUS@example.com",
+          participantRole: "panelist",
+        },
+      ],
       answers: { session_title: "Reliable programs" },
       action: "draft",
       submissionId: "10000000-0000-4000-8000-000000000001",
@@ -107,6 +113,7 @@ describe("public CFP validation", () => {
 
     expect(input.submitter.email).toBe("priya@example.com");
     expect(input.coSubmitters[0].email).toBe("marcus@example.com");
+    expect(input.coSubmitters[0].participantRole).toBe("panelist");
     expect(input.submissionId).toBe("10000000-0000-4000-8000-000000000001");
   });
 });

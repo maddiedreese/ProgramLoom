@@ -121,7 +121,17 @@ describe("reviewer workspace", () => {
                 },
               ],
               scorecards: [],
-              reviewers: [],
+              reviewers: [
+                {
+                  id: "20000000-0000-4000-8000-000000000001",
+                  name: "Sam Reviewer",
+                  email: "reviewer@example.test",
+                  assignmentCount: 0,
+                  completedCount: 0,
+                },
+              ],
+              reviewerPools: [],
+              results: [],
             }),
           );
         if (path.includes("/submissions?status=pending"))
@@ -165,6 +175,27 @@ describe("reviewer workspace", () => {
             request.path === `/api/reviews/events/${eventId}/rounds/round-1` &&
             request.init?.method === "PATCH" &&
             String(request.init.body).includes('"opensAt"'),
+        ),
+      ).toBe(true),
+    );
+
+    fireEvent.click(
+      document.querySelector(
+        'input[name="reviewerUserId"]',
+      ) as HTMLInputElement,
+    );
+    fireEvent.change(screen.getByLabelText("Capacity"), {
+      target: { value: "4" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save reviewer pool" }));
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.path ===
+              `/api/reviews/events/${eventId}/rounds/round-1/reviewer-pool` &&
+            request.init?.method === "PUT" &&
+            String(request.init.body).includes('"capacity":4'),
         ),
       ).toBe(true),
     );

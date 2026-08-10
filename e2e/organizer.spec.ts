@@ -76,6 +76,14 @@ test.describe("authenticated organizer operations", () => {
     await expect(
       page.getByRole("button", { name: "Save review window" }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Save reviewer pool" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "Review progress and aggregate results",
+      }),
+    ).toBeVisible();
 
     await page.goto(`/app/events/${eventId}/speakers`);
     await expect(
@@ -84,6 +92,11 @@ test.describe("authenticated organizer operations", () => {
     await expect(
       page.getByRole("link", { name: "Edit speaker profile" }).first(),
     ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Import speakers" }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Filter speaker status")).toBeVisible();
+    await expect(page.getByLabel("Program status").first()).toBeVisible();
 
     await page.goto(`/app/events/${eventId}/content`);
     await page.getByRole("button", { name: "Session content" }).click();
@@ -105,6 +118,7 @@ test.describe("authenticated organizer operations", () => {
     await expect(
       page.getByRole("button", { name: /Clear placement for/ }).first(),
     ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Apply" })).toBeDisabled();
 
     await page.goto(`/app/events/${eventId}/calendar`);
     await expect(

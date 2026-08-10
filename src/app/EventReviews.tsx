@@ -59,6 +59,21 @@ type Reviewer = {
   assignmentCount: number;
   completedCount: number;
 };
+type ReviewerPool = {
+  roundId: string;
+  reviewerUserId: string;
+  capacity: number;
+  assignmentCount: number;
+  completedCount: number;
+};
+type ReviewResult = {
+  roundId: string;
+  submissionId: string;
+  title: string;
+  aggregateScore: number | null;
+  assignmentCount: number;
+  completedCount: number;
+};
 type Submission = {
   id: string;
   title: string;
@@ -214,6 +229,8 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [scorecards, setScorecards] = useState<ScoreField[]>([]);
   const [reviewers, setReviewers] = useState<Reviewer[]>([]);
+  const [reviewerPools, setReviewerPools] = useState<ReviewerPool[]>([]);
+  const [results, setResults] = useState<ReviewResult[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string>();
   const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
@@ -226,9 +243,13 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
   const selected = rounds.find((round) => round.id === selectedRoundId);
   async function load(preferred?: string) {
     const [config, intake] = await Promise.all([
-      api<{ rounds: Round[]; scorecards: ScoreField[]; reviewers: Reviewer[] }>(
-        `/api/reviews/events/${eventId}`,
-      ),
+      api<{
+        rounds: Round[];
+        scorecards: ScoreField[];
+        reviewers: Reviewer[];
+        reviewerPools: ReviewerPool[];
+        results: ReviewResult[];
+      }>(`/api/reviews/events/${eventId}`),
       api<{ submissions: Submission[] }>(
         `/api/events/${eventId}/submissions?status=pending`,
       ),
@@ -236,6 +257,8 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     setRounds(config.rounds);
     setScorecards(config.scorecards);
     setReviewers(config.reviewers);
+    setReviewerPools(config.reviewerPools ?? []);
+    setResults(config.results ?? []);
     setSubmissions(intake.submissions);
     setSelectedRoundId(preferred ?? selectedRoundId ?? config.rounds[0]?.id);
   }
@@ -399,6 +422,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     try {
       const result = await api<{
         created: number;
+        capacitySkipped: number;
         conflicts: { reason: string }[];
       }>(`/api/reviews/events/${eventId}/assignments`, {
         method: "POST",
@@ -411,7 +435,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       await load(selected.id);
       setFeedback({
         kind: result.conflicts.length ? "error" : "success",
-        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
+        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.capacitySkipped ? ` ${result.capacitySkipped} exceeded configured reviewer capacity and were skipped.` : ""}${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
       });
     } catch (error) {
       setFeedback({
@@ -425,6 +449,49 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function saveReviewerPool(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected) return;
+    const data = new FormData(event.currentTarget);
+    const reviewerIds = data.getAll("reviewerUserId").map(String);
+    setBusy(true);
+    try {
+      await api(
+        `/api/reviews/events/${eventId}/rounds/${selected.id}/reviewer-pool`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            reviewers: reviewerIds.map((reviewerUserId) => ({
+              reviewerUserId,
+              capacity: Number(data.get(`capacity-${reviewerUserId}`) || 20),
+            })),
+          }),
+        },
+      );
+      await load(selected.id);
+      setFeedback({
+        kind: "success",
+        message:
+          "Reviewer pool saved for this round. Assignments now respect its membership and capacity limits.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Could not save the pool.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  const activePool = reviewerPools.filter(
+    (entry) => entry.roundId === selected?.id,
+  );
+  const assignableReviewers = activePool.length
+    ? reviewers.filter((reviewer) =>
+        activePool.some((entry) => entry.reviewerUserId === reviewer.id),
+      )
+    : reviewers;
   return (
     <>
       <header className="event-heading">
@@ -592,6 +659,64 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   Save review window
                 </button>
               </form>
+              <form
+                className="reviewer-pool-form"
+                key={`pool-${selected.id}`}
+                onSubmit={saveReviewerPool}
+              >
+                <div>
+                  <h3>Reviewer pool and capacity</h3>
+                  <p>
+                    Choose who may review this round and cap each reviewer’s
+                    workload. Leave every reviewer unchecked to use the full
+                    event reviewer roster without caps.
+                  </p>
+                </div>
+                <div className="reviewer-pool-grid">
+                  {reviewers.map((reviewer) => {
+                    const membership = activePool.find(
+                      (entry) => entry.reviewerUserId === reviewer.id,
+                    );
+                    return (
+                      <div className="reviewer-pool-row" key={reviewer.id}>
+                        <label className="check-row">
+                          <input
+                            type="checkbox"
+                            name="reviewerUserId"
+                            value={reviewer.id}
+                            defaultChecked={Boolean(membership)}
+                          />
+                          <span>
+                            <strong>{reviewer.name}</strong>
+                            <small>{reviewer.email}</small>
+                          </span>
+                        </label>
+                        <label>
+                          Capacity
+                          <input
+                            name={`capacity-${reviewer.id}`}
+                            type="number"
+                            min="1"
+                            max="500"
+                            defaultValue={membership?.capacity ?? 20}
+                          />
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+                {!reviewers.length && (
+                  <p className="inline-empty">
+                    Invite a reviewer before configuring this round’s pool.
+                  </p>
+                )}
+                <button
+                  className="button button-small"
+                  disabled={busy || !reviewers.length}
+                >
+                  Save reviewer pool
+                </button>
+              </form>
               <section className="scorecard-section">
                 <div>
                   <h3>Scorecard</h3>
@@ -710,7 +835,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     </div>
                     <div>
                       <h4>Reviewers</h4>
-                      {reviewers.map((reviewer) => (
+                      {assignableReviewers.map((reviewer) => (
                         <label className="assignment-choice" key={reviewer.id}>
                           <input
                             type="checkbox"
@@ -757,6 +882,66 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 >
                   Assign reviewers
                 </button>
+              </section>
+              <section className="review-results-section">
+                <div>
+                  <h3>Review progress and aggregate results</h3>
+                  <p>
+                    Completion and weighted scores come from submitted reviews
+                    in this round. Results are ordered by aggregate score.
+                  </p>
+                </div>
+                <div className="review-progress-grid">
+                  {assignableReviewers.map((reviewer) => {
+                    const progress = activePool.find(
+                      (entry) => entry.reviewerUserId === reviewer.id,
+                    );
+                    return (
+                      <article key={reviewer.id}>
+                        <strong>{reviewer.name}</strong>
+                        <span>
+                          {progress?.completedCount ?? reviewer.completedCount}/
+                          {progress?.assignmentCount ??
+                            reviewer.assignmentCount}{" "}
+                          complete
+                        </span>
+                        {progress && (
+                          <small>Capacity {progress.capacity}</small>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+                {results.some((result) => result.roundId === selected.id) ? (
+                  <div className="table-scroll" tabIndex={0}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Submission</th>
+                          <th>Progress</th>
+                          <th>Aggregate score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {results
+                          .filter((result) => result.roundId === selected.id)
+                          .map((result) => (
+                            <tr key={result.submissionId}>
+                              <td>{result.title}</td>
+                              <td>
+                                {result.completedCount}/{result.assignmentCount}
+                              </td>
+                              <td>{result.aggregateScore ?? "Pending"}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="inline-empty">
+                    Assign reviewers to populate aggregate results.
+                  </div>
+                )}
               </section>
             </>
           )}

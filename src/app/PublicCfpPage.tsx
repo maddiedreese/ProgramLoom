@@ -49,7 +49,12 @@ type Condition = {
   targetFieldId: string;
   action: "show" | "hide" | "require";
 };
-type Submitter = { name: string; email: string; organization: string };
+type Submitter = {
+  name: string;
+  email: string;
+  organization: string;
+  participantRole?: "coauthor" | "presenter" | "panelist" | "discussant";
+};
 type CurrentSubmission = {
   id: string;
   status: "draft" | "pending";
@@ -565,6 +570,33 @@ export function PublicCfpPage() {
                 {coSubmitters.map((person, index) => (
                   <div className="wide co-presenter-row" key={index}>
                     <label>
+                      Participant role
+                      <select
+                        value={person.participantRole ?? "coauthor"}
+                        onChange={(event) =>
+                          setCoSubmitters((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    participantRole: event.target.value as
+                                      | "coauthor"
+                                      | "presenter"
+                                      | "panelist"
+                                      | "discussant",
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                      >
+                        <option value="coauthor">Co-author</option>
+                        <option value="presenter">Presenter</option>
+                        <option value="panelist">Panelist</option>
+                        <option value="discussant">Discussant</option>
+                      </select>
+                    </label>
+                    <label>
                       Co-presenter name
                       <input
                         value={person.name}
@@ -615,7 +647,12 @@ export function PublicCfpPage() {
                   onClick={() =>
                     setCoSubmitters((current) => [
                       ...current,
-                      { name: "", email: "", organization: "" },
+                      {
+                        name: "",
+                        email: "",
+                        organization: "",
+                        participantRole: "coauthor",
+                      },
                     ])
                   }
                 >

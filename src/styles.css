@@ -4846,21 +4846,76 @@ input {
   line-height: 1.4;
 }
 .scorecard-section,
-.assignment-section {
+.assignment-section,
+.reviewer-pool-form,
+.review-results-section {
   padding: 28px 25px;
   border-bottom: 1px solid var(--line);
 }
 .scorecard-section > div:first-child h3,
-.assignment-section > div:first-child h3 {
+.assignment-section > div:first-child h3,
+.reviewer-pool-form > div:first-child h3,
+.review-results-section > div:first-child h3 {
   margin: 0 0 5px;
   font-size: 19px;
 }
 .scorecard-section > div:first-child p,
-.assignment-section > div:first-child p {
+.assignment-section > div:first-child p,
+.reviewer-pool-form > div:first-child p,
+.review-results-section > div:first-child p {
   margin: 0;
   color: #747970;
   font-size: 12px;
   line-height: 1.5;
+}
+.reviewer-pool-grid,
+.review-progress-grid {
+  display: grid;
+  gap: 9px;
+  margin: 18px 0;
+}
+.reviewer-pool-row {
+  padding: 11px 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 14px;
+  align-items: end;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+.reviewer-pool-row > label:last-child {
+  display: grid;
+  gap: 4px;
+  color: #5f645c;
+  font-size: 10px;
+  font-weight: 800;
+}
+.review-progress-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.review-progress-grid article {
+  padding: 13px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8f6ef;
+}
+.review-progress-grid span,
+.review-progress-grid small {
+  color: #5f645c;
+  font-size: 10px;
+}
+.review-results-section table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.review-results-section th,
+.review-results-section td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
 }
 .scorecard-list {
   display: grid;
@@ -5155,6 +5210,9 @@ input {
   }
   .score-field-form .wide {
     grid-column: auto;
+  }
+  .reviewer-pool-row {
+    grid-template-columns: 1fr;
   }
   .review-stats > div {
     padding: 13px;
@@ -5590,12 +5648,37 @@ input {
 .speaker-roster > article {
   padding: 15px 17px;
   display: grid;
-  grid-template-columns: 42px minmax(180px, 1fr) auto 180px;
+  grid-template-columns: 42px minmax(180px, 1fr) auto 145px 180px;
   gap: 13px;
   align-items: center;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--cream);
+}
+.speaker-status-filter {
+  width: min(260px, 100%);
+  margin: 0 0 14px;
+  display: grid;
+  gap: 5px;
+  color: #5f645c;
+  font-size: 11px;
+  font-weight: 800;
+}
+.speaker-status-filter select,
+.speaker-event-status select {
+  min-height: 39px;
+  padding: 7px 9px;
+  border: 1px solid #bfc3ba;
+  border-radius: 7px;
+  background: white;
+  color: var(--ink);
+}
+.speaker-event-status {
+  display: grid;
+  gap: 4px;
+  color: #5f645c;
+  font-size: 9px;
+  font-weight: 800;
 }
 .speaker-avatar {
   width: 42px;
@@ -5703,9 +5786,19 @@ input {
 .status-active,
 .status-approved,
 .status-complete,
-.status-submitted {
+.status-submitted,
+.status-confirmed {
   background: #e5f2e8;
   color: #315f3e;
+}
+.status-proposed,
+.status-invited {
+  background: #f4eddc;
+  color: #76571f;
+}
+.status-withdrawn {
+  background: #ece9e4;
+  color: #595f57;
 }
 .status-needs_changes {
   background: #f5e8e4;
@@ -5717,6 +5810,9 @@ input {
   }
   .speaker-roster > article {
     grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+  .speaker-event-status {
+    grid-column: 2;
   }
   .speaker-progress {
     grid-column: 2 / -1;
@@ -5742,6 +5838,9 @@ input {
     grid-template-columns: 42px minmax(0, 1fr);
   }
   .speaker-roster .submission-status {
+    grid-column: 2;
+  }
+  .speaker-event-status {
     grid-column: 2;
   }
   .speaker-progress {

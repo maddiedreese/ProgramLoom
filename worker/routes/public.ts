@@ -132,6 +132,9 @@ export const submissionSchema = z
           name: z.string().trim().min(2).max(160),
           email: z.email().transform((email) => email.trim().toLowerCase()),
           organization: z.string().trim().max(160).optional(),
+          participantRole: z
+            .enum(["coauthor", "presenter", "panelist", "discussant"])
+            .default("coauthor"),
         }),
       )
       .max(12)
@@ -491,6 +494,7 @@ router.get(`${route}`, async (context) => {
           name: string;
           email: string;
           organization: string;
+          participantRole: string;
         }>;
       }
     | undefined;
@@ -517,11 +521,16 @@ router.get(`${route}`, async (context) => {
     if (owned) {
       const coauthors = await db
         .prepare(
-          `SELECT name,email,organization FROM submission_people
-           WHERE submission_id=? AND role='coauthor' ORDER BY position,id`,
+          `SELECT name,email,organization,role AS participantRole FROM submission_people
+           WHERE submission_id=? AND role!='primary' ORDER BY position,id`,
         )
         .bind(owned.id)
-        .all<{ name: string; email: string; organization: string | null }>();
+        .all<{
+          name: string;
+          email: string;
+          organization: string | null;
+          participantRole: string;
+        }>();
       currentSubmission = {
         id: owned.id,
         status: owned.status,
@@ -741,7 +750,7 @@ router.post(
     const coauthorStatements = [
       db
         .prepare(
-          "DELETE FROM submission_people WHERE submission_id=? AND role='coauthor'",
+          "DELETE FROM submission_people WHERE submission_id=? AND role!='primary'",
         )
         .bind(submissionId),
       ...input.coSubmitters.map((person, position) =>
@@ -749,13 +758,14 @@ router.post(
           .prepare(
             `INSERT INTO submission_people
               (id,submission_id,email,name,role,organization,position)
-             VALUES(?,?,?,?,'coauthor',?,?)`,
+             VALUES(?,?,?,?,?,?,?)`,
           )
           .bind(
             crypto.randomUUID(),
             submissionId,
             person.email,
             person.name,
+            person.participantRole,
             person.organization ?? null,
             position + 1,
           ),
@@ -990,11 +1000,16 @@ router.post(
       );
     const coauthors = await db
       .prepare(
-        `SELECT name,email,organization FROM submission_people
-         WHERE submission_id=? AND role='coauthor' ORDER BY position,id`,
+        `SELECT name,email,organization,role AS participantRole FROM submission_people
+         WHERE submission_id=? AND role!='primary' ORDER BY position,id`,
       )
       .bind(submission.id)
-      .all<{ name: string; email: string; organization: string | null }>();
+      .all<{
+        name: string;
+        email: string;
+        organization: string | null;
+        participantRole: string;
+      }>();
     return context.json({
       submission: {
         ...submission,

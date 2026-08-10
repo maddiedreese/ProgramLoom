@@ -206,10 +206,13 @@ export function CRMPage({ user }: { user: User }) {
   const requestedContactId = initialQuery.get("contact") ?? "";
   const opensSpeakerHandoff =
     initialQuery.get("action") === "add-speaker" && Boolean(addSpeakerEventId);
+  const importsSpeakers =
+    initialQuery.get("action") === "import-speakers" &&
+    Boolean(addSpeakerEventId);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState("");
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number][0]>(
-    opensSpeakerHandoff ? "directory" : "dashboard",
+    opensSpeakerHandoff || importsSpeakers ? "directory" : "dashboard",
   );
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
@@ -240,7 +243,7 @@ export function CRMPage({ user }: { user: User }) {
   const [pipelineDetail, setPipelineDetail] =
     useState<Record<string, unknown>>();
   const [modal, setModal] = useState<string | undefined>(
-    opensSpeakerHandoff ? "handoff" : undefined,
+    importsSpeakers ? "import" : opensSpeakerHandoff ? "handoff" : undefined,
   );
   const [feedback, setFeedback] = useState<Feedback>();
   const [loading, setLoading] = useState(true);
@@ -580,9 +583,16 @@ export function CRMPage({ user }: { user: User }) {
       {modal === "import" && (
         <ImportModal
           organizationId={organizationId}
+          eventId={importsSpeakers ? addSpeakerEventId : undefined}
           close={() => setModal(undefined)}
           complete={async () => {
             await loadAll();
+            if (importsSpeakers) {
+              window.location.assign(
+                `/app/events/${addSpeakerEventId}/speakers`,
+              );
+              return;
+            }
             setModal(undefined);
             setFeedback({
               kind: "success",
@@ -1657,10 +1667,12 @@ function AddContactModal({
 
 function ImportModal({
   organizationId,
+  eventId,
   close,
   complete,
 }: {
   organizationId: string;
+  eventId?: string;
   close: () => void;
   complete: () => void;
 }) {
@@ -1759,6 +1771,7 @@ function ImportModal({
         method: "POST",
         body: JSON.stringify({
           mode: "create_and_update",
+          eventId,
           rows: preview.map(({ mapped }) => ({
             ...mapped,
             tags: mapped.tags
@@ -1779,8 +1792,12 @@ function ImportModal({
   }
   return (
     <Modal
-      title="Import contacts"
-      subtitle="CSV or XLSX · up to 1,000 rows"
+      title={eventId ? "Import speakers" : "Import contacts"}
+      subtitle={
+        eventId
+          ? "CSV or XLSX · deduplicated by email · added to this event"
+          : "CSV or XLSX · up to 1,000 rows"
+      }
       close={close}
       wide
     >
@@ -1866,7 +1883,9 @@ function ImportModal({
           )}
           <button className="button" onClick={commit} disabled={busy}>
             <Upload size={15} />{" "}
-            {busy ? "Importing…" : `Import ${rows.length} contacts`}
+            {busy
+              ? "Importing…"
+              : `Import ${rows.length} ${eventId ? "speakers" : "contacts"}`}
           </button>
         </>
       )}

@@ -122,6 +122,8 @@ describe("agenda calendar lifecycle controls", () => {
       </MemoryRouter>,
     );
 
+    expect(await screen.findByRole("button", { name: "Apply" })).toBeDisabled();
+
     fireEvent.click(
       await screen.findByRole("button", {
         name: "Cancel session: Active session",

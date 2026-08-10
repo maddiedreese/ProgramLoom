@@ -50,6 +50,7 @@ type Profile = {
   portalStatus: string;
 };
 type Speaker = Profile & {
+  eventStatus: "proposed" | "invited" | "confirmed" | "withdrawn";
   sessionCount: number;
   taskCount: number;
   completedTaskCount: number;
@@ -833,6 +834,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
     message: string;
   }>();
   const [busy, setBusy] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
   async function load() {
     const result = await api<{
       speakers: Speaker[];
@@ -1002,6 +1004,31 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function updateSpeakerStatus(speaker: Speaker, status: string) {
+    setBusy(true);
+    try {
+      await api(
+        `/api/speakers/admin/events/${eventId}/speakers/${speaker.id}/status`,
+        { method: "PATCH", body: JSON.stringify({ status }) },
+      );
+      await load();
+      setFeedback({
+        kind: "success",
+        message: `${speaker.firstName} ${speaker.lastName} is now ${status}. Next, filter or communicate with the updated roster.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Could not update status.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  const visibleSpeakers = speakers.filter(
+    (speaker) => statusFilter === "all" || speaker.eventStatus === statusFilter,
+  );
   return (
     <>
       <header className="event-heading">
@@ -1030,6 +1057,12 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           >
             Add speaker record
           </a>
+          <a
+            className="button button-ghost"
+            href={`/app/crm?action=import-speakers&eventId=${eventId}`}
+          >
+            Import speakers
+          </a>
         </div>
       </header>
       {feedback && (
@@ -1037,8 +1070,21 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           {feedback.message}
         </div>
       )}
+      <label className="speaker-status-filter">
+        Filter speaker status
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
+          <option value="all">All statuses</option>
+          <option value="proposed">Proposed</option>
+          <option value="invited">Invited</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="withdrawn">Withdrawn</option>
+        </select>
+      </label>
       <section className="speaker-roster">
-        {speakers.map((speaker) => (
+        {visibleSpeakers.map((speaker) => (
           <article id={`speaker-${speaker.id}`} tabIndex={-1} key={speaker.id}>
             <div className="speaker-avatar">
               {speaker.firstName[0]}
@@ -1057,6 +1103,21 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             <em className={`submission-status status-${speaker.portalStatus}`}>
               {speaker.portalStatus.replaceAll("_", " ")}
             </em>
+            <label className="speaker-event-status">
+              Program status
+              <select
+                value={speaker.eventStatus}
+                disabled={busy}
+                onChange={(event) =>
+                  updateSpeakerStatus(speaker, event.target.value)
+                }
+              >
+                <option value="proposed">Proposed</option>
+                <option value="invited">Invited</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="withdrawn">Withdrawn</option>
+              </select>
+            </label>
             <div className="speaker-progress">
               <span>
                 <strong>
@@ -1085,6 +1146,12 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             </a>
           </article>
         ))}
+        {!visibleSpeakers.length && (
+          <div className="inline-empty">
+            No speakers match this status. Choose All statuses or import a
+            speaker.
+          </div>
+        )}
       </section>
       <section
         className="file-review-list"

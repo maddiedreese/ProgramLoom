@@ -73,6 +73,9 @@ const fileStatusSchema = z.object({
   status: z.enum(["approved", "needs_changes"]),
   note: z.string().trim().max(2000).optional(),
 });
+const speakerEventStatusSchema = z.object({
+  status: z.enum(["proposed", "invited", "confirmed", "withdrawn"]),
+});
 const fileCommentSchema = z.object({
   body: z.string().trim().min(1).max(5000),
 });
@@ -681,9 +684,11 @@ router.get("/admin/events/:eventId", async (context) => {
   const db = database(context.env);
   const speakers = await db
     .prepare(
-      `SELECT sp.id,sp.email,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.portal_status AS portalStatus,COUNT(DISTINCT CASE WHEN session.event_id=? THEN ss.submission_id END) AS sessionCount,COUNT(DISTINCT task.id) AS taskCount,COUNT(DISTINCT CASE WHEN sta.status='complete' THEN task.id END) AS completedTaskCount,COUNT(DISTINCT f.id) AS fileRequestCount,COUNT(DISTINCT CASE WHEN f.status='approved' THEN f.id END) AS approvedFileCount FROM speaker_profiles sp JOIN (SELECT speaker_id FROM event_speakers WHERE event_id=? UNION SELECT ss2.speaker_id FROM session_speakers ss2 JOIN submissions s2 ON s2.id=ss2.submission_id WHERE s2.event_id=?) roster ON roster.speaker_id=sp.id LEFT JOIN session_speakers ss ON ss.speaker_id=sp.id LEFT JOIN submissions session ON session.id=ss.submission_id LEFT JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id LEFT JOIN onboarding_tasks task ON task.id=sta.task_id AND task.event_id=? LEFT JOIN files f ON f.speaker_id=sp.id AND f.event_id=? GROUP BY sp.id ORDER BY sp.last_name,sp.first_name`,
+      `SELECT sp.id,sp.email,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.portal_status AS portalStatus,
+              COALESCE((SELECT es.status FROM event_speakers es WHERE es.event_id=? AND es.speaker_id=sp.id),'confirmed') AS eventStatus,
+              COUNT(DISTINCT CASE WHEN session.event_id=? THEN ss.submission_id END) AS sessionCount,COUNT(DISTINCT task.id) AS taskCount,COUNT(DISTINCT CASE WHEN sta.status='complete' THEN task.id END) AS completedTaskCount,COUNT(DISTINCT f.id) AS fileRequestCount,COUNT(DISTINCT CASE WHEN f.status='approved' THEN f.id END) AS approvedFileCount FROM speaker_profiles sp JOIN (SELECT speaker_id FROM event_speakers WHERE event_id=? UNION SELECT ss2.speaker_id FROM session_speakers ss2 JOIN submissions s2 ON s2.id=ss2.submission_id WHERE s2.event_id=?) roster ON roster.speaker_id=sp.id LEFT JOIN session_speakers ss ON ss.speaker_id=sp.id LEFT JOIN submissions session ON session.id=ss.submission_id LEFT JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id LEFT JOIN onboarding_tasks task ON task.id=sta.task_id AND task.event_id=? LEFT JOIN files f ON f.speaker_id=sp.id AND f.event_id=? GROUP BY sp.id ORDER BY sp.last_name,sp.first_name`,
     )
-    .bind(eventId, eventId, eventId, eventId, eventId)
+    .bind(eventId, eventId, eventId, eventId, eventId, eventId)
     .all();
   const tasks = await db
     .prepare(
@@ -725,6 +730,57 @@ router.get("/admin/events/:eventId", async (context) => {
     files: files.results,
   });
 });
+
+router.patch(
+  "/admin/events/:eventId/speakers/:speakerId/status",
+  zValidator("json", speakerEventStatusSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const speakerId = context.req.param("speakerId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const input = context.req.valid("json");
+    const db = database(context.env);
+    const belongs = await db
+      .prepare(
+        `SELECT 1 FROM speaker_profiles sp WHERE sp.id=? AND
+         (EXISTS(SELECT 1 FROM event_speakers es WHERE es.event_id=? AND es.speaker_id=sp.id)
+          OR EXISTS(SELECT 1 FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=? AND ss.speaker_id=sp.id))`,
+      )
+      .bind(speakerId, eventId, eventId)
+      .first();
+    if (!belongs)
+      throw new HttpError(404, "speaker_not_found", "Speaker not found.");
+    const before = await db
+      .prepare(
+        "SELECT status FROM event_speakers WHERE event_id=? AND speaker_id=?",
+      )
+      .bind(eventId, speakerId)
+      .first<{ status: string }>();
+    await db.batch([
+      db
+        .prepare(
+          `INSERT INTO event_speakers(event_id,speaker_id,source,added_by,status)
+           VALUES(?,?,?, ?,?)
+           ON CONFLICT(event_id,speaker_id) DO UPDATE SET status=excluded.status`,
+        )
+        .bind(eventId, speakerId, "organizer", access.user.id, input.status),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "speaker.event_status_updated",
+        entityType: "speaker",
+        entityId: speakerId,
+        before: { status: before?.status ?? "confirmed" },
+        after: input,
+        requestId: context.get("requestId"),
+      }),
+    ]);
+    return context.json({ speaker: { id: speakerId, ...input } });
+  },
+);
 
 router.post(
   "/admin/events/:eventId/tasks",
