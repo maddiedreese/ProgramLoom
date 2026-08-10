@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { deriveProgramMetadata, matches, validateAnswers } from "./public";
+import {
+  deriveProgramMetadata,
+  matches,
+  submissionSchema,
+  validateAnswers,
+} from "./public";
 
 describe("public CFP validation", () => {
   it("evaluates scalar, list, checkbox, and numeric conditions", () => {
@@ -89,5 +94,19 @@ describe("public CFP validation", () => {
       durationMinutes: 30,
       trackIds: ["track-2"],
     });
+  });
+
+  it("accepts an authenticated proposal resume with bounded co-presenters", () => {
+    const input = submissionSchema.parse({
+      submitter: { name: "Priya Raman", email: "PRIYA@example.com" },
+      coSubmitters: [{ name: "Marcus Chen", email: "MARCUS@example.com" }],
+      answers: { session_title: "Reliable programs" },
+      action: "draft",
+      submissionId: "10000000-0000-4000-8000-000000000001",
+    });
+
+    expect(input.submitter.email).toBe("priya@example.com");
+    expect(input.coSubmitters[0].email).toBe("marcus@example.com");
+    expect(input.submissionId).toBe("10000000-0000-4000-8000-000000000001");
   });
 });

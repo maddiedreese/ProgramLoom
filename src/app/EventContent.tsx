@@ -764,7 +764,12 @@ export function EventContent({ user }: { user: User }) {
       </main>
       {editingSession && (
         <div className="detail-backdrop">
-          <aside className="content-detail">
+          <aside
+            className="content-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Edit session content"
+          >
             <header>
               <div>
                 <small>Session content</small>
@@ -772,6 +777,7 @@ export function EventContent({ user }: { user: User }) {
               </div>
               <button
                 className="plain-icon"
+                aria-label="Close session editor"
                 onClick={() => setEditingSession(undefined)}
               >
                 <X />
@@ -882,7 +888,12 @@ export function EventContent({ user }: { user: User }) {
       )}
       {editingSpeaker && (
         <div className="detail-backdrop">
-          <aside className="content-detail">
+          <aside
+            className="content-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Edit speaker profile"
+          >
             <header>
               <div>
                 <small>Speaker content</small>
@@ -890,6 +901,7 @@ export function EventContent({ user }: { user: User }) {
               </div>
               <button
                 className="plain-icon"
+                aria-label="Close speaker editor"
                 onClick={() => setEditingSpeaker(undefined)}
               >
                 <X />
@@ -954,7 +966,12 @@ export function EventContent({ user }: { user: User }) {
       )}
       {selectedFile && fileDetail && (
         <div className="detail-backdrop">
-          <aside className="content-detail file-detail">
+          <aside
+            className="content-detail file-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-label="File details"
+          >
             <header>
               <div>
                 <small>
@@ -964,6 +981,7 @@ export function EventContent({ user }: { user: User }) {
               </div>
               <button
                 className="plain-icon"
+                aria-label="Close file details"
                 onClick={() => {
                   setSelectedFile(undefined);
                   setFileDetail(undefined);

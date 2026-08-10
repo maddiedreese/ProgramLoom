@@ -1496,7 +1496,12 @@ function Modal({
   wide?: boolean;
 }) {
   return (
-    <div className="crm-modal-backdrop">
+    <div
+      className="crm-modal-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) close();
+      }}
+    >
       <section
         className={`crm-modal ${wide ? "crm-modal-wide" : ""}`}
         role="dialog"

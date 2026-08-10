@@ -902,7 +902,12 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
       </section>
       {selected && (
         <div className="detail-backdrop">
-          <aside className="review-detail">
+          <aside
+            className="review-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Review details"
+          >
             <header>
               <div>
                 <small>
@@ -913,6 +918,7 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
               </div>
               <button
                 className="plain-icon"
+                aria-label="Close review details"
                 onClick={() => setSelected(undefined)}
               >
                 <X size={19} />

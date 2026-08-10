@@ -50,6 +50,13 @@ type Condition = {
   action: "show" | "hide" | "require";
 };
 type Submitter = { name: string; email: string; organization: string };
+type CurrentSubmission = {
+  id: string;
+  status: "draft" | "pending";
+  answers: Record<string, unknown>;
+  submitter: Submitter;
+  coSubmitters: Submitter[];
+};
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -101,6 +108,8 @@ export function PublicCfpPage() {
     organization: "",
   });
   const [editToken, setEditToken] = useState<string>();
+  const [submissionId, setSubmissionId] = useState<string>();
+  const [coSubmitters, setCoSubmitters] = useState<Submitter[]>([]);
   const [status, setStatus] = useState<string>();
   const [locked, setLocked] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string>();
@@ -117,12 +126,29 @@ export function PublicCfpPage() {
   useEffect(() => {
     fetch("/api/auth/session", { credentials: "same-origin" })
       .then((response) => response.json())
-      .then((result: { user?: unknown }) => setSignedIn(Boolean(result.user)))
+      .then(
+        (result: {
+          user?: { id: string; name: string; email: string } | null;
+        }) => {
+          setSignedIn(Boolean(result.user));
+          if (result.user)
+            setSubmitter((current) => ({
+              ...current,
+              name: current.name || result.user!.name,
+              email: current.email || result.user!.email,
+            }));
+        },
+      )
       .catch(() => setSignedIn(false));
   }, []);
 
   useEffect(() => {
-    api<{ form: PublicForm; fields: Field[]; conditions: Condition[] }>(apiPath)
+    api<{
+      form: PublicForm;
+      fields: Field[];
+      conditions: Condition[];
+      currentSubmission?: CurrentSubmission;
+    }>(apiPath)
       .then(async (result) => {
         setForm(result.form);
         setFields(result.fields);
@@ -137,6 +163,7 @@ export function PublicCfpPage() {
                 status: string;
                 answers: Record<string, unknown>;
                 submitter: Submitter;
+                coSubmitters: Submitter[];
                 locked: boolean;
               };
             }>(`${apiPath}/submissions/preview`, {
@@ -150,6 +177,7 @@ export function PublicCfpPage() {
               ...preview.submission.submitter,
               organization: preview.submission.submitter.organization ?? "",
             });
+            setCoSubmitters(preview.submission.coSubmitters ?? []);
             setLocked(preview.submission.locked);
           } catch (error) {
             setFeedback({
@@ -160,6 +188,20 @@ export function PublicCfpPage() {
                   : "This private edit link is invalid.",
             });
           }
+        else if (result.currentSubmission) {
+          setSubmissionId(result.currentSubmission.id);
+          setStatus(result.currentSubmission.status);
+          setAnswers(result.currentSubmission.answers);
+          setSubmitter(result.currentSubmission.submitter);
+          setCoSubmitters(result.currentSubmission.coSubmitters);
+          setFeedback({
+            kind: "success",
+            message:
+              result.currentSubmission.status === "draft"
+                ? "Your saved draft is ready to continue."
+                : "Your submitted proposal is open for updates until the editing deadline.",
+          });
+        }
       })
       .catch((error: Error) =>
         setFeedback({ kind: "error", message: error.message }),
@@ -231,7 +273,7 @@ export function PublicCfpPage() {
     setFieldErrors({});
     try {
       const result = await api<{
-        submission: { status: string };
+        submission: { id: string; status: string };
         editToken: string;
         emailQueued: boolean;
         emailSent: boolean;
@@ -242,10 +284,15 @@ export function PublicCfpPage() {
           answers,
           action,
           editToken,
+          submissionId,
+          coSubmitters: coSubmitters.filter(
+            (person) => person.name.trim() || person.email.trim(),
+          ),
           turnstileToken,
         }),
       });
       setEditToken(result.editToken);
+      setSubmissionId(result.submission.id);
       setStatus(result.submission.status);
       window.history.replaceState(
         null,
@@ -501,6 +548,79 @@ export function PublicCfpPage() {
                 </label>
               </div>
             </section>
+            <section>
+              <div className="public-section-title">
+                <span>02</span>
+                <div>
+                  <h2>Co-presenters</h2>
+                  <p>
+                    Add another speaker now so reviews, onboarding, scheduling,
+                    and public profiles stay connected.
+                  </p>
+                </div>
+              </div>
+              <div className="public-field-grid">
+                {coSubmitters.map((person, index) => (
+                  <div className="wide co-presenter-row" key={index}>
+                    <label>
+                      Co-presenter name
+                      <input
+                        value={person.name}
+                        onChange={(event) =>
+                          setCoSubmitters((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, name: event.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                        required={Boolean(person.email)}
+                      />
+                    </label>
+                    <label>
+                      Co-presenter email
+                      <input
+                        type="email"
+                        value={person.email}
+                        onChange={(event) =>
+                          setCoSubmitters((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, email: event.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                        required={Boolean(person.name)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCoSubmitters((current) =>
+                          current.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                    >
+                      Remove co-presenter
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() =>
+                    setCoSubmitters((current) => [
+                      ...current,
+                      { name: "", email: "", organization: "" },
+                    ])
+                  }
+                >
+                  Add co-presenter
+                </button>
+              </div>
+            </section>
             {(["welcome", "session", "speaker", "custom"] as const).map(
               (section, index) => {
                 const sectionFields = fields.filter(
@@ -572,6 +692,31 @@ export function PublicCfpPage() {
               </p>
             )}
             <div className="public-form-actions">
+              {(submissionId || editToken) && (
+                <button
+                  type="button"
+                  className="button button-ghost button-large"
+                  onClick={() => {
+                    setSubmissionId(undefined);
+                    setEditToken(undefined);
+                    setStatus(undefined);
+                    setAnswers({});
+                    setCoSubmitters([]);
+                    window.history.replaceState(
+                      null,
+                      "",
+                      window.location.pathname,
+                    );
+                    setFeedback({
+                      kind: "success",
+                      message:
+                        "New proposal started. Your earlier proposal remains saved.",
+                    });
+                  }}
+                >
+                  Start another proposal
+                </button>
+              )}
               {form.allowDrafts && status !== "pending" && (
                 <button
                   type="button"

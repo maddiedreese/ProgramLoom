@@ -5855,7 +5855,7 @@ input {
 .assist-actions .button-ghost:hover {
   color: white;
 }
-@media (max-width: 1180px) {
+@media (max-width: 1450px) {
   .agenda-layout {
     grid-template-columns: 1fr;
   }
@@ -5871,6 +5871,21 @@ input {
   }
   .agenda-placement > button {
     grid-row: 2;
+  }
+}
+.co-presenter-row {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--cream);
+}
+@media (max-width: 720px) {
+  .co-presenter-row {
+    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 720px) {

@@ -744,7 +744,12 @@ function SpeakerPortal({
       )}
       {selectedFile && fileDetail && (
         <div className="detail-backdrop">
-          <aside className="content-detail file-detail">
+          <aside
+            className="content-detail file-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`File details for ${selectedFile.purpose}`}
+          >
             <header>
               <div>
                 <small>{selectedFile.sessionTitle}</small>
@@ -752,6 +757,7 @@ function SpeakerPortal({
               </div>
               <button
                 className="plain-icon"
+                aria-label="Close file details"
                 onClick={() => {
                   setSelectedFile(undefined);
                   setFileDetail(undefined);
@@ -1010,6 +1016,12 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           <strong>{speakers.length}</strong>
           <span>Accepted speakers</span>
         </div>
+        <a
+          className="button"
+          href={`/app/crm?action=add-speaker&eventId=${eventId}`}
+        >
+          Add speaker
+        </a>
       </header>
       {feedback && (
         <div className={`form-status form-status-${feedback.kind}`}>

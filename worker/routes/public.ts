@@ -118,7 +118,7 @@ router.post(
   },
 );
 
-const submissionSchema = z
+export const submissionSchema = z
   .object({
     submitter: z.object({
       name: z.string().trim().min(2).max(160),
@@ -126,8 +126,19 @@ const submissionSchema = z
       organization: z.string().trim().max(160).optional(),
     }),
     answers: z.record(z.string(), z.unknown()),
+    coSubmitters: z
+      .array(
+        z.object({
+          name: z.string().trim().min(2).max(160),
+          email: z.email().transform((email) => email.trim().toLowerCase()),
+          organization: z.string().trim().max(160).optional(),
+        }),
+      )
+      .max(12)
+      .default([]),
     action: z.enum(["draft", "submit"]),
     editToken: z.string().min(32).max(200).optional(),
+    submissionId: z.uuid().optional(),
     turnstileToken: z.string().optional(),
   })
   .superRefine((value, context) => {
@@ -440,6 +451,68 @@ router.get(`${route}`, async (context) => {
     context.req.param("formSlug"),
   );
   const definition = await formDefinition(db, form.id);
+  const authenticatedUser = await authenticatedUserOrNull(context);
+  let currentSubmission:
+    | {
+        id: string;
+        status: "draft" | "pending";
+        answers: Record<string, unknown>;
+        submitter: {
+          name: string;
+          email: string;
+          organization: string;
+        };
+        coSubmitters: Array<{
+          name: string;
+          email: string;
+          organization: string;
+        }>;
+      }
+    | undefined;
+  if (authenticatedUser) {
+    const owned = await db
+      .prepare(
+        `SELECT s.id,s.status,s.answers_json AS answersJson,p.name,p.email,p.organization
+         FROM submissions s
+         JOIN submission_people p ON p.submission_id=s.id AND p.role='primary'
+         WHERE s.form_id=? AND s.status IN ('draft','pending')
+           AND (p.user_id=? OR p.email=? COLLATE NOCASE)
+         ORDER BY CASE s.status WHEN 'draft' THEN 0 ELSE 1 END,s.updated_at DESC
+         LIMIT 1`,
+      )
+      .bind(form.id, authenticatedUser.id, authenticatedUser.email)
+      .first<{
+        id: string;
+        status: "draft" | "pending";
+        answersJson: string;
+        name: string;
+        email: string;
+        organization: string | null;
+      }>();
+    if (owned) {
+      const coauthors = await db
+        .prepare(
+          `SELECT name,email,organization FROM submission_people
+           WHERE submission_id=? AND role='coauthor' ORDER BY position,id`,
+        )
+        .bind(owned.id)
+        .all<{ name: string; email: string; organization: string | null }>();
+      currentSubmission = {
+        id: owned.id,
+        status: owned.status,
+        answers: JSON.parse(owned.answersJson),
+        submitter: {
+          name: owned.name,
+          email: owned.email,
+          organization: owned.organization ?? "",
+        },
+        coSubmitters: coauthors.results.map((person) => ({
+          ...person,
+          organization: person.organization ?? "",
+        })),
+      };
+    }
+  }
   return context.json({
     form: {
       ...form,
@@ -447,6 +520,7 @@ router.get(`${route}`, async (context) => {
       availability: availability(form),
     },
     ...definition,
+    currentSubmission,
   });
 });
 
@@ -546,6 +620,48 @@ router.post(
           "already_submitted",
           "Submitted proposals stay in the review queue. Use Update proposal to save changes.",
         );
+    } else if (input.submissionId) {
+      if (!authenticatedUser)
+        throw new HttpError(
+          401,
+          "authentication_required",
+          "Sign in again to update this proposal.",
+        );
+      const existing = await db
+        .prepare(
+          `SELECT s.id,s.status FROM submissions s
+           JOIN submission_people p ON p.submission_id=s.id AND p.role='primary'
+           WHERE s.id=? AND s.form_id=?
+             AND (p.user_id=? OR p.email=? COLLATE NOCASE)`,
+        )
+        .bind(
+          input.submissionId,
+          form.id,
+          authenticatedUser.id,
+          authenticatedUser.email,
+        )
+        .first<{ id: string; status: string }>();
+      if (!existing)
+        throw new HttpError(
+          404,
+          "submission_not_found",
+          "This proposal is not available to your account.",
+        );
+      if (["accepted", "declined", "withdrawn"].includes(existing.status))
+        throw new HttpError(
+          409,
+          "submission_locked",
+          "This submission can no longer be edited.",
+        );
+      if (form.editClosesAt && now > form.editClosesAt)
+        throw new HttpError(
+          409,
+          "edit_deadline_passed",
+          "The editing deadline has passed.",
+        );
+      submissionId = existing.id;
+      previousStatus = existing.status;
+      rawEditToken = randomToken();
     } else {
       if (form.submissionLimit) {
         const count = await db
@@ -596,13 +712,38 @@ router.post(
           .bind(submissionId, trackId),
       ),
     ];
-    if (input.editToken) {
+    const existingSubmission = Boolean(input.editToken || input.submissionId);
+    const coauthorStatements = [
+      db
+        .prepare(
+          "DELETE FROM submission_people WHERE submission_id=? AND role='coauthor'",
+        )
+        .bind(submissionId),
+      ...input.coSubmitters.map((person, position) =>
+        db
+          .prepare(
+            `INSERT INTO submission_people
+              (id,submission_id,email,name,role,organization,position)
+             VALUES(?,?,?,?,'coauthor',?,?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            submissionId,
+            person.email,
+            person.name,
+            person.organization ?? null,
+            position + 1,
+          ),
+      ),
+    ];
+    if (existingSubmission) {
       await db.batch([
         db
           .prepare(
-            "UPDATE submissions SET title = ?, abstract = ?, format=?, duration_minutes=?, status = ?, answers_json = ?, submitted_at = CASE WHEN ? = 'pending' THEN COALESCE(submitted_at, ?) ELSE submitted_at END, updated_at = ? WHERE id = ?",
+            "UPDATE submissions SET edit_token_hash=?, title = ?, abstract = ?, format=?, duration_minutes=?, status = ?, answers_json = ?, submitted_at = CASE WHEN ? = 'pending' THEN COALESCE(submitted_at, ?) ELSE submitted_at END, updated_at = ? WHERE id = ?",
           )
           .bind(
+            await sha256(rawEditToken!),
             title,
             abstract,
             metadata.format,
@@ -616,14 +757,16 @@ router.post(
           ),
         db
           .prepare(
-            "UPDATE submission_people SET email = ?, name = ?, organization = ? WHERE submission_id = ? AND role = 'primary'",
+            "UPDATE submission_people SET user_id=COALESCE(user_id,?), email = ?, name = ?, organization = ? WHERE submission_id = ? AND role = 'primary'",
           )
           .bind(
+            authenticatedUser?.id ?? null,
             input.submitter.email,
             input.submitter.name,
             input.submitter.organization ?? null,
             submissionId,
           ),
+        ...coauthorStatements,
         ...trackStatements,
       ]);
     } else {
@@ -647,15 +790,17 @@ router.post(
           ),
         db
           .prepare(
-            "INSERT INTO submission_people (id, submission_id, email, name, role, organization) VALUES (?, ?, ?, ?, 'primary', ?)",
+            "INSERT INTO submission_people (id, submission_id, user_id, email, name, role, organization) VALUES (?, ?, ?, ?, ?, 'primary', ?)",
           )
           .bind(
             crypto.randomUUID(),
             submissionId,
+            authenticatedUser?.id ?? null,
             input.submitter.email,
             input.submitter.name,
             input.submitter.organization ?? null,
           ),
+        ...coauthorStatements,
         ...trackStatements,
       ]);
     }
@@ -774,7 +919,7 @@ router.post(
         emailQueued,
         emailSent: false,
       },
-      input.editToken ? 200 : 201,
+      existingSubmission ? 200 : 201,
     );
   },
 );
@@ -818,6 +963,13 @@ router.post(
       Boolean(
         form.editClosesAt && new Date().toISOString() > form.editClosesAt,
       );
+    const coauthors = await db
+      .prepare(
+        `SELECT name,email,organization FROM submission_people
+         WHERE submission_id=? AND role='coauthor' ORDER BY position,id`,
+      )
+      .bind(submission.id)
+      .all<{ name: string; email: string; organization: string | null }>();
     return context.json({
       submission: {
         ...submission,
@@ -828,6 +980,10 @@ router.post(
           email: submission.email,
           organization: submission.organization,
         },
+        coSubmitters: coauthors.results.map((person) => ({
+          ...person,
+          organization: person.organization ?? "",
+        })),
         locked,
       },
     });

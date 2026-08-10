@@ -428,6 +428,7 @@ export function SubmissionWorkspaceGrid({
       });
     } catch (cause) {
       setError((cause as Error).message);
+      setPreview(undefined);
     } finally {
       setBusy(false);
     }
@@ -539,6 +540,7 @@ export function SubmissionWorkspaceGrid({
       setPreview(result.preview);
     } catch (cause) {
       setError((cause as Error).message);
+      setPreview(undefined);
     } finally {
       setBusy(false);
     }
@@ -572,6 +574,7 @@ export function SubmissionWorkspaceGrid({
       });
     } catch (cause) {
       setError((cause as Error).message);
+      setPreview(undefined);
     } finally {
       setBusy(false);
     }
@@ -1206,7 +1209,12 @@ export function SubmissionWorkspaceGrid({
         </button>
       </div>
       {preview && (
-        <div className="modal-backdrop">
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPreview(undefined);
+          }}
+        >
           <section
             className="bulk-preview"
             role="dialog"

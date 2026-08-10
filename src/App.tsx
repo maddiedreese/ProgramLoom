@@ -7,11 +7,7 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import {
-  type FormEvent,
-  useEffect,
-  useState,
-} from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Dashboard } from "./app/Dashboard";
 import { InvitePage } from "./app/InvitePage";
@@ -42,6 +38,29 @@ function LoadingRoute({ label }: { label: string }) {
       {label}
     </main>
   );
+}
+
+function EscapeDismissController() {
+  useEffect(() => {
+    function dismiss(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      const layers = [
+        ...document.querySelectorAll<HTMLElement>(
+          '[role="dialog"], .detail-backdrop, .modal-backdrop, .crm-modal-backdrop',
+        ),
+      ].filter((layer) => layer.getClientRects().length > 0);
+      const layer = layers.at(-1);
+      const close = layer?.querySelector<HTMLButtonElement>(
+        'button[aria-label="Close"], button[aria-label^="Close "], button[data-dismiss]',
+      );
+      if (!close) return;
+      event.preventDefault();
+      close.click();
+    }
+    document.addEventListener("keydown", dismiss);
+    return () => document.removeEventListener("keydown", dismiss);
+  }, []);
+  return null;
 }
 
 const capabilities = [
@@ -383,20 +402,16 @@ function AuthenticatedPage({
   else if (page === "submissions")
     content = <EventSubmissions user={session.user} />;
   else if (page === "reviews") content = <EventReviews user={session.user} />;
-  else if (page === "speakers")
-    content = <EventSpeakers user={session.user} />;
-  else if (page === "content")
-    content = <EventContent user={session.user} />;
+  else if (page === "speakers") content = <EventSpeakers user={session.user} />;
+  else if (page === "content") content = <EventContent user={session.user} />;
   else if (page === "agenda") content = <EventAgenda user={session.user} />;
   else if (page === "widgets") content = <EventWidgets user={session.user} />;
   else if (page === "communications")
     content = <EventCommunications user={session.user} />;
-  else if (page === "calendar")
-    content = <EventCalendar user={session.user} />;
+  else if (page === "calendar") content = <EventCalendar user={session.user} />;
   else if (page === "control-room")
     content = <EventControlRoom user={session.user} />;
-  else if (page === "crm")
-    content = <CRMPage user={session.user} />;
+  else if (page === "crm") content = <CRMPage user={session.user} />;
   else content = <Dashboard user={session.user} />;
   return (
     <>
@@ -416,82 +431,85 @@ function PublicCfpAlias() {
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/" element={<MarketingPage />} />
-      <Route path="/login" element={<EntryPage mode="login" />} />
-      <Route path="/register" element={<EntryPage mode="register" />} />
-      <Route path="/invite" element={<InvitePage />} />
-      <Route path="/cfp" element={<PublicCfpDirectory />} />
-      <Route
-        path="/cfp/:organizationSlug/:eventSlug/:formSlug"
-        element={<PublicCfpAlias />}
-      />
-      <Route path="/privacy" element={<LegalPage kind="privacy" />} />
-      <Route path="/terms" element={<LegalPage kind="terms" />} />
-      <Route
-        path="/c/:organizationSlug/:eventSlug/:formSlug"
-        element={<PublicCfpPage />}
-      />
-      <Route
-        path="/interest/:organizationSlug/:formSlug"
-        element={<PublicInterestPage />}
-      />
-      <Route path="/embed/:publicKey" element={<PublicWidgetPage />} />
-      <Route
-        path="/action/submission-edit"
-        element={<SubmissionEditActionPage />}
-      />
-      <Route path="/app" element={<AuthenticatedPage page="dashboard" />} />
-      <Route path="/dashboard" element={<Navigate to="/app" replace />} />
-      <Route path="/admin" element={<Navigate to="/app" replace />} />
-      <Route path="/organizer" element={<Navigate to="/app" replace />} />
-      <Route path="/app/team" element={<AuthenticatedPage page="team" />} />
-      <Route path="/app/crm" element={<AuthenticatedPage page="crm" />} />
-      <Route
-        path="/app/events/:eventId"
-        element={<AuthenticatedPage page="event" />}
-      />
-      <Route
-        path="/app/events/:eventId/submissions"
-        element={<AuthenticatedPage page="submissions" />}
-      />
-      <Route
-        path="/app/events/:eventId/reviews"
-        element={<AuthenticatedPage page="reviews" />}
-      />
-      <Route
-        path="/app/events/:eventId/speakers"
-        element={<AuthenticatedPage page="speakers" />}
-      />
-      <Route
-        path="/app/events/:eventId/speaker"
-        element={<AuthenticatedPage page="speakers" />}
-      />
-      <Route
-        path="/app/events/:eventId/content"
-        element={<AuthenticatedPage page="content" />}
-      />
-      <Route
-        path="/app/events/:eventId/agenda"
-        element={<AuthenticatedPage page="agenda" />}
-      />
-      <Route
-        path="/app/events/:eventId/widgets"
-        element={<AuthenticatedPage page="widgets" />}
-      />
-      <Route
-        path="/app/events/:eventId/communications"
-        element={<AuthenticatedPage page="communications" />}
-      />
-      <Route
-        path="/app/events/:eventId/calendar"
-        element={<AuthenticatedPage page="calendar" />}
-      />
-      <Route
-        path="/app/events/:eventId/control-room"
-        element={<AuthenticatedPage page="control-room" />}
-      />
-      <Route path="*" element={<MarketingPage />} />
-    </Routes>
+    <>
+      <EscapeDismissController />
+      <Routes>
+        <Route path="/" element={<MarketingPage />} />
+        <Route path="/login" element={<EntryPage mode="login" />} />
+        <Route path="/register" element={<EntryPage mode="register" />} />
+        <Route path="/invite" element={<InvitePage />} />
+        <Route path="/cfp" element={<PublicCfpDirectory />} />
+        <Route
+          path="/cfp/:organizationSlug/:eventSlug/:formSlug"
+          element={<PublicCfpAlias />}
+        />
+        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+        <Route path="/terms" element={<LegalPage kind="terms" />} />
+        <Route
+          path="/c/:organizationSlug/:eventSlug/:formSlug"
+          element={<PublicCfpPage />}
+        />
+        <Route
+          path="/interest/:organizationSlug/:formSlug"
+          element={<PublicInterestPage />}
+        />
+        <Route path="/embed/:publicKey" element={<PublicWidgetPage />} />
+        <Route
+          path="/action/submission-edit"
+          element={<SubmissionEditActionPage />}
+        />
+        <Route path="/app" element={<AuthenticatedPage page="dashboard" />} />
+        <Route path="/dashboard" element={<Navigate to="/app" replace />} />
+        <Route path="/admin" element={<Navigate to="/app" replace />} />
+        <Route path="/organizer" element={<Navigate to="/app" replace />} />
+        <Route path="/app/team" element={<AuthenticatedPage page="team" />} />
+        <Route path="/app/crm" element={<AuthenticatedPage page="crm" />} />
+        <Route
+          path="/app/events/:eventId"
+          element={<AuthenticatedPage page="event" />}
+        />
+        <Route
+          path="/app/events/:eventId/submissions"
+          element={<AuthenticatedPage page="submissions" />}
+        />
+        <Route
+          path="/app/events/:eventId/reviews"
+          element={<AuthenticatedPage page="reviews" />}
+        />
+        <Route
+          path="/app/events/:eventId/speakers"
+          element={<AuthenticatedPage page="speakers" />}
+        />
+        <Route
+          path="/app/events/:eventId/speaker"
+          element={<AuthenticatedPage page="speakers" />}
+        />
+        <Route
+          path="/app/events/:eventId/content"
+          element={<AuthenticatedPage page="content" />}
+        />
+        <Route
+          path="/app/events/:eventId/agenda"
+          element={<AuthenticatedPage page="agenda" />}
+        />
+        <Route
+          path="/app/events/:eventId/widgets"
+          element={<AuthenticatedPage page="widgets" />}
+        />
+        <Route
+          path="/app/events/:eventId/communications"
+          element={<AuthenticatedPage page="communications" />}
+        />
+        <Route
+          path="/app/events/:eventId/calendar"
+          element={<AuthenticatedPage page="calendar" />}
+        />
+        <Route
+          path="/app/events/:eventId/control-room"
+          element={<AuthenticatedPage page="control-room" />}
+        />
+        <Route path="*" element={<MarketingPage />} />
+      </Routes>
+    </>
   );
 }
