@@ -1,97 +1,67 @@
 # ProgramLoom competition submission
 
-![ProgramLoom marketing site](assets/programloom-hero.png)
+ProgramLoom shows organizers exactly what is blocking their program, gives them the tools to resolve it, and carries every accepted proposal safely through communication, onboarding, scheduling, publication, and follow-up.
 
-## Submission fields
+- Product: ProgramLoom
+- Marketing: <https://programloom.com>
+- Application: <https://app.programloom.com>
+- Source: <https://github.com/maddiedreese/SaaS>
+- License: GNU AGPL-3.0-only
+- Transactional sender: `ProgramLoom <notifications@mail.programloom.com>`
 
-**Product:** ProgramLoom
+## Product narrative
 
-**One-line description:** A free, open-source program operations workspace that carries an event from CFP through review, speakers, content, scheduling, and public publishing.
+The Organizer Control Room is the center of ProgramLoom. It prioritizes live blockers and links directly to the workflow or record that resolves each one. A proposal proceeds through assignment and review before an organizer stages a decision. Staging changes program state but sends nothing. The Communications Center separately previews the real recipients and delivers the decision. An acceptance then creates the connected speaker, session, portal, onboarding, content, notification, audit, and communication records needed to carry the work into scheduling, calendar delivery, agenda publication, attendee widgets, and follow-up.
 
-**Marketing site:** <https://programloom.com>
+## Uninterrupted evaluator walkthrough
 
-**Application:** <https://app.programloom.com>
+Use one coherent production-readiness event and the prescribed organizer, reviewer, and speaker personas. Keep generated state between steps; isolate disposable conflict/failure/cancellation records from the polished public program.
 
-**Source:** <https://github.com/maddiedreese/SaaS>
+1. State the product promise above in one sentence.
+2. From the dashboard, create the event from a maintained reusable template. Preview selected configuration and excluded private/history domains before confirming.
+3. Open **Call for proposals**, customize the duplicated form, and publish it. Open its working public route.
+4. Submit a proposal as the speaker persona, return as organizer, and locate it in **Submissions** using search and filters.
+5. Configure useful columns, save a personal review-readiness view, share an organization view, and reopen it.
+6. Choose **Assign reviewers**, assign the reviewer, switch personas, and complete the scorecard. Return as organizer.
+7. Open the proposal and choose **Stage acceptance**. Show the persistent **Staged, not sent** state; no email has been requested yet.
+8. Choose **Preview recipients and send decision**. In **Communications**, verify merge fields against the real recipient and send through the Queue-backed outbox.
+9. Show the automatically connected speaker, session, portal access, onboarding task, audit event, notification, and communication timeline.
+10. As the speaker, update the profile, complete onboarding, and upload the requested headshot, slides, and content. Return as organizer and show corresponding Control Room blockers disappearing.
+11. Approve the content and schedule the session. Deliver the initial calendar invitation from **Calendar lifecycle**.
+12. Change its time and room. Show the same UID, higher sequence, and in-place update evidence.
+13. Introduce a real room or speaker conflict, open the explicit conflict workflow, resolve it, and show the Control Room count reconcile.
+14. Choose **Publish agenda** and demonstrate all five anonymous public widgets: sessions, speaker directory, agenda, itinerary, and speaker gallery. Exercise details, multi-day navigation, search/filter counts, two itinerary additions, reload persistence, removal, ICS export, and live configuration propagation.
+15. Open the command palette with the visible Search control and macOS **Command+K**. Find the same speaker, session, file, and communication; exercise safe quick-action routing.
+16. Show Airtable health at zero pending, zero failed, and zero open conflicts, with the relevant stable external records present.
+17. Cancel an isolated disposable session. Show its higher-sequence `CANCEL`, removal from public surfaces, notification, audit, communication, and Control Room consequences. Demonstrate explicit rescheduling after cancellation only if the scenario calls for it.
+18. End in the Control Room, refresh, reconcile its counts with the underlying records, and show a clear or intentionally explained state.
 
-**License:** GNU AGPL-3.0-only
+The recording should remain one continuous story: no unexplained fixture switching, undocumented URLs, hidden controls, long setup detours, or claims that are not visible on screen.
 
-**Primary domain:** `programloom.com`
+## What is production-backed
 
-**Transactional sender:** `ProgramLoom <notifications@mail.programloom.com>`
+- D1 persists multi-tenant identity, authorization, workflow, audit, message, calendar, notification, search-view, integration and recovery state.
+- R2 stores real private upload versions and generated exports; no required file workflow depends on client-only or demo persistence.
+- Cloudflare Queue processes real idempotent communication and Airtable work with bounded retries and durable failure state.
+- Resend messages preserve prepared, queued, processing, sent, delivered when evidenced, bounced, failed and cancelled as distinct states.
+- Airtable-authoritative workspaces use stable external identifiers, an outbox, webhook reconciliation, visible health, conflict-safe retry and recovery.
+- PostHog receives explicit product events without query text, message bodies, tokens, or personal data. Structured Cloudflare logs and Workers Observability provide operational evidence without Sentry.
+- Calendar invitations use stable UIDs, increasing sequences, standards-compliant request/cancel bytes and distinct participant-addressed delivery history.
+- Every public widget is anonymous, responsive, accessible and generated from current persisted organizer records.
 
-## Short submission copy
+## Exact evidence policy
 
-ProgramLoom replaces the disconnected forms, spreadsheets, inbox threads, and schedule documents behind an event program. Organizers can publish conditional CFPs, run multi-round blind review, make and email decisions, onboard speakers, collect and version content, build a conflict-aware multi-day agenda, and publish five responsive attendee widgets. A cross-event speaker CRM, Airtable-authoritative mode, Workers AI assistance, PostHog analytics, Turnstile protection, and structured Cloudflare observability are included. The product is multi-tenant, mobile-accessible, fully persistent, free to use, and AGPL-3.0 open source.
+The committed [production manifest](evidence/production-manifest.json) defines the sanitized schema. The populated final manifest remains in the restricted evidence bundle outside source. With `PROGRAMLOOM_EVIDENCE_MANIFEST` set to that file, the final `npm run verify:evidence -- --final` command must match local `HEAD` to production health and reject stale checklist or release claims.
 
-## Judge-facing walkthrough
+Email provider acceptance is not described as delivery unless the provider supplies delivery evidence. Performance evidence names its route, production environment, Cloudflare region, device, sample size and measurement method. Gmail and Apple Calendar are the only tested calendar clients. Outlook is explicitly waived and untested because no account is available.
 
-Run the product in this order so every handoff supplies the next module with real data:
-
-1. **Organizer foundation:** Open the existing DevFlow Conf 2027 event in the DevFlow Programs workspace. Confirm its May 12–14 dates, America/Los_Angeles timezone, and Moscone West venue.
-2. **CFP:** Add the three fixture tracks, build the fixture form with multiple field types and conditional workshop prerequisites, configure deadlines, and publish. Open its public URL signed out; validate required fields, save a draft, submit, and edit with the private token.
-3. **Review and decisions:** Configure two independent blind-review rounds with weighted scorecards, invite/assign the reviewer, score as that reviewer, recuse where appropriate, inspect aggregates/export, and return as organizer. Queue and send a personalized decision. The accepted proposal becomes a session and speaker without re-entry.
-4. **Speaker operations:** Accept the invite as the speaker. Update public profile and private logistics, complete tasks, read a sanitized resource, and upload headshot/slides. Return as organizer to review status, comments, versions, reminders, and approvals.
-5. **Content:** Edit session/speaker content, inspect and restore history, exchange file comments, approve only final material, create an expiring share link, and download the latest-only grouped ZIP.
-6. **Agenda:** Add rooms/tracks and non-session blocks. Place sessions by drag/drop or accessible selection, provoke both room and shared-speaker conflicts, use assisted scheduling, clear/move an item, and publish only after the program is complete and conflict-free.
-7. **Public widgets:** Configure sessions, speakers, agenda, itinerary, and gallery widgets. Verify anonymous search/filter/details, live configuration propagation, device-persistent itinerary selection, JSON/XML/iCal feeds, and a calendar import.
-8. **Speaker CRM:** Use the organization-level directory, import CSV/XLSX, map fields, search/filter, merge a duplicate, create a segment, move a sourced speaker through the eight-stage pipeline with notes/history, hand them into an event, publish an interest form, and inspect outreach and analytics.
-
-## What is real
-
-- D1 holds tenant identity, authorization, audits, and workflow state; R2 holds private files and generated archives; Queue handles durable integration work.
-- Airtable-authoritative workspaces write through a durable outbox and HMAC webhook reconciliation to a dedicated ten-table base. Sync state, retries, and conflicts are visible to owners/admins.
-- Resend sends transactional authentication, invitation, confirmation, decision, reminder, and outreach messages from the verified ProgramLoom domain.
-- Workers AI produces review and content assistance with stored reasoning, original values, explicit human override/apply actions, and free-tier guards. Agenda assistance is deterministic and conflict-aware.
-- PostHog uses explicit product events and identified-only profiles with no session recording or autocapture. Operational failures are structured JSON in Cloudflare Workers Observability.
-- Turnstile protects anonymous write surfaces. Sessions, invitations, edit tokens, and share links are hashed, expiring, scoped, and revocable.
-
-## Verification summary
-
-- The exact upstream evaluator validates 7 areas, 20 ordered scenarios, and all 96 rubric items with optional scope included.
-- Local and GitHub CI run the locked install, TypeScript checks, 30 automated tests, and production build.
-- Repeatable local protocols exercise CRM and the two-role content/file lifecycle against Worker, D1, and R2—not mocks.
-- Production probes verify health, headers, role isolation, Airtable round trips, authenticated boundaries, public boundaries, legal pages, and custom domains.
-- Axe-core reports zero WCAG 2 A/AA/2.1 AA violations and zero horizontal overflow across twelve desktop/mobile production layouts.
-- The current core application is 106.85 KB gzipped; heavier CRM, speaker, content, legal, and spreadsheet features load only when requested.
-
-Full criterion-by-criterion implementation and evidence notes live in [evaluation-matrix.md](evaluation-matrix.md). Reproduction, deployment, recovery, and evaluator procedures live in [runbook.md](runbook.md).
-
-## Architecture summary
-
-```text
-Browser / embedded widget
-          |
-          v
-Cloudflare Worker + React assets
-    |       |       |       |
-    v       v       v       v
-   D1      R2     Queue   Workers AI
-    |               |
-    +---- outbox ----+----> Airtable
-    |
-    +----> Resend email
-    +----> structured Cloudflare logs
-
-Browser ---- explicit product events ----> PostHog
-```
+The final evaluator report classifies each failed criterion as a genuine product defect, missing evidence, evaluator navigation failure, unsupported manual environment, or incorrect evaluator inference. Genuine defects and missing evidence must be closed before submission. Full run artifacts, private screenshots, manual checklist, inbox evidence, authentication state and OpenRouter spend ledger remain outside committed source.
 
 ## Scope decisions
 
-- GitHub is the public source host because the competition Forge alpha was full.
-- Accelevents integration is excluded because it requires paid access.
-- Operational monitoring uses existing structured logs and Cloudflare Workers Observability; no third-party error collector is installed.
-- No paid resource is enabled or consumed without the account owner’s explicit approval.
+- GitHub is the public source host because the Forge alpha was full.
+- Accelevents is excluded because it requires paid access.
+- Sentry is not used; structured logs and Cloudflare Workers Observability are the operational source.
+- No paid service, resource or plan change is allowed without owner approval. The final evaluator obeys the approved fresh OpenRouter ceiling.
 
-## Final-submission checklist
-
-- [x] Production marketing and application domains
-- [x] AGPL-3.0 source repository and CI
-- [x] Official DevFlow Conf 2027 baseline and isolated personas
-- [x] Airtable, Cloudflare, Resend, Turnstile, Workers AI, and PostHog configuration
-- [x] Architecture, data model, Airtable, evaluation, security, and runbook documentation
-- [x] Privacy and Terms pages
-- [x] Free evaluator browser smoke and 96-rubric dry run
-- [ ] Full paid ordered evaluator report (partial paid area reports retained; final rerun pending)
-- [x] Manual real-inbox, Gmail/Apple calendar, archive, and second-account evidence (Outlook explicitly waived)
-- [ ] Finalized report and competition form submission
+See the [parity map](parity-map.md), [production evidence index](evidence/README.md), [traceability matrix](evaluation-matrix.md), and [operator runbook](runbook.md).

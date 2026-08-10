@@ -2,6 +2,8 @@ export interface Env {
   APP_ENV: string;
   APP_URL: string;
   MARKETING_URL: string;
+  RELEASE_COMMIT?: string;
+  CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
   EMAIL_FROM?: string;
   EMAIL_REPLY_TO?: string;
   RESEND_API_KEY?: string;

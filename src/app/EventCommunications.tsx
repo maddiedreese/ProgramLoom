@@ -21,6 +21,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { captureProductEvent } from "../lib/telemetry";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 
 type User = { id: string; email: string; name: string };
 type Template = {
@@ -511,29 +512,7 @@ export function EventCommunications({ user }: { user: User }) {
             <strong>{overview?.event.name ?? "Communications"}</strong>
           </div>
         </div>
-        <nav className="event-nav" aria-label="Event workspace">
-          <a href={`/app/events/${eventId}/submissions`}>
-            <Inbox size={18} /> Submissions
-          </a>
-          <a href={`/app/events/${eventId}/reviews`}>
-            <UserRoundCheck size={18} /> Reviews
-          </a>
-          <a href={`/app/events/${eventId}/speakers`}>
-            <UsersRound size={18} /> Speakers
-          </a>
-          <a href={`/app/events/${eventId}/content`}>
-            <FileText size={18} /> Content
-          </a>
-          <a href={`/app/events/${eventId}/agenda`}>
-            <CalendarClock size={18} /> Agenda
-          </a>
-          <a href={`/app/events/${eventId}/widgets`}>
-            <Code2 size={18} /> Public widgets
-          </a>
-          <a className="active" href={`/app/events/${eventId}/communications`}>
-            <Mail size={18} /> Communications
-          </a>
-        </nav>
+        <EventLifecycleNav eventId={eventId} active="communications" />
         <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="event-main communications-main">

@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { captureProductEvent } from "../lib/telemetry";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 
 type User = { id: string; email: string; name: string };
 type Issue = {
@@ -212,6 +213,7 @@ export function EventControlRoom({ user }: { user: User }) {
   }
 
   const blocking = overview?.severityCounts.blocking ?? 0;
+  const nextIssue = overview?.items[0];
   return (
     <div className="workspace-shell event-workspace">
       <aside className="workspace-sidebar event-sidebar">
@@ -221,63 +223,12 @@ export function EventControlRoom({ user }: { user: User }) {
         <a className="back-link" href="/app">
           <ArrowLeft size={15} /> All events
         </a>
-        <label className="control-mobile-nav">
-          <span>Event workspace</span>
-          <select
-            aria-label="Event workspace"
-            value="control-room"
-            onChange={(event) => {
-              window.location.href =
-                event.target.value === "cfp"
-                  ? `/app/events/${eventId}`
-                  : `/app/events/${eventId}/${event.target.value}`;
-            }}
-          >
-            <option value="control-room">Control Room</option>
-            <option value="cfp">Call for proposals</option>
-            <option value="submissions">Submissions</option>
-            <option value="reviews">Reviews</option>
-            <option value="speakers">Speakers</option>
-            <option value="content">Content</option>
-            <option value="agenda">Agenda</option>
-            <option value="widgets">Public widgets</option>
-            <option value="communications">Communications</option>
-          </select>
-        </label>
         <div className="event-identity">
           <small>Organizer workspace</small>
           <strong>{overview?.event.name ?? "Event"}</strong>
           <span>operations</span>
         </div>
-        <nav className="event-nav" aria-label="Event workspace">
-          <a className="active" href={`/app/events/${eventId}/control-room`}>
-            <Gauge size={18} /> Control Room
-          </a>
-          <a href={`/app/events/${eventId}`}>
-            <FileInput size={18} /> Call for proposals
-          </a>
-          <a href={`/app/events/${eventId}/submissions`}>
-            <Inbox size={18} /> Submissions
-          </a>
-          <a href={`/app/events/${eventId}/reviews`}>
-            <CheckCircle2 size={18} /> Reviews
-          </a>
-          <a href={`/app/events/${eventId}/speakers`}>
-            <UsersRound size={18} /> Speakers
-          </a>
-          <a href={`/app/events/${eventId}/content`}>
-            <Files size={18} /> Content
-          </a>
-          <a href={`/app/events/${eventId}/agenda`}>
-            <CalendarClock size={18} /> Agenda
-          </a>
-          <a href={`/app/events/${eventId}/widgets`}>
-            <Code2 size={18} /> Public widgets
-          </a>
-          <a href={`/app/events/${eventId}/communications`}>
-            <Mail size={18} /> Communications
-          </a>
-        </nav>
+        <EventLifecycleNav eventId={eventId} active="control-room" />
         <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="event-main control-room-main">
@@ -303,6 +254,61 @@ export function EventControlRoom({ user }: { user: User }) {
             <button onClick={() => void load()}>Try again</button>
           </div>
         )}
+        <section className="control-room-story" aria-label="Program lifecycle">
+          <div>
+            <p className="kicker">One connected program</p>
+            <h2>
+              Resolve what blocks readiness, then carry the program forward.
+            </h2>
+            <p>
+              ProgramLoom shows organizers exactly what is blocking their
+              program, gives them the tools to resolve it, and carries every
+              accepted proposal safely through communication, onboarding,
+              scheduling, publication, and follow-up.
+            </p>
+          </div>
+          <ol>
+            <li>
+              <a href={`/app/events/${eventId}/submissions`}>1. Proposals</a>
+            </li>
+            <li>
+              <a href={`/app/events/${eventId}/reviews`}>2. Reviews</a>
+            </li>
+            <li>
+              <a href={`/app/events/${eventId}/communications`}>
+                3. Decisions & delivery
+              </a>
+            </li>
+            <li>
+              <a href={`/app/events/${eventId}/speakers`}>
+                4. Speakers & onboarding
+              </a>
+            </li>
+            <li>
+              <a href={`/app/events/${eventId}/content`}>5. Content approval</a>
+            </li>
+            <li>
+              <a href={`/app/events/${eventId}/agenda`}>
+                6. Schedule & publish
+              </a>
+            </li>
+          </ol>
+          <div className="control-next-action">
+            <strong>
+              {nextIssue ? "Next highest-priority action" : "Program is clear"}
+            </strong>
+            <span>
+              {nextIssue
+                ? `${nextIssue.title} · ${nextIssue.detail}`
+                : "No open work matches the current filters."}
+            </span>
+            {nextIssue && (
+              <a className="button button-small" href={nextIssue.actionUrl}>
+                Resolve this blocker
+              </a>
+            )}
+          </div>
+        </section>
         <section
           className="control-room-summary"
           aria-label="Operational summary"

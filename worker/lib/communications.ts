@@ -98,6 +98,21 @@ export function prepareCommunicationStatement(
     );
 }
 
+export function cancelCommunicationJobsStatement(
+  db: D1Database,
+  messageId: string,
+) {
+  return db
+    .prepare(
+      `UPDATE operational_jobs
+       SET status='cancelled',completed_at=COALESCE(completed_at,CURRENT_TIMESTAMP),
+           updated_at=CURRENT_TIMESTAMP
+       WHERE job_kind='communication_send' AND entity_type='communication'
+         AND entity_id=? AND status IN ('queued','processing','retrying','exhausted')`,
+    )
+    .bind(messageId);
+}
+
 export async function enqueueCommunication(
   env: Env,
   messageId: string,

@@ -104,6 +104,7 @@ export function PublicCfpPage() {
   const [status, setStatus] = useState<string>();
   const [locked, setLocked] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string>();
+  const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -112,6 +113,13 @@ export function PublicCfpPage() {
   }>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
+
+  useEffect(() => {
+    fetch("/api/auth/session", { credentials: "same-origin" })
+      .then((response) => response.json())
+      .then((result: { user?: unknown }) => setSignedIn(Boolean(result.user)))
+      .catch(() => setSignedIn(false));
+  }, []);
 
   useEffect(() => {
     api<{ form: PublicForm; fields: Field[]; conditions: Condition[] }>(apiPath)
@@ -158,6 +166,8 @@ export function PublicCfpPage() {
       )
       .finally(() => setLoading(false));
   }, [apiPath]);
+
+  const requiresSecurityCheck = Boolean(siteKey && !signedIn);
 
   const fieldById = useMemo(
     () => new Map(fields.map((field) => [field.id, field])),
@@ -547,7 +557,7 @@ export function PublicCfpPage() {
                 );
               },
             )}
-            {siteKey && (
+            {requiresSecurityCheck && (
               <Turnstile
                 siteKey={siteKey}
                 onSuccess={setTurnstileToken}
@@ -555,20 +565,26 @@ export function PublicCfpPage() {
                 options={{ theme: "light" }}
               />
             )}
+            {requiresSecurityCheck && !turnstileToken && (
+              <p className="security-check-status" role="status">
+                Complete the security check above to enable Save draft and
+                Submit proposal. Signed-in contributors skip this check.
+              </p>
+            )}
             <div className="public-form-actions">
               {form.allowDrafts && status !== "pending" && (
                 <button
                   type="button"
                   className="button button-ghost button-large"
                   onClick={(event) => save(event, "draft")}
-                  disabled={busy || Boolean(siteKey && !turnstileToken)}
+                  disabled={busy || (requiresSecurityCheck && !turnstileToken)}
                 >
                   <Save size={17} /> Save draft
                 </button>
               )}
               <button
                 className="button button-large"
-                disabled={busy || Boolean(siteKey && !turnstileToken)}
+                disabled={busy || (requiresSecurityCheck && !turnstileToken)}
               >
                 {busy
                   ? "Saving…"

@@ -10,6 +10,7 @@ import {
   supportedCommunicationMergeFields,
 } from "../lib/communicationTemplates";
 import {
+  cancelCommunicationJobsStatement,
   enqueueCommunication,
   syncCrmCommunicationState,
 } from "../lib/communications";
@@ -879,6 +880,7 @@ router.post("/events/:eventId/messages/:messageId/cancel", async (context) => {
         "UPDATE communication_messages SET status='cancelled',cancelled_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?",
       )
       .bind(messageId),
+    cancelCommunicationJobsStatement(db, messageId),
     auditStatement(db, {
       organizationId: message.organizationId,
       eventId,

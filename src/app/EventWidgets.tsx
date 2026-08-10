@@ -16,6 +16,7 @@ import {
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 import { captureProductEvent } from "../lib/telemetry";
 
 type User = { id: string; email: string; name: string };
@@ -152,29 +153,7 @@ export function EventWidgets({ user }: { user: User }) {
           <small>{event?.organizationName}</small>
           <strong>{event?.name}</strong>
         </div>
-        <nav className="event-nav">
-          <a href={`/app/events/${eventId}`}>
-            <FileInput size={18} /> CFP
-          </a>
-          <a href={`/app/events/${eventId}/submissions`}>
-            <Inbox size={18} /> Submissions
-          </a>
-          <a href={`/app/events/${eventId}/reviews`}>
-            <CheckCircle2 size={18} /> Reviews
-          </a>
-          <a href={`/app/events/${eventId}/speakers`}>
-            <UsersRound size={18} /> Speakers
-          </a>
-          <a href={`/app/events/${eventId}/content`}>
-            <Files size={18} /> Content
-          </a>
-          <a href={`/app/events/${eventId}/agenda`}>
-            <CheckCircle2 size={18} /> Agenda
-          </a>
-          <a className="active" href={`/app/events/${eventId}/widgets`}>
-            <Code2 size={18} /> Public widgets
-          </a>
-        </nav>
+        <EventLifecycleNav eventId={eventId} active="widgets" />
         <SidebarUser user={user} />
       </aside>
       <main className="event-main widgets-main">

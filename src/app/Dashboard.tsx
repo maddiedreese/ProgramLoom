@@ -35,6 +35,7 @@ type EventRecord = {
   endsAt: string;
   venueName: string | null;
   status: string;
+  accessRole?: string;
 };
 type Feedback = { kind: "error" | "success"; message: string };
 type AirtableStatus = {
@@ -245,8 +246,15 @@ export function Dashboard({ user }: { user: User }) {
       <main id="main-content" className="workspace-main">
         <header className="workspace-header">
           <div>
-            <p className="kicker">Program workspace</p>
+            <p className="kicker">ProgramLoom workspace</p>
             <h1>{selected ? selected.name : "Welcome to ProgramLoom"}</h1>
+            {selected && canOrganize && (
+              <p>
+                Open an event's Control Room to see what blocks readiness and
+                move accepted proposals through delivery, onboarding,
+                scheduling, and publication.
+              </p>
+            )}
           </div>
           {canOrganize && selected && (
             <span
@@ -396,8 +404,21 @@ export function Dashboard({ user }: { user: User }) {
                     }).format(new Date(item.endsAt))}
                   </p>
                   <span>{item.venueName || "Venue to be confirmed"}</span>
-                  <a href={`/app/events/${item.id}`}>
-                    Open program <ArrowRight size={15} />
+                  <a
+                    href={`/app/events/${item.id}/${
+                      item.accessRole === "reviewer"
+                        ? "reviews"
+                        : item.accessRole === "speaker"
+                          ? "speakers"
+                          : "control-room"
+                    }`}
+                  >
+                    {item.accessRole === "reviewer"
+                      ? "Open review queue"
+                      : item.accessRole === "speaker"
+                        ? "Open speaker portal"
+                        : "Open Control Room"}{" "}
+                    <ArrowRight size={15} />
                   </a>
                   {selected && ["owner", "admin"].includes(selected.role) && (
                     <SaveEventTemplateButton

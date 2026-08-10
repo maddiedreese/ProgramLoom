@@ -133,6 +133,9 @@ export function PublicWidgetPage() {
   const [data, setData] = useState<Payload>();
   const [search, setSearch] = useState("");
   const [track, setTrack] = useState("");
+  const [expandedSession, setExpandedSession] = useState<string>();
+  const [expandedSpeaker, setExpandedSpeaker] = useState<string>();
+  const [showPersonalSchedule, setShowPersonalSchedule] = useState(false);
   const [saved, setSaved] = useState<string[]>(() => {
     try {
       return JSON.parse(
@@ -238,14 +241,20 @@ export function PublicWidgetPage() {
   const show = (field: string) => widget.config.fields.includes(field);
   const placementFor = (submissionId: string) =>
     data.agenda.find((item) => item.submissionId === submissionId);
-  const filteredSpeakers = data.speakers.filter((speaker) =>
-    `${speaker.firstName} ${speaker.lastName} ${speaker.jobTitle ?? ""} ${speaker.company ?? ""} ${speaker.bio ?? ""}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
+  const filteredSpeakers = data.speakers
+    .filter((speaker) =>
+      `${speaker.firstName} ${speaker.lastName} ${speaker.jobTitle ?? ""} ${speaker.company ?? ""} ${speaker.bio ?? ""}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+    )
+    .sort(
+      (left, right) =>
+        left.lastName.localeCompare(right.lastName) ||
+        left.firstName.localeCompare(right.firstName),
+    );
   return (
     <main
-      className={`public-widget theme-${widget.config.theme}`}
+      className={`public-widget widget-${widget.widgetType} theme-${widget.config.theme}`}
       style={
         { "--widget-color": widget.config.primaryColor } as React.CSSProperties
       }
@@ -303,8 +312,8 @@ export function PublicWidgetPage() {
           </p>
           <div className="widget-card-grid">
             {filteredSessions.map((session) => (
-              <details className="widget-card" key={session.id}>
-                <summary aria-label={`View details for ${session.title}`}>
+              <article className="widget-card" key={session.id}>
+                <div className="widget-card-summary">
                   <span className="widget-icon">
                     <UsersRound size={18} />
                   </span>
@@ -357,24 +366,49 @@ export function PublicWidgetPage() {
                             </span>
                           )}
                           {session.format && <span>{session.format}</span>}
+                          {show("track") && session.trackId && (
+                            <span>
+                              {data.tracks.find(
+                                (item) => item.id === session.trackId,
+                              )?.name || "Track"}
+                            </span>
+                          )}
                         </div>
                       );
                     })()}
-                    <small className="widget-detail-hint">View details</small>
+                    <button
+                      type="button"
+                      className="widget-detail-button"
+                      aria-expanded={expandedSession === session.id}
+                      onClick={() =>
+                        setExpandedSession((current) =>
+                          current === session.id ? undefined : session.id,
+                        )
+                      }
+                    >
+                      {expandedSession === session.id
+                        ? "Close details"
+                        : "View details"}
+                    </button>
                   </div>
-                </summary>
-                {show("abstract") && (
-                  <p>{session.abstract || "Details coming soon."}</p>
+                </div>
+                {expandedSession === session.id && (
+                  <div className="widget-card-expanded">
+                    {show("abstract") && (
+                      <p>{session.abstract || "Details coming soon."}</p>
+                    )}
+                    {show("track") && session.trackId && (
+                      <em>
+                        {
+                          data.tracks.find(
+                            (item) => item.id === session.trackId,
+                          )?.name
+                        }
+                      </em>
+                    )}
+                  </div>
                 )}
-                {show("track") && session.trackId && (
-                  <em>
-                    {
-                      data.tracks.find((item) => item.id === session.trackId)
-                        ?.name
-                    }
-                  </em>
-                )}
-              </details>
+              </article>
             ))}
           </div>
           {!filteredSessions.length && (
@@ -390,10 +424,8 @@ export function PublicWidgetPage() {
           </p>
           <div className="speaker-widget-grid">
             {filteredSpeakers.map((speaker) => (
-              <details key={speaker.id}>
-                <summary
-                  aria-label={`View profile for ${speaker.firstName} ${speaker.lastName}`}
-                >
+              <article key={speaker.id}>
+                <div className="speaker-card-summary">
                   {speaker.headshotUrl ? (
                     <img
                       src={speaker.headshotUrl}
@@ -425,35 +457,52 @@ export function PublicWidgetPage() {
                       }{" "}
                       sessions
                     </span>
-                    <small className="widget-detail-hint">View profile</small>
+                    <button
+                      type="button"
+                      className="widget-detail-button"
+                      aria-expanded={expandedSpeaker === speaker.id}
+                      onClick={() =>
+                        setExpandedSpeaker((current) =>
+                          current === speaker.id ? undefined : speaker.id,
+                        )
+                      }
+                    >
+                      {expandedSpeaker === speaker.id
+                        ? "Close profile"
+                        : "View profile"}
+                    </button>
                   </div>
-                </summary>
-                {show("bio") && (
-                  <p className="speaker-bio">
-                    {speaker.bio || "Biography coming soon."}
-                  </p>
-                )}
-                <div className="speaker-session-links">
-                  <strong>Sessions</strong>
-                  {data.sessions
-                    .filter((session) =>
-                      session.speakerIds.includes(speaker.id),
-                    )
-                    .map((session) => {
-                      const placement = placementFor(session.id);
-                      return (
-                        <span key={session.id}>
-                          <strong>{session.title}</strong>
-                          <small>
-                            {placement
-                              ? `${formatTime(placement.startsAt, event.timezone)}–${formatClock(placement.endsAt, event.timezone)} · ${placement.roomName || "Location TBA"}`
-                              : "Schedule to be announced"}
-                          </small>
-                        </span>
-                      );
-                    })}
                 </div>
-              </details>
+                {expandedSpeaker === speaker.id && (
+                  <div className="speaker-profile-detail">
+                    {show("bio") && (
+                      <p className="speaker-bio">
+                        {speaker.bio || "Biography coming soon."}
+                      </p>
+                    )}
+                    <div className="speaker-session-links">
+                      <strong>Sessions</strong>
+                      {data.sessions
+                        .filter((session) =>
+                          session.speakerIds.includes(speaker.id),
+                        )
+                        .map((session) => {
+                          const placement = placementFor(session.id);
+                          return (
+                            <span key={session.id}>
+                              <strong>{session.title}</strong>
+                              <small>
+                                {placement
+                                  ? `${formatTime(placement.startsAt, event.timezone)}–${formatClock(placement.endsAt, event.timezone)} · ${placement.roomName || "Location TBA"}`
+                                  : "Schedule to be announced"}
+                              </small>
+                            </span>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </article>
             ))}
           </div>
           {!filteredSpeakers.length && (
@@ -480,12 +529,29 @@ export function PublicWidgetPage() {
               <strong>{saved.length}</strong> sessions in your personal
               schedule. Saved on this device.
             </p>
-            <button onClick={downloadItinerary} disabled={!saved.length}>
-              <Download size={14} /> Export my ICS
-            </button>
+            <div>
+              <button
+                type="button"
+                className={showPersonalSchedule ? "active" : ""}
+                aria-pressed={showPersonalSchedule}
+                onClick={() => setShowPersonalSchedule((current) => !current)}
+                disabled={!saved.length}
+              >
+                {showPersonalSchedule
+                  ? "Show full program"
+                  : "Show my schedule only"}
+              </button>
+              <button onClick={downloadItinerary} disabled={!saved.length}>
+                <Download size={14} /> Export my ICS
+              </button>
+            </div>
           </div>
           <AgendaGrid
-            items={filteredAgenda}
+            items={
+              showPersonalSchedule
+                ? filteredAgenda.filter((item) => saved.includes(item.id))
+                : filteredAgenda
+            }
             sessions={data.sessions}
             speakers={data.speakers}
             timezone={event.timezone}
@@ -504,15 +570,16 @@ export function PublicWidgetPage() {
           </p>
           <div className="gallery-widget">
             {filteredSpeakers.map((speaker, index) => (
-              <details
+              <article
                 key={speaker.id}
                 className={`gallery-tile tile-${index % 3}`}
               >
-                <summary
-                  aria-label={`View profile for ${speaker.firstName} ${speaker.lastName}`}
-                >
+                <div className="gallery-card-summary">
                   {speaker.headshotUrl ? (
-                    <img src={speaker.headshotUrl} alt="" />
+                    <img
+                      src={speaker.headshotUrl}
+                      alt={`${speaker.firstName} ${speaker.lastName}`}
+                    />
                   ) : (
                     <UserRound size={36} />
                   )}
@@ -521,28 +588,47 @@ export function PublicWidgetPage() {
                     {speaker.firstName} {speaker.lastName}
                   </h2>
                   <p>{speaker.company || "Independent"}</p>
-                  <small>View profile</small>
-                </summary>
-                <p>{speaker.bio || "Biography coming soon."}</p>
-                <strong>Sessions</strong>
-                {data.sessions
-                  .filter((session) => session.speakerIds.includes(speaker.id))
-                  .map((session) => {
-                    const placement = placementFor(session.id);
-                    return (
-                      <p key={session.id}>
-                        <strong>{session.title}</strong>
-                        {placement && (
-                          <small>
-                            {formatTime(placement.startsAt, event.timezone)}–
-                            {formatClock(placement.endsAt, event.timezone)} ·{" "}
-                            {placement.roomName || "Location TBA"}
-                          </small>
-                        )}
-                      </p>
-                    );
-                  })}
-              </details>
+                  <button
+                    type="button"
+                    className="gallery-profile-button"
+                    aria-expanded={expandedSpeaker === speaker.id}
+                    onClick={() =>
+                      setExpandedSpeaker((current) =>
+                        current === speaker.id ? undefined : speaker.id,
+                      )
+                    }
+                  >
+                    {expandedSpeaker === speaker.id
+                      ? "Close profile"
+                      : "View profile"}
+                  </button>
+                </div>
+                {expandedSpeaker === speaker.id && (
+                  <div className="gallery-profile-detail">
+                    <p>{speaker.bio || "Biography coming soon."}</p>
+                    <strong>Sessions</strong>
+                    {data.sessions
+                      .filter((session) =>
+                        session.speakerIds.includes(speaker.id),
+                      )
+                      .map((session) => {
+                        const placement = placementFor(session.id);
+                        return (
+                          <p key={session.id}>
+                            <strong>{session.title}</strong>
+                            {placement && (
+                              <small>
+                                {formatTime(placement.startsAt, event.timezone)}
+                                –{formatClock(placement.endsAt, event.timezone)}{" "}
+                                · {placement.roomName || "Location TBA"}
+                              </small>
+                            )}
+                          </p>
+                        );
+                      })}
+                  </div>
+                )}
+              </article>
             ))}
           </div>
           {!filteredSpeakers.length && (
@@ -609,6 +695,9 @@ function AgendaGrid({
       className="agenda-widget"
       aria-label={itinerary ? "Personal itinerary program" : "Program agenda"}
     >
+      <p className="widget-result-count" aria-live="polite">
+        {items.length} {items.length === 1 ? "agenda entry" : "agenda entries"}
+      </p>
       <div className="agenda-day-tabs" role="tablist" aria-label="Event days">
         {days.map((day) => (
           <button

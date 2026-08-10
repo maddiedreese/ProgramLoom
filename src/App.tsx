@@ -101,18 +101,18 @@ function LoadingRoute({ label }: { label: string }) {
 const capabilities = [
   {
     icon: GalleryVerticalEnd,
-    title: "Shape the program",
-    body: "Collect proposals with conditional forms, route reviews, and make decisions with confidence.",
+    title: "Know what blocks readiness",
+    body: "Open the Control Room to see prioritized, live work and go directly to the record or workflow that resolves it.",
   },
   {
     icon: UsersRound,
-    title: "Take care of speakers",
-    body: "One calm portal for profiles, tasks, travel, files, feedback, and every deadline.",
+    title: "Carry every acceptance safely",
+    body: "Stage decisions separately from sending, then connect speaker access, onboarding, files, content, and communications.",
   },
   {
     icon: CalendarRange,
-    title: "Publish without collisions",
-    body: "Build a multi-track schedule, catch conflicts early, and publish live, embeddable views.",
+    title: "Schedule and publish with confidence",
+    body: "Resolve conflicts, maintain calendar invitations, and keep five attendee-ready public views synchronized with the agenda.",
   },
 ];
 
@@ -163,10 +163,12 @@ function MarketingPage() {
           <div className="eyebrow">
             <Sparkles size={15} /> The program workspace that keeps its promises
           </div>
-          <h1>Weave every moving part into one remarkable program.</h1>
+          <h1>See what is blocking your program—and resolve it.</h1>
           <p className="hero-copy">
-            Proposals, reviews, speakers, content, schedules, and public
-            pages—connected from the first submission to showtime.
+            ProgramLoom shows organizers exactly what is blocking their program,
+            gives them the tools to resolve it, and carries every accepted
+            proposal safely through communication, onboarding, scheduling,
+            publication, and follow-up.
           </p>
           <div className="hero-actions">
             <a
@@ -201,7 +203,9 @@ function MarketingPage() {
         >
           <div className="section-heading">
             <p className="kicker">One continuous workflow</p>
-            <h2 id="capabilities-title">Less chasing. More programming.</h2>
+            <h2 id="capabilities-title">
+              From proposal to published program, without losing the thread.
+            </h2>
           </div>
           <div className="card-grid">
             {capabilities.map(({ icon: Icon, title, body }, index) => (

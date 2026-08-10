@@ -29,20 +29,30 @@ export function database(env: Env): D1Database {
   return env.DB;
 }
 
+export async function authenticatedUserOrNull(
+  context: AppContext,
+): Promise<AuthenticatedUser | null> {
+  const token = getCookie(context, "programloom_session");
+  if (!token) return null;
+  return (
+    (await database(context.env)
+      .prepare(
+        `SELECT u.id, u.email, u.name
+         FROM auth_sessions s JOIN users u ON u.id = s.user_id
+         WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > ?`,
+      )
+      .bind(await sha256(token), new Date().toISOString())
+      .first<AuthenticatedUser>()) ?? null
+  );
+}
+
 export async function requireUser(
   context: AppContext,
 ): Promise<AuthenticatedUser> {
   const token = getCookie(context, "programloom_session");
   if (!token)
     throw new HttpError(401, "authentication_required", "Sign in to continue.");
-  const user = await database(context.env)
-    .prepare(
-      `SELECT u.id, u.email, u.name
-     FROM auth_sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > ?`,
-    )
-    .bind(await sha256(token), new Date().toISOString())
-    .first<AuthenticatedUser>();
+  const user = await authenticatedUserOrNull(context);
   if (!user)
     throw new HttpError(
       401,

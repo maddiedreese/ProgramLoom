@@ -129,6 +129,8 @@ app.get("/api/health", (context) =>
     status: "ok" as const,
     service: "programloom" as const,
     environment: context.env.APP_ENV,
+    sourceCommit: context.env.RELEASE_COMMIT ?? "development",
+    workerVersion: context.env.CF_VERSION_METADATA?.id ?? "development",
     requestId: context.get("requestId"),
     timestamp: new Date().toISOString(),
   }),

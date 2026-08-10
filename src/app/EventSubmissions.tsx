@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 import { SubmissionWorkspaceGrid } from "./SubmissionWorkspaceGrid";
 
 type User = { id: string; email: string; name: string };
@@ -103,7 +104,10 @@ export function EventSubmissions({ user }: { user: User }) {
   const [assessments, setAssessments] = useState<AiAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<string>();
+  const [feedback, setFeedback] = useState<{
+    kind: "error" | "success";
+    message: string;
+  }>();
   useEffect(() => {
     Promise.all([
       api<{ event: EventRecord }>(`/api/events/${eventId}`),
@@ -113,7 +117,9 @@ export function EventSubmissions({ user }: { user: User }) {
         setEvent(eventResult.event);
         setRounds(reviewResult.rounds);
       })
-      .catch((error: Error) => setFeedback(error.message))
+      .catch((error: Error) =>
+        setFeedback({ kind: "error", message: error.message }),
+      )
       .finally(() => setLoading(false));
   }, [eventId]);
 
@@ -136,11 +142,13 @@ export function EventSubmissions({ user }: { user: User }) {
       setPeople(result.people);
       setAssessments(aiResult.assessments);
     } catch (error) {
-      setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Could not open the submission.",
-      );
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not open the submission.",
+      });
     } finally {
       setBusy(false);
     }
@@ -164,12 +172,21 @@ export function EventSubmissions({ user }: { user: User }) {
         status: result.submission.status ?? selected.status,
         decisionState: result.submission.decisionState,
       });
+      setFeedback({
+        kind: "success",
+        message:
+          state === "none"
+            ? "Staged decision cleared. No communication was sent."
+            : `${state.replace("_staged", "")} decision staged. Nothing has been sent. Next: preview recipients and send it from Communications.`,
+      });
     } catch (error) {
-      setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Could not stage the decision.",
-      );
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not stage the decision.",
+      });
     } finally {
       setBusy(false);
     }
@@ -185,11 +202,13 @@ export function EventSubmissions({ user }: { user: User }) {
       );
       setAssessments((current) => [result.assessment, ...current]);
     } catch (error) {
-      setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Could not generate the advisory assessment.",
-      );
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not generate the advisory assessment.",
+      });
     } finally {
       setBusy(false);
     }
@@ -226,11 +245,13 @@ export function EventSubmissions({ user }: { user: User }) {
         ),
       );
     } catch (error) {
-      setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Could not override the assessment.",
-      );
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not override the assessment.",
+      });
     } finally {
       setBusy(false);
     }
@@ -258,26 +279,7 @@ export function EventSubmissions({ user }: { user: User }) {
           <strong>{event?.name}</strong>
           <span>{event?.status}</span>
         </div>
-        <nav className="event-nav" aria-label="Event workspace">
-          <a href={`/app/events/${eventId}`}>
-            <FileInput size={18} /> Call for proposals
-          </a>
-          <a className="active" href={`/app/events/${eventId}/submissions`}>
-            <Inbox size={18} /> Submissions
-          </a>
-          <a href={`/app/events/${eventId}/reviews`}>
-            <CheckCircle2 size={18} /> Reviews
-          </a>
-          <a href={`/app/events/${eventId}/speakers`}>
-            <UsersRound size={18} /> Speakers
-          </a>
-          <a href={`/app/events/${eventId}/content`}>
-            <Files size={18} /> Content
-          </a>
-          <a href={`/app/events/${eventId}/agenda`}>
-            <Clock3 size={18} /> Agenda
-          </a>
-        </nav>
+        <EventLifecycleNav eventId={eventId} active="submissions" />
         <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="event-main submissions-main">
@@ -292,8 +294,11 @@ export function EventSubmissions({ user }: { user: User }) {
           </div>
         </header>
         {feedback && (
-          <div className="form-status form-status-error" role="alert">
-            {feedback}
+          <div
+            className={`form-status form-status-${feedback.kind}`}
+            role={feedback.kind === "error" ? "alert" : "status"}
+          >
+            {feedback.message}
           </div>
         )}
         <SubmissionWorkspaceGrid eventId={eventId} onOpen={openSubmission} />
@@ -314,7 +319,7 @@ export function EventSubmissions({ user }: { user: User }) {
               <button
                 className="plain-icon"
                 onClick={() => setSelected(undefined)}
-                aria-label="Close"
+                aria-label="Close submission details"
               >
                 <X size={19} />
               </button>
@@ -343,7 +348,7 @@ export function EventSubmissions({ user }: { user: User }) {
                 onClick={() => changeDecision("acceptance_staged")}
                 disabled={busy}
               >
-                <ThumbsUp size={16} /> Accept queue
+                <ThumbsUp size={16} /> Stage acceptance
               </button>
               <button
                 className={
@@ -352,7 +357,7 @@ export function EventSubmissions({ user }: { user: User }) {
                 onClick={() => changeDecision("waitlist_staged")}
                 disabled={busy}
               >
-                <Clock3 size={16} /> Waitlist
+                <Clock3 size={16} /> Stage waitlist
               </button>
               <button
                 className={
@@ -363,12 +368,26 @@ export function EventSubmissions({ user }: { user: User }) {
                 onClick={() => changeDecision("rejection_staged")}
                 disabled={busy}
               >
-                <ThumbsDown size={16} /> Decline queue
+                <ThumbsDown size={16} /> Stage rejection
               </button>
               <button onClick={() => changeDecision("none")} disabled={busy}>
-                Clear
+                Clear staged decision
               </button>
             </div>
+            {selected.decisionState.endsWith("_staged") && (
+              <div className="decision-next-step" role="status">
+                <strong>Staged, not sent.</strong>
+                <span>
+                  Review the real recipient list and message before delivery.
+                </span>
+                <a
+                  className="button button-small"
+                  href={`/app/events/${eventId}/communications?category=decision`}
+                >
+                  Preview recipients and send decision
+                </a>
+              </div>
+            )}
             <div className="detail-answers">
               {fields.map((field) => (
                 <section key={field.fieldKey}>

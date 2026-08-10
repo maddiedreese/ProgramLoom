@@ -14,7 +14,9 @@ describe("ProgramLoom application", () => {
       </MemoryRouter>,
     );
     expect(
-      screen.getByRole("heading", { name: /weave every moving part/i }),
+      screen.getByRole("heading", {
+        name: /see what is blocking your program/i,
+      }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /start free/i })).toHaveAttribute(
       "href",

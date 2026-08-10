@@ -55,6 +55,7 @@ describe("organizer onboarding", () => {
                   endsAt: "2027-09-16T22:00:00.000Z",
                   venueName: "Community Hall",
                   status: "draft",
+                  accessRole: "speaker",
                 },
               ],
             }
@@ -104,5 +105,8 @@ describe("organizer onboarding", () => {
     expect(
       screen.queryByRole("heading", { name: /create an event/i }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /open speaker portal/i }),
+    ).toHaveAttribute("href", "/app/events/event-1/speakers");
   });
 });

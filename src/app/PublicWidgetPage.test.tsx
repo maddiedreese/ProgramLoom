@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PublicWidgetPage } from "./PublicWidgetPage";
@@ -92,6 +98,7 @@ const payload = {
 };
 
 afterEach(() => {
+  cleanup();
   vi.unstubAllGlobals();
   localStorage.clear();
 });
@@ -146,9 +153,11 @@ describe("public widgets", () => {
   it("shows searchable speaker profiles and a speaker-centered gallery", async () => {
     renderWidget("gallery");
     expect(await screen.findByText("1 featured speaker")).toBeInTheDocument();
-    const profile = screen.getByText("Priya Raman").closest("details");
+    const profile = screen.getByText("Priya Raman").closest("article");
     expect(profile).not.toBeNull();
-    fireEvent.click(within(profile!).getByText("Priya Raman"));
+    fireEvent.click(
+      within(profile!).getByRole("button", { name: "View profile" }),
+    );
     expect(
       within(profile!).getByText("Builds calm program operations."),
     ).toBeVisible();
@@ -162,8 +171,12 @@ describe("public widgets", () => {
     expect(
       screen.getByText("Principal architect · Reliable Systems"),
     ).toBeVisible();
+    const sessionCard = screen
+      .getByText("Reliable programs")
+      .closest("article");
+    expect(sessionCard).not.toBeNull();
     expect(
-      screen.getByLabelText("View details for Reliable programs"),
+      within(sessionCard!).getByRole("button", { name: "View details" }),
     ).toBeVisible();
   });
 });

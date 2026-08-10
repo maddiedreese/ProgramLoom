@@ -19,6 +19,7 @@ import {
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -111,29 +112,7 @@ function EventChrome({
           <strong>{event?.name}</strong>
           <span>{event?.status}</span>
         </div>
-        <nav className="event-nav" aria-label="Event workspace">
-          <a href={`/app/events/${eventId}`}>
-            <FileInput size={18} /> Call for proposals
-          </a>
-          <a href={`/app/events/${eventId}/submissions`}>
-            <Inbox size={18} /> Submissions
-          </a>
-          <a href={`/app/events/${eventId}/reviews`}>
-            <CheckCircle2 size={18} /> Reviews
-          </a>
-          <a href={`/app/events/${eventId}/speakers`}>
-            <UsersRound size={18} /> Speakers
-          </a>
-          <a href={`/app/events/${eventId}/content`}>
-            <Files size={18} /> Content
-          </a>
-          <a className="active" href={`/app/events/${eventId}/agenda`}>
-            <CalendarClock size={18} /> Agenda
-          </a>
-          <a href={`/app/events/${eventId}/widgets`}>
-            <Code2 size={18} /> Public widgets
-          </a>
-        </nav>
+        <EventLifecycleNav eventId={eventId} active="agenda" />
         <SidebarUser user={user} />
       </aside>
       {children}

@@ -2,7 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env";
-import { database, HttpError } from "../lib/authz";
+import { authenticatedUserOrNull, database, HttpError } from "../lib/authz";
 import {
   enqueueCommunication,
   prepareCommunicationStatement,
@@ -462,7 +462,9 @@ router.post(
       context.req.param("formSlug"),
     );
     const input = context.req.valid("json");
+    const authenticatedUser = await authenticatedUserOrNull(context);
     if (
+      !authenticatedUser &&
       !(await verifyTurnstile(
         context.env,
         input.turnstileToken,

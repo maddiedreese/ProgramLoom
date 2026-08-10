@@ -18,6 +18,8 @@ describe("ProgramLoom Worker", () => {
       status: "ok",
       service: "programloom",
       environment: "test",
+      sourceCommit: "development",
+      workerVersion: "development",
     });
   });
 

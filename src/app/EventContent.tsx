@@ -23,6 +23,7 @@ import {
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -442,26 +443,7 @@ export function EventContent({ user }: { user: User }) {
           <strong>{event?.name}</strong>
           <span>{event?.status}</span>
         </div>
-        <nav className="event-nav" aria-label="Event workspace">
-          <a href={`/app/events/${eventId}`}>
-            <FileInput size={18} /> Call for proposals
-          </a>
-          <a href={`/app/events/${eventId}/submissions`}>
-            <Inbox size={18} /> Submissions
-          </a>
-          <a href={`/app/events/${eventId}/reviews`}>
-            <CheckCircle2 size={18} /> Reviews
-          </a>
-          <a href={`/app/events/${eventId}/speakers`}>
-            <UsersRound size={18} /> Speakers
-          </a>
-          <a className="active" href={`/app/events/${eventId}/content`}>
-            <Files size={18} /> Content
-          </a>
-          <a href={`/app/events/${eventId}/agenda`}>
-            <Clock3 size={18} /> Agenda
-          </a>
-        </nav>
+        <EventLifecycleNav eventId={eventId} active="content" role={role} />
         <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="event-main content-main">

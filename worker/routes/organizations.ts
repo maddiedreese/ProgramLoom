@@ -167,7 +167,7 @@ router.get("/:organizationId/events", async (context) => {
               status, ? AS accessRole
            FROM events WHERE organization_id=? ORDER BY starts_at ASC`,
     )
-    .bind(access.user.id, organizationId)
+    .bind(restricted ? access.user.id : access.role, organizationId)
     .all();
   return context.json({ events: result.results });
 });

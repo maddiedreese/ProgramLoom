@@ -35,7 +35,7 @@ function environment(role: "owner" | "member") {
               expect(values).toEqual([userId, organizationId]);
             } else {
               expect(sql).not.toContain("JOIN event_members");
-              expect(values).toEqual([userId, organizationId]);
+              expect(values).toEqual([role, organizationId]);
             }
             return {
               results: [

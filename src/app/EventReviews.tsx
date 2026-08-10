@@ -18,6 +18,7 @@ import {
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -144,37 +145,7 @@ function EventChrome({
           <strong>{event?.name}</strong>
           <span>{event?.status}</span>
         </div>
-        <nav className="event-nav" aria-label="Event workspace">
-          {role !== "reviewer" && (
-            <>
-              <a href={`/app/events/${eventId}`}>
-                <FileInput size={18} /> Call for proposals
-              </a>
-              <a href={`/app/events/${eventId}/submissions`}>
-                <Inbox size={18} /> Submissions
-              </a>
-            </>
-          )}
-          <a
-            className={active === "reviews" ? "active" : ""}
-            href={`/app/events/${eventId}/reviews`}
-          >
-            <ClipboardCheck size={18} /> Reviews
-          </a>
-          {role !== "reviewer" && (
-            <>
-              <a href={`/app/events/${eventId}/speakers`}>
-                <UsersRound size={18} /> Speakers
-              </a>
-              <a href={`/app/events/${eventId}/content`}>
-                <Files size={18} /> Content
-              </a>
-              <a href={`/app/events/${eventId}/agenda`}>
-                <CheckCircle2 size={18} /> Agenda
-              </a>
-            </>
-          )}
-        </nav>
+        <EventLifecycleNav eventId={eventId} active={active} role={role} />
         <SidebarUser user={user} />
       </aside>
       {children}
@@ -392,7 +363,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       await load(selected.id);
       setFeedback({
         kind: result.conflicts.length ? "error" : "success",
-        message: `${result.created} assignments prepared.${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : ""}`,
+        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
       });
     } catch (error) {
       setFeedback({
@@ -419,6 +390,17 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
         </div>
         {selected && (
           <div className="round-actions">
+            <button
+              className="button button-small"
+              type="button"
+              onClick={() =>
+                document
+                  .getElementById("assign-reviewers")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            >
+              <UsersRound size={15} /> Assign reviewers
+            </button>
             <button
               className="button button-ghost button-small"
               onClick={() =>
@@ -599,9 +581,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   </button>
                 </form>
               </section>
-              <section className="assignment-section">
+              <section className="assignment-section" id="assign-reviewers">
                 <div>
-                  <h3>Assignments</h3>
+                  <h3>Assign reviewers</h3>
                   <p>
                     Choose submissions and invited reviewers. Speaker/self
                     conflicts are skipped automatically.
@@ -668,8 +650,11 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   <div className="inline-empty">
                     <UsersRound size={24} />
                     <span>
-                      Invite reviewers from the Team page before assigning
-                      proposals.
+                      No invited reviewers yet. Invite one, then return here to
+                      assign proposals.
+                      <a className="text-link" href="/app/team">
+                        Invite reviewers
+                      </a>
                     </span>
                   </div>
                 )}
@@ -682,7 +667,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     !selectedReviewers.length
                   }
                 >
-                  Create assignments
+                  Assign reviewers
                 </button>
               </section>
             </>

@@ -13,6 +13,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { captureProductEvent } from "../lib/telemetry";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 
 type User = { id: string; email: string; name: string };
 type Settings = {
@@ -247,17 +248,7 @@ export function EventCalendar({ user }: { user: User }) {
           <strong>Calendar lifecycle</strong>
           <span>{records.length} records</span>
         </div>
-        <nav className="event-nav" aria-label="Calendar navigation">
-          <a href={`/app/events/${eventId}/agenda`}>
-            <CalendarCheck2 size={18} /> Agenda
-          </a>
-          <a className="active" href={`/app/events/${eventId}/calendar`}>
-            <RefreshCw size={18} /> Invitations
-          </a>
-          <a href={`/app/events/${eventId}/communications`}>
-            <Send size={18} /> Communications
-          </a>
-        </nav>
+        <EventLifecycleNav eventId={eventId} active="calendar" />
         <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="event-main calendar-main">

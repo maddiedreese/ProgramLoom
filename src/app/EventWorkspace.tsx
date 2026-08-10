@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { SidebarUser } from "./SidebarUser";
+import { EventLifecycleNav } from "./EventLifecycleNav";
 import { useParams } from "react-router-dom";
 
 type User = { id: string; email: string; name: string };
@@ -507,32 +508,7 @@ export function EventWorkspace({ user }: { user: User }) {
           <strong>{event?.name ?? "Event"}</strong>
           <span>{event?.status}</span>
         </div>
-        <nav className="event-nav" aria-label="Event workspace">
-          <a href={`/app/events/${eventId}/control-room`}>
-            <Gauge size={18} /> Control Room
-          </a>
-          <a className="active" href="#cfp">
-            <FileInput size={18} /> Call for proposals
-          </a>
-          <a href={`/app/events/${eventId}/submissions`}>
-            <UsersRound size={18} /> Submissions
-          </a>
-          <a href={`/app/events/${eventId}/reviews`}>
-            <CheckCircle2 size={18} /> Reviews
-          </a>
-          <a href={`/app/events/${eventId}/speakers`}>
-            <UsersRound size={18} /> Speakers
-          </a>
-          <a href={`/app/events/${eventId}/content`}>
-            <Files size={18} /> Content
-          </a>
-          <a href={`/app/events/${eventId}/agenda`}>
-            <CalendarClock size={18} /> Agenda
-          </a>
-          <a href={`/app/events/${eventId}/communications`}>
-            <Mail size={18} /> Communications
-          </a>
-        </nav>
+        <EventLifecycleNav eventId={eventId} active="cfp" role={role} />
         <SidebarUser user={user} />
       </aside>
       <main id="main-content" className="event-main">
