@@ -314,6 +314,21 @@ export function EventAgenda({ user }: { user: User }) {
       `${item.title} cancelled and removed from public agendas.`,
     );
   }
+  async function removeBlock(item: AgendaItem) {
+    if (
+      !window.confirm(
+        `Remove “${item.title}”? This removes the block from organizer and public agendas.`,
+      )
+    )
+      return;
+    await act(
+      () =>
+        api(`/api/agenda/admin/events/${eventId}/items/${item.id}`, {
+          method: "DELETE",
+        }),
+      `${item.title} removed from the agenda.`,
+    );
+  }
   async function clear(item: AgendaItem) {
     await act(
       () =>
@@ -465,6 +480,15 @@ export function EventAgenda({ user }: { user: User }) {
                       <CalendarX2 size={15} />
                     </button>
                   )}
+                  {item.itemType !== "session" && (
+                    <button
+                      className="button button-small button-ghost"
+                      onClick={() => removeBlock(item)}
+                      disabled={busy}
+                    >
+                      Remove block
+                    </button>
+                  )}
                 </article>
               ))}
             </div>
@@ -566,6 +590,16 @@ export function EventAgenda({ user }: { user: User }) {
                     "Save"
                   )}
                 </button>
+                {item.itemType !== "session" && !item.cancelledAt && (
+                  <button
+                    className="button button-small button-ghost"
+                    type="button"
+                    onClick={() => removeBlock(item)}
+                    disabled={busy}
+                  >
+                    Remove block
+                  </button>
+                )}
               </form>
             ))}
           </section>

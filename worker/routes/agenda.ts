@@ -737,6 +737,53 @@ router.post("/admin/events/:eventId/items/:itemId/cancel", async (context) => {
   return context.json({ item: { id: item.id, cancelledAt }, calendar });
 });
 
+router.delete("/admin/events/:eventId/items/:itemId", async (context) => {
+  const eventId = context.req.param("eventId");
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
+  const db = database(context.env);
+  const item = await db
+    .prepare(
+      `SELECT id,submission_id AS submissionId,item_type AS itemType,title,
+              room_id AS roomId,starts_at AS startsAt,ends_at AS endsAt,
+              status,cancelled_at AS cancelledAt
+       FROM agenda_items WHERE id=? AND event_id=?`,
+    )
+    .bind(context.req.param("itemId"), eventId)
+    .first<AgendaItem & { itemType: string; title: string; status: string }>();
+  if (!item)
+    throw new HttpError(404, "agenda_item_not_found", "Agenda item not found.");
+  if (item.submissionId)
+    throw new HttpError(
+      409,
+      "session_cancellation_required",
+      "Sessions must use the calendar-aware cancellation action.",
+    );
+  if (item.cancelledAt)
+    return context.json({ item: { id: item.id, removed: true } });
+  const removedAt = new Date().toISOString();
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE agenda_items SET room_id=NULL,starts_at=NULL,ends_at=NULL,status='draft',
+         cancelled_at=?,cancelled_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP
+         WHERE id=? AND event_id=?`,
+      )
+      .bind(removedAt, access.user.id, item.id, eventId),
+    auditStatement(db, {
+      organizationId: access.organizationId,
+      eventId,
+      actorUserId: access.user.id,
+      action: "agenda_block.removed",
+      entityType: "agenda_item",
+      entityId: item.id,
+      before: item,
+      after: { removedAt },
+      requestId: context.get("requestId"),
+    }),
+  ]);
+  return context.json({ item: { id: item.id, removed: true, removedAt } });
+});
+
 router.post(
   "/admin/events/:eventId/constraints",
   zValidator("json", constraintSchema),

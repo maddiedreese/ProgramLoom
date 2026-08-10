@@ -12,7 +12,12 @@ import {
   prepareCommunicationStatement,
 } from "../lib/communications";
 import { renderSimpleTransactionalEmail } from "../lib/email";
-import { domainEventStatement, notificationStatement } from "../lib/operations";
+import {
+  domainEventStatement,
+  logOperationalEvent,
+  notificationStatement,
+  safeOperationalError,
+} from "../lib/operations";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -301,8 +306,16 @@ router.patch(
             correlationId: context.get("requestId"),
             action: "material_change",
           });
-        } catch {
+        } catch (error) {
           calendarFailures += 1;
+          logOperationalEvent("error", {
+            operation: "calendar_content_sync_failed",
+            requestId: context.get("requestId"),
+            eventId,
+            entityType: "agenda_item",
+            entityId: item.id,
+            message: safeOperationalError(error),
+          });
         }
       }
     }

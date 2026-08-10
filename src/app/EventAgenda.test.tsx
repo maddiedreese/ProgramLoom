@@ -80,6 +80,22 @@ describe("agenda calendar lifecycle controls", () => {
                   roomName: null,
                   trackName: null,
                 },
+                {
+                  id: "30000000-0000-4000-8000-000000000003",
+                  submissionId: null,
+                  trackId: null,
+                  roomId: "20000000-0000-4000-8000-000000000001",
+                  itemType: "hold",
+                  title: "Production hold",
+                  description: null,
+                  startsAt: "2027-09-14T16:00:00.000Z",
+                  endsAt: "2027-09-14T16:30:00.000Z",
+                  status: "published",
+                  version: 1,
+                  cancelledAt: null,
+                  roomName: "Main stage",
+                  trackName: null,
+                },
               ],
             }),
           );
@@ -119,6 +135,21 @@ describe("agenda calendar lifecycle controls", () => {
     );
     expect(window.confirm).toHaveBeenCalledWith(
       expect.stringContaining("removes it from public agendas"),
+    );
+
+    fireEvent.click(
+      (await screen.findAllByRole("button", { name: "Remove block" }))[0],
+    );
+    await waitFor(() =>
+      expect(requests).toContainEqual(
+        expect.objectContaining({
+          path: `/api/agenda/admin/events/${eventId}/items/30000000-0000-4000-8000-000000000003`,
+          init: expect.objectContaining({ method: "DELETE" }),
+        }),
+      ),
+    );
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.stringContaining("organizer and public agendas"),
     );
 
     const cancelledForm = document.getElementById(
