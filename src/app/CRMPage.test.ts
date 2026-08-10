@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSaveCrmSegment } from "./CRMPage";
+import { canSaveCrmSegment, reconcileCrmSelection } from "./CRMPage";
 
 const empty = { companies: [], jobTitles: [], tags: [] };
 
@@ -11,5 +11,14 @@ describe("CRM segment availability", () => {
       true,
     );
     expect(canSaveCrmSegment(empty, 2)).toBe(true);
+  });
+
+  it("preserves valid selections across live refreshes", () => {
+    expect(
+      reconcileCrmSelection(
+        ["contact-1", "removed"],
+        [{ id: "contact-1" }, { id: "contact-2" }],
+      ),
+    ).toEqual(["contact-1"]);
   });
 });

@@ -183,6 +183,14 @@ export function canSaveCrmSegment(
   );
 }
 
+export function reconcileCrmSelection(
+  selectedIds: string[],
+  contacts: Array<{ id: string }>,
+) {
+  const visibleContactIds = new Set(contacts.map((contact) => contact.id));
+  return selectedIds.filter((contactId) => visibleContactIds.has(contactId));
+}
+
 export function CRMPage({ user }: { user: User }) {
   const initialQuery = new URLSearchParams(window.location.search);
   const addSpeakerEventId = initialQuery.get("eventId") ?? "";
@@ -320,7 +328,9 @@ export function CRMPage({ user }: { user: User }) {
     setOverview(overviewResult);
     setHistory(historyResult);
     setInterestForms(formsResult.forms);
-    setSelected([]);
+    setSelected((current) =>
+      reconcileCrmSelection(current, directoryResult.contacts),
+    );
   }
 
   useEffect(() => {
