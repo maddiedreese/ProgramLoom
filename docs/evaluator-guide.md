@@ -23,7 +23,7 @@ Use one coherent production-readiness event and the prescribed organizer, review
 4. Submit a proposal as the speaker persona, return as organizer, and locate it in **Submissions** using search and filters.
 5. Configure useful columns, save a personal review-readiness view, share an organization view, and reopen it.
 6. Choose **Assign reviewers**, assign the reviewer, switch personas, and complete the scorecard. Return as organizer.
-7. Open the proposal and choose **Stage acceptance**. Show the persistent **Staged, not sent** state; no email has been requested yet.
+7. Open the proposal and choose **Stage decision: Acceptance**. Show the persistent **Staged, not sent** state; no email has been requested yet.
 8. Choose **Preview recipients and send decision**. In **Communications**, verify merge fields against the real recipient and send through the Queue-backed outbox.
 9. Show the automatically connected speaker, session, portal access, onboarding task, audit event, notification, and communication timeline.
 10. As the speaker, update the profile, complete onboarding, and upload the requested headshot, slides, and content. Return as organizer and show corresponding Control Room blockers disappearing.

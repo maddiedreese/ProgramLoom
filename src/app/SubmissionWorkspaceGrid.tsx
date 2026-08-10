@@ -997,10 +997,14 @@ export function SubmissionWorkspaceGrid({
               <option value="tag_add">Add tag</option>
               <option value="tag_remove">Remove tag</option>
               <option value="decision:acceptance_staged">
-                Stage acceptance
+                Stage decision: Acceptance
               </option>
-              <option value="decision:waitlist_staged">Stage waitlist</option>
-              <option value="decision:rejection_staged">Stage rejection</option>
+              <option value="decision:waitlist_staged">
+                Stage decision: Waitlist
+              </option>
+              <option value="decision:rejection_staged">
+                Stage decision: Rejection
+              </option>
               <option value="status:pending">Move to review</option>
               <option value="status:withdrawn">Withdraw</option>
               <option value="communication:deadline_reminder">
