@@ -38,7 +38,15 @@ type Session = {
   title: string;
   abstract: string;
   trackId: string | null;
+  speakerIds: string[];
   speakerNames: string[];
+};
+type Speaker = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string | null;
+  company: string | null;
 };
 type AgendaItem = {
   id: string;
@@ -126,6 +134,7 @@ export function EventAgenda({ user }: { user: User }) {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -140,12 +149,14 @@ export function EventAgenda({ user }: { user: User }) {
       tracks: Track[];
       rooms: Room[];
       sessions: Session[];
+      speakers: Speaker[];
       items: AgendaItem[];
     }>(`/api/agenda/admin/events/${eventId}`);
     setEvent(result.event);
     setTracks(result.tracks);
     setRooms(result.rooms);
     setSessions(result.sessions);
+    setSpeakers(result.speakers ?? []);
     setItems(result.items);
   }
   useEffect(() => {
@@ -256,9 +267,22 @@ export function EventAgenda({ user }: { user: User }) {
   ) {
     formEvent.preventDefault();
     const data = new FormData(formEvent.currentTarget);
+    const session = item.submissionId
+      ? sessions.find((candidate) => candidate.id === item.submissionId)
+      : undefined;
     await act(
-      () =>
-        api(`/api/agenda/admin/events/${eventId}/items/${item.id}`, {
+      async () => {
+        if (session) {
+          const speakerIds = data.getAll("speakerIds").map(String);
+          await api(
+            `/api/agenda/admin/events/${eventId}/sessions/${session.id}/speakers`,
+            {
+              method: "PUT",
+              body: JSON.stringify({ speakerIds }),
+            },
+          );
+        }
+        return api(`/api/agenda/admin/events/${eventId}/items/${item.id}`, {
           method: "PATCH",
           body: JSON.stringify({
             roomId: data.get("roomId"),
@@ -267,7 +291,8 @@ export function EventAgenda({ user }: { user: User }) {
             endsAt: new Date(String(data.get("endsAt"))).toISOString(),
             reschedule: Boolean(item.cancelledAt),
           }),
-        }),
+        });
+      },
       item.cancelledAt
         ? `${item.title} explicitly rescheduled and restored.`
         : `${item.title} placed without conflicts.`,
@@ -476,6 +501,33 @@ export function EventAgenda({ user }: { user: User }) {
                     ))}
                   </select>
                 </label>
+                {item.submissionId &&
+                  speakers.length > 0 &&
+                  sessions.some(
+                    (session) => session.id === item.submissionId,
+                  ) && (
+                    <label>
+                      Speakers
+                      <select
+                        name="speakerIds"
+                        multiple
+                        defaultValue={
+                          sessions.find(
+                            (session) => session.id === item.submissionId,
+                          )?.speakerIds ?? []
+                        }
+                        aria-label={`Speakers for ${item.title}`}
+                        required
+                      >
+                        {speakers.map((speaker) => (
+                          <option value={speaker.id} key={speaker.id}>
+                            {speaker.firstName} {speaker.lastName}
+                            {speaker.company ? ` · ${speaker.company}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                 <label>
                   Track
                   <select name="trackId" defaultValue={item.trackId ?? ""}>

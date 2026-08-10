@@ -911,10 +911,13 @@ function DirectoryPanel({
             placeholder="Search name, email, company or title"
           />
         </label>
-        <details className="filter-popover">
-          <summary>
+        <div
+          className="filter-popover filter-panel"
+          aria-label="Directory filters"
+        >
+          <strong>
             <Filter size={15} /> Filters
-          </summary>
+          </strong>
           <div>
             <label>
               Company
@@ -975,12 +978,15 @@ function DirectoryPanel({
               Clear all
             </button>
           </div>
-        </details>
-        {hasFilter && (
-          <button className="button button-ghost" onClick={onSaveSegment}>
-            <Save size={15} /> Save segment
-          </button>
-        )}
+        </div>
+        <button
+          className="button button-ghost"
+          onClick={onSaveSegment}
+          disabled={!hasFilter}
+          title={hasFilter ? "Save these filters" : "Choose a filter first"}
+        >
+          <Save size={15} /> Save segment
+        </button>
       </div>
       {hasFilter && (
         <div className="filter-chips">
@@ -1724,6 +1730,7 @@ function ImportModal({
         <label>
           Choose contact file
           <input
+            aria-label="Choose contact file"
             type="file"
             accept=".csv,.xlsx,text/csv"
             onChange={fileSelected}

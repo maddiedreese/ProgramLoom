@@ -91,9 +91,12 @@ const assistSchema = z.object({
   durationMinutes: z.number().int().min(15).max(240).default(45),
   apply: z.boolean().default(false),
 });
+export const sessionSpeakersSchema = z.object({
+  speakerIds: z.array(z.uuid()).min(1).max(24),
+});
 
 async function eventData(db: D1Database, eventId: string) {
-  const [event, tracks, rooms, sessions, items, constraints] =
+  const [event, tracks, rooms, sessions, speakers, items, constraints] =
     await Promise.all([
       db
         .prepare(
@@ -121,6 +124,21 @@ async function eventData(db: D1Database, eventId: string) {
         .all(),
       db
         .prepare(
+          `SELECT DISTINCT sp.id,sp.first_name AS firstName,sp.last_name AS lastName,
+                  sp.job_title AS jobTitle,sp.company
+           FROM speaker_profiles sp
+           JOIN (
+             SELECT speaker_id FROM event_speakers WHERE event_id=?
+             UNION
+             SELECT ss.speaker_id FROM session_speakers ss
+             JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=?
+           ) roster ON roster.speaker_id=sp.id
+           ORDER BY sp.last_name,sp.first_name`,
+        )
+        .bind(eventId, eventId)
+        .all(),
+      db
+        .prepare(
           `SELECT a.id,a.submission_id AS submissionId,a.track_id AS trackId,a.room_id AS roomId,a.item_type AS itemType,a.title,a.description,a.starts_at AS startsAt,a.ends_at AS endsAt,a.status,a.version,a.cancelled_at AS cancelledAt,r.name AS roomName,t.name AS trackName FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id WHERE a.event_id=? ORDER BY CASE WHEN a.cancelled_at IS NULL THEN 0 ELSE 1 END,COALESCE(a.starts_at,'9999'),a.title`,
         )
         .bind(eventId)
@@ -136,6 +154,7 @@ async function eventData(db: D1Database, eventId: string) {
     event,
     tracks: tracks.results,
     rooms: rooms.results,
+    speakers: speakers.results,
     sessions: sessions.results.map((session: Record<string, unknown>) => ({
       ...session,
       speakerIds: session.speakerIds
@@ -257,6 +276,85 @@ router.post(
       requestId: context.get("requestId"),
     }).run();
     return context.json({ room: { id, ...input, position } }, 201);
+  },
+);
+
+router.put(
+  "/admin/events/:eventId/sessions/:submissionId/speakers",
+  zValidator("json", sessionSpeakersSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const input = context.req.valid("json");
+    const db = database(context.env);
+    const submissionId = context.req.param("submissionId");
+    const submission = await db
+      .prepare(
+        "SELECT id FROM submissions WHERE id=? AND event_id=? AND status='accepted'",
+      )
+      .bind(submissionId, eventId)
+      .first();
+    if (!submission)
+      throw new HttpError(
+        404,
+        "session_not_found",
+        "Accepted session not found.",
+      );
+    const existingSpeakers = await db
+      .prepare(
+        "SELECT speaker_id AS speakerId FROM session_speakers WHERE submission_id=? ORDER BY speaker_id",
+      )
+      .bind(submissionId)
+      .all<{ speakerId: string }>();
+    const allowed = await db
+      .prepare(
+        `SELECT COUNT(DISTINCT sp.id) AS count FROM speaker_profiles sp
+         JOIN (
+           SELECT speaker_id FROM event_speakers WHERE event_id=?
+           UNION
+           SELECT ss.speaker_id FROM session_speakers ss
+           JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=?
+         ) roster ON roster.speaker_id=sp.id
+         WHERE sp.id IN (${input.speakerIds.map(() => "?").join(",")})`,
+      )
+      .bind(eventId, eventId, ...input.speakerIds)
+      .first<{ count: number }>();
+    if ((allowed?.count ?? 0) !== input.speakerIds.length)
+      throw new HttpError(
+        400,
+        "invalid_speaker",
+        "Choose speakers from this event's roster.",
+      );
+    await db.batch([
+      db
+        .prepare("DELETE FROM session_speakers WHERE submission_id=?")
+        .bind(submissionId),
+      ...input.speakerIds.map((speakerId) =>
+        db
+          .prepare(
+            "INSERT INTO session_speakers(submission_id,speaker_id,role) VALUES(?,?,'speaker')",
+          )
+          .bind(submissionId, speakerId),
+      ),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "agenda_session.speakers_updated",
+        entityType: "submission",
+        entityId: submissionId,
+        before: {
+          speakerIds: existingSpeakers.results.map(
+            (speaker) => speaker.speakerId,
+          ),
+        },
+        after: { speakerIds: input.speakerIds },
+        requestId: context.get("requestId"),
+      }),
+    ]);
+    return context.json({ ok: true, speakerIds: input.speakerIds });
   },
 );
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   publishedAgendaItemAuditStatements,
   requiresExplicitReschedule,
+  sessionSpeakersSchema,
 } from "./agenda";
 
 describe("agenda publication audits", () => {
@@ -54,5 +55,19 @@ describe("agenda publication audits", () => {
       false,
     );
     expect(requiresExplicitReschedule(null, false)).toBe(false);
+  });
+
+  it("bounds agenda speaker assignments to a non-empty event roster selection", () => {
+    const speakerId = "67ab6d64-93fb-45f8-8f6f-1cc0d358c327";
+    expect(sessionSpeakersSchema.parse({ speakerIds: [speakerId] })).toEqual({
+      speakerIds: [speakerId],
+    });
+    expect(() => sessionSpeakersSchema.parse({ speakerIds: [] })).toThrow();
+    expect(() =>
+      sessionSpeakersSchema.parse({ speakerIds: ["not-a-speaker-id"] }),
+    ).toThrow();
+    expect(() =>
+      sessionSpeakersSchema.parse({ speakerIds: Array(25).fill(speakerId) }),
+    ).toThrow();
   });
 });

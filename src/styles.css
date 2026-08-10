@@ -5761,7 +5761,7 @@ input {
   padding: 13px;
   display: grid;
   grid-template-columns:
-    minmax(170px, 1.2fr) repeat(4, minmax(115px, 0.8fr))
+    minmax(170px, 1.2fr) repeat(5, minmax(110px, 0.8fr))
     auto;
   gap: 8px;
   align-items: end;
@@ -6897,19 +6897,21 @@ input {
   cursor: pointer;
   list-style: none;
 }
-.filter-popover[open] > div {
-  position: absolute;
-  z-index: 20;
-  top: 45px;
-  right: 0;
-  width: 260px;
-  padding: 15px;
-  display: grid;
-  gap: 12px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: white;
-  box-shadow: 0 14px 40px rgba(32, 36, 31, 0.15);
+.filter-panel {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+.filter-panel > strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+}
+.filter-panel > div {
+  display: flex;
+  align-items: end;
+  gap: 8px;
 }
 .filter-popover label {
   font-size: 9px;
@@ -7385,14 +7387,16 @@ input {
   background: #f1efe7;
 }
 .import-drop label {
-  padding: 9px 12px;
-  border-radius: 7px;
-  background: var(--moss);
-  color: white;
-  cursor: pointer;
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
 }
 .import-drop input {
-  display: none;
+  max-width: 230px;
+  color: var(--ink);
+  font-size: 10px;
 }
 .import-drop a {
   color: var(--moss);
@@ -7868,6 +7872,21 @@ input {
   .crm-search {
     flex-basis: 100%;
   }
+  .filter-panel {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .filter-panel > div {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .filter-panel label {
+    flex: 1 1 145px;
+  }
+  .filter-panel select {
+    width: 100%;
+  }
   .bulk-bar {
     align-items: stretch;
     flex-direction: column;
@@ -7900,6 +7919,9 @@ input {
   .crm-modal-backdrop {
     padding: 0;
     align-items: end;
+  }
+  .filter-panel > div {
+    flex-direction: column;
   }
   .crm-modal {
     max-height: 94vh;
