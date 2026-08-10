@@ -790,11 +790,11 @@ export function EventContent({ user }: { user: User }) {
                       </small>
                     </button>
                     <button
-                      className="plain-icon"
+                      className="button button-small button-ghost"
                       aria-label="Create share link"
                       onClick={() => share(file)}
                     >
-                      <Share2 size={17} />
+                      <Share2 size={17} /> Create share link
                     </button>
                   </article>
                 ))}

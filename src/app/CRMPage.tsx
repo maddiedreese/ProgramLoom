@@ -950,6 +950,7 @@ function DirectoryPanel({
           />
         </label>
         <div
+          id="crm-directory-filters"
           className="filter-popover filter-panel"
           aria-label="Directory filters"
         >
@@ -1304,6 +1305,9 @@ function SegmentsPanel({
           <ListFilter />
           <h2>No saved segments</h2>
           <p>Apply directory filters and choose Save segment.</p>
+          <a className="button button-small" href="#crm-directory-filters">
+            Open directory filters
+          </a>
         </div>
       )}
       {open && (
@@ -1314,7 +1318,7 @@ function SegmentsPanel({
               <h2>{open.segment.name}</h2>
             </div>
             <button onClick={() => setOpen(undefined)}>
-              <X />
+              <X /> Close segment
             </button>
           </header>
           {open.contacts.map((contact) => (
@@ -1394,6 +1398,9 @@ function InterestPanel({
               Publish a year-round intake that creates contacts and Identified
               pipeline cards automatically.
             </p>
+            <button className="button button-small" onClick={onCreate}>
+              <Plus size={15} /> Create interest form
+            </button>
           </div>
         )}
       </div>

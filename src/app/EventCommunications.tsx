@@ -736,6 +736,13 @@ export function EventCommunications({ user }: { user: User }) {
                     Prepared and delivered messages will appear here with
                     provider evidence.
                   </span>
+                  <button
+                    className="button button-small"
+                    type="button"
+                    onClick={() => setTab("compose")}
+                  >
+                    Compose a communication
+                  </button>
                 </div>
               )}
             </div>

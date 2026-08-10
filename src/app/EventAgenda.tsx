@@ -330,13 +330,19 @@ export function EventAgenda({ user }: { user: User }) {
     );
   }
   async function clear(item: AgendaItem) {
+    if (
+      !window.confirm(
+        `Clear the placement for “${item.title}”? The session will return to the unscheduled queue and its room and time will be removed.`,
+      )
+    )
+      return;
     await act(
       () =>
         api(`/api/agenda/admin/events/${eventId}/items/${item.id}`, {
           method: "PATCH",
           body: JSON.stringify({ roomId: null, startsAt: null, endsAt: null }),
         }),
-      `${item.title} returned to unscheduled.`,
+      `${item.title} returned to unscheduled. Next, choose a new room and time before publishing the agenda.`,
     );
   }
   async function assist(formEvent: FormEvent<HTMLFormElement>) {
@@ -462,12 +468,11 @@ export function EventAgenda({ user }: { user: User }) {
                     {item.status}
                   </em>
                   <button
-                    className="plain-icon"
+                    className="button button-small button-ghost"
                     onClick={() => clear(item)}
-                    title="Clear placement"
                     aria-label={`Clear placement for ${item.title}`}
                   >
-                    <Trash2 size={15} />
+                    <Trash2 size={15} /> Clear placement
                   </button>
                   {item.itemType === "session" && (
                     <button

@@ -154,6 +154,25 @@ describe("agenda calendar lifecycle controls", () => {
       expect.stringContaining("organizer and public agendas"),
     );
 
+    fireEvent.click(
+      (
+        await screen.findAllByRole("button", {
+          name: "Clear placement for Active session",
+        })
+      )[0],
+    );
+    await waitFor(() =>
+      expect(requests).toContainEqual(
+        expect.objectContaining({
+          path: `/api/agenda/admin/events/${eventId}/items/30000000-0000-4000-8000-000000000001`,
+          init: expect.objectContaining({ method: "PATCH" }),
+        }),
+      ),
+    );
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.stringContaining("return to the unscheduled queue"),
+    );
+
     const cancelledForm = document.getElementById(
       "agenda-placement-30000000-0000-4000-8000-000000000002",
     ) as HTMLFormElement;

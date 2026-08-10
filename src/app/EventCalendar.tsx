@@ -352,6 +352,12 @@ export function EventCalendar({ user }: { user: User }) {
                 Place an accepted session with an assigned speaker, or publish
                 under the publication delivery rule.
               </p>
+              <a
+                className="button button-small"
+                href={`/app/events/${eventId}/agenda`}
+              >
+                Schedule a session
+              </a>
             </div>
           ) : (
             records.map((record) => (

@@ -176,6 +176,7 @@ export function EventWidgets({ user }: { user: User }) {
         )}
         <div className="widget-admin-layout">
           <form
+            id="widget-builder"
             className="widget-builder"
             key={editing?.id ?? "new"}
             onSubmit={create}
@@ -362,6 +363,9 @@ export function EventWidgets({ user }: { user: User }) {
                 <Code2 size={28} />
                 <h2>No widgets yet</h2>
                 <p>Create the first live public surface.</p>
+                <a className="button button-small" href="#widget-builder">
+                  Create a widget
+                </a>
               </div>
             )}
           </section>
