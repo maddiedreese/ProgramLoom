@@ -2697,6 +2697,15 @@ input {
 .event-sidebar .sidebar-user small {
   color: #aeb4ac;
 }
+.event-sidebar .sidebar-user button {
+  border-color: #7d857b;
+  color: #e3e7e0;
+}
+.event-sidebar .sidebar-user button:hover {
+  border-color: #c8cec5;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
 .event-main {
   min-width: 0;
   padding: 44px clamp(24px, 4vw, 62px) 80px;
