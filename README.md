@@ -11,7 +11,7 @@ ProgramLoom shows organizers exactly what is blocking their program, gives them 
 
 ![ProgramLoom Organizer Control Room showing a clear, live operational program](public/programloom-control-room.jpg)
 
-Start with the [uninterrupted evaluator walkthrough](docs/evaluator-guide.md), which follows one proposal through review, decision delivery, onboarding, content, scheduling, publication, search, integration recovery, and cancellation.
+Start with the [uninterrupted evaluator walkthrough](docs/evaluator-guide.md) and its [exact production route/persona map](docs/evaluator-route-map.md), which follow one proposal through review, decision delivery, onboarding, content, scheduling, publication, search, integration recovery, and cancellation.
 
 The Control Room is the operational center. Its live, prioritized records connect directly to submissions, review assignments, decisions, delivery failures, speaker access, onboarding, content approval, agenda placement, scheduling conflicts, Queue work, and Airtable recovery.
 

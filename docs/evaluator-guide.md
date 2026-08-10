@@ -63,3 +63,5 @@ The final evaluator report classifies each failed criterion as a genuine product
 - No paid service, resource or plan change is allowed without owner approval. The final evaluator obeys the approved OpenRouter ceiling.
 
 See the [parity map](parity-map.md), [production evidence index](evidence/README.md), [traceability matrix](evaluation-matrix.md), and [operator runbook](runbook.md).
+
+Use the [exact production route and persona map](evaluator-route-map.md) to avoid event, role, or fixture ambiguity. On macOS, open search with **Command+K**.

@@ -430,7 +430,7 @@ export function EventCommunications({ user }: { user: User }) {
       );
       setFeedback({
         kind: "success",
-        message: `${result.count} communication${result.count === 1 ? "" : "s"} ${result.status}.`,
+        message: `${result.count} communication${result.count === 1 ? "" : "s"} ${result.status}. The durable state is visible in Outbox; open the recipient timeline or retry any failed delivery there.`,
       });
       setSelectedRecipients([]);
       setTab("outbox");
@@ -932,19 +932,25 @@ export function EventCommunications({ user }: { user: User }) {
                   </div>
                 )}
               </fieldset>
-              <fieldset>
+              <fieldset key={`delivery-${selectedTemplate.id}`}>
                 <legend>Delivery</legend>
                 <label className="radio-row">
                   <input
                     type="radio"
                     name="delivery"
                     value="prepared"
-                    defaultChecked
+                    defaultChecked={selectedTemplate.category !== "decision"}
                   />{" "}
                   Prepare only
                 </label>
                 <label className="radio-row">
-                  <input type="radio" name="delivery" value="now" /> Queue now
+                  <input
+                    type="radio"
+                    name="delivery"
+                    value="now"
+                    defaultChecked={selectedTemplate.category === "decision"}
+                  />{" "}
+                  Queue now
                 </label>
                 <label>
                   Or schedule for
@@ -966,7 +972,7 @@ export function EventCommunications({ user }: { user: User }) {
                     )
                   }
                 >
-                  Preview selected recipient
+                  Preview recipients
                 </button>
                 <button
                   type="button"
@@ -982,7 +988,10 @@ export function EventCommunications({ user }: { user: User }) {
                   className="button"
                   disabled={!selectedRecipients.length || busy}
                 >
-                  <Send size={16} /> Review and confirm
+                  <Send size={16} />{" "}
+                  {selectedTemplate.category === "decision"
+                    ? "Send decision"
+                    : "Review and confirm delivery"}
                 </button>
               </div>
             </form>

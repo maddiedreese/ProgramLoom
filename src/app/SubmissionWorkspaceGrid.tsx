@@ -1229,8 +1229,12 @@ export function SubmissionWorkspaceGrid({
                   {preview.count === 1 ? "" : "s"}?
                 </h2>
               </div>
-              <button aria-label="Close" onClick={() => setPreview(undefined)}>
-                <X />
+              <button
+                className="button button-small button-ghost"
+                data-dismiss
+                onClick={() => setPreview(undefined)}
+              >
+                <X size={16} /> Close bulk-action preview
               </button>
             </header>
             <p>

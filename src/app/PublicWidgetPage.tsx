@@ -526,7 +526,8 @@ export function PublicWidgetPage() {
         <>
           <div className="itinerary-heading">
             <p>
-              <strong>{saved.length}</strong> sessions in your personal
+              <strong>{saved.length}</strong>{" "}
+              {saved.length === 1 ? "session" : "sessions"} in your personal
               schedule. Saved on this device.
             </p>
             <div>
@@ -856,10 +857,8 @@ function AgendaCard({
           aria-label={`${saved.includes(item.id) ? "Remove from" : "Add to"} itinerary`}
         >
           <CalendarPlus size={16} />{" "}
-          {itinerary
-            ? saved.includes(item.id)
-              ? "Saved"
-              : "Add"
+          {saved.includes(item.id)
+            ? "Remove from itinerary"
             : "Add to itinerary"}
         </button>
       )}

@@ -1330,10 +1330,13 @@ input {
 }
 
 .notification-center > header button {
-  display: grid;
-  width: 38px;
+  display: flex;
+  width: auto;
   height: 38px;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0 0.65rem;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -1578,6 +1581,14 @@ input {
     width: 100%;
   }
 
+  .notification-center > header {
+    grid-template-columns: 1fr auto;
+  }
+
+  .notification-center > header > div:first-child {
+    grid-column: 1 / -1;
+  }
+
   .notification-filters {
     grid-template-columns: 1fr 1fr;
   }
@@ -1637,10 +1648,13 @@ input {
 }
 
 .command-search-row > button {
-  display: grid;
-  width: 34px;
+  display: flex;
+  width: auto;
   height: 34px;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0 0.45rem;
   border: 0;
   border-radius: 8px;
   background: transparent;

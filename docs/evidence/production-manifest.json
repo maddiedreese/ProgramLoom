@@ -1,10 +1,17 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "status": "draft",
   "production": {
     "marketingUrl": "https://programloom.com",
     "applicationUrl": "https://app.programloom.com",
-    "healthUrl": "https://app.programloom.com/api/health"
+    "healthUrl": "https://app.programloom.com/api/health",
+    "publicWidgetUrls": [
+      "https://programloom.com/embed/sessions-bfdfc1515f0d4bf8aea4",
+      "https://programloom.com/embed/speakers-675b59dd225f4152acf3",
+      "https://programloom.com/embed/agenda-8b0020bb6481415f864a",
+      "https://programloom.com/embed/itinerary-2508fc81fad24cb591fc",
+      "https://programloom.com/embed/gallery-f0410c5463644a2fbae0"
+    ]
   },
   "release": {
     "sourceCommit": null,
@@ -23,5 +30,44 @@
   "controlRoom": {
     "openItems": null,
     "reconciled": false
-  }
+  },
+  "communications": {
+    "states": [
+      "prepared",
+      "queued",
+      "processing",
+      "sent",
+      "delivered",
+      "bounced",
+      "failed",
+      "cancelled"
+    ]
+  },
+  "tests": {
+    "unitFiles": null,
+    "unitCases": null,
+    "playwrightExecuted": null,
+    "playwrightPassed": null,
+    "desktopAndMobile": false
+  },
+  "evaluator": {
+    "areas": 7,
+    "scenarios": 20,
+    "criteria": 96,
+    "manualPending": null
+  },
+  "performance": {
+    "route": null,
+    "environment": "production",
+    "cloudflareRegion": null,
+    "device": null,
+    "sampleSize": null,
+    "method": null
+  },
+  "walkthrough": {
+    "path": null,
+    "continuous": false
+  },
+  "screenshots": [],
+  "evidencePaths": []
 }

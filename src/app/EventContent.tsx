@@ -797,11 +797,11 @@ export function EventContent({ user }: { user: User }) {
                 <h2>Edit & approve</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close session editor"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={() => setEditingSession(undefined)}
               >
-                <X />
+                <X size={16} /> Close session editor
               </button>
             </header>
             <form onSubmit={saveSession}>
@@ -938,11 +938,11 @@ export function EventContent({ user }: { user: User }) {
                 <h2>Edit profile</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close speaker editor"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={() => setEditingSpeaker(undefined)}
               >
-                <X />
+                <X size={16} /> Close speaker editor
               </button>
             </header>
             <form onSubmit={saveSpeaker}>
@@ -1018,14 +1018,14 @@ export function EventContent({ user }: { user: User }) {
                 <h2>{selectedFile.filename}</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close file details"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={() => {
                   setSelectedFile(undefined);
                   setFileDetail(undefined);
                 }}
               >
-                <X />
+                <X size={16} /> Close file details
               </button>
             </header>
             <section className="revision-list">

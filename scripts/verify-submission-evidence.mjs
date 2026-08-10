@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
+import { dirname, isAbsolute, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const final = process.argv.includes("--final");
 const root = new URL("../", import.meta.url);
@@ -11,16 +13,35 @@ const errors = [];
 const manifestPath =
   process.env.PROGRAMLOOM_EVIDENCE_MANIFEST ??
   "docs/evidence/production-manifest.json";
-const [readme, guide, parity, evidence, manifestText] = await Promise.all([
-  load("README.md"),
-  load("docs/evaluator-guide.md"),
-  load("docs/parity-map.md"),
-  load("docs/evidence/README.md"),
-  manifestPath.startsWith("/")
-    ? readFile(manifestPath, "utf8")
-    : load(manifestPath),
-]);
+const manifestFile = isAbsolute(manifestPath)
+  ? manifestPath
+  : fileURLToPath(new URL(manifestPath, root));
+const manifestDirectory = dirname(manifestFile);
+const [readme, guide, routeMap, parity, matrix, evidence, manifestText] =
+  await Promise.all([
+    load("README.md"),
+    load("docs/evaluator-guide.md"),
+    load("docs/evaluator-route-map.md"),
+    load("docs/parity-map.md"),
+    load("docs/evaluation-matrix.md"),
+    load("docs/evidence/README.md"),
+    readFile(manifestFile, "utf8"),
+  ]);
 const manifest = JSON.parse(manifestText);
+const communicationStates = [
+  "prepared",
+  "queued",
+  "processing",
+  "sent",
+  "delivered",
+  "bounced",
+  "failed",
+  "cancelled",
+];
+const exactCalendarScope = {
+  tested: ["Gmail", "Apple Calendar"],
+  waived: ["Outlook"],
+};
 
 for (const [name, content] of [
   ["README", readme],
@@ -41,8 +62,24 @@ for (const url of [
 
 if (!evidence.includes("Outlook is explicitly waived and untested"))
   errors.push("Evidence claim rules do not preserve the Outlook waiver.");
-if (manifest.schemaVersion !== 1)
+if (manifest.schemaVersion !== 2)
   errors.push("Unsupported production evidence manifest schema.");
+if (
+  JSON.stringify(manifest.communications?.states) !==
+  JSON.stringify(communicationStates)
+)
+  errors.push("Communication states do not use the canonical lifecycle.");
+if (
+  JSON.stringify(manifest.calendarClients) !==
+  JSON.stringify(exactCalendarScope)
+)
+  errors.push("Calendar claims must name only Gmail/Apple and waive Outlook.");
+if (manifest.production?.publicWidgetUrls?.length !== 5)
+  errors.push("Manifest must contain exactly five public widget URLs.");
+for (const url of manifest.production?.publicWidgetUrls ?? []) {
+  if (!routeMap.includes(url))
+    errors.push(`Evaluator route map is missing widget URL ${url}.`);
+}
 
 if (final) {
   const release = manifest.release ?? {};
@@ -71,6 +108,75 @@ if (final) {
     );
   if (manifest.controlRoom?.reconciled !== true)
     errors.push("Final Control Room state is not marked reconciled.");
+  if (manifest.controlRoom?.openItems !== 0)
+    errors.push("Final Control Room does not reconcile to zero open items.");
+  if (
+    !Number.isInteger(manifest.tests?.unitFiles) ||
+    manifest.tests.unitFiles < 1 ||
+    !Number.isInteger(manifest.tests?.unitCases) ||
+    manifest.tests.unitCases < 1
+  )
+    errors.push("Final unit test counts are missing or invalid.");
+  if (
+    !Number.isInteger(manifest.tests?.playwrightExecuted) ||
+    manifest.tests.playwrightExecuted < 1 ||
+    manifest.tests.playwrightExecuted !== manifest.tests.playwrightPassed ||
+    manifest.tests.desktopAndMobile !== true
+  )
+    errors.push(
+      "Final desktop/mobile Playwright counts are not fully passing.",
+    );
+  if (
+    manifest.evaluator?.areas !== 7 ||
+    manifest.evaluator?.scenarios !== 20 ||
+    manifest.evaluator?.criteria !== 96 ||
+    manifest.evaluator?.manualPending !== 0
+  )
+    errors.push("Final evaluator counts or manual-checklist state are stale.");
+  for (const field of [
+    "route",
+    "environment",
+    "cloudflareRegion",
+    "device",
+    "method",
+  ]) {
+    if (!String(manifest.performance?.[field] ?? "").trim())
+      errors.push(`Final performance evidence is missing ${field}.`);
+  }
+  if (!(manifest.performance?.sampleSize > 0))
+    errors.push("Final performance sample size is missing or invalid.");
+  if (!manifest.walkthrough?.continuous || !manifest.walkthrough?.path)
+    errors.push(
+      "Final uninterrupted walkthrough is not recorded in the manifest.",
+    );
+  if (!Array.isArray(manifest.screenshots) || manifest.screenshots.length < 8)
+    errors.push(
+      "Final manifest needs at least eight captioned product captures.",
+    );
+  if (
+    !Array.isArray(manifest.evidencePaths) ||
+    manifest.evidencePaths.length < 8
+  )
+    errors.push("Final manifest needs the complete production evidence index.");
+  const referencedPaths = [
+    manifest.walkthrough?.path,
+    ...(manifest.evidencePaths ?? []),
+    ...(manifest.screenshots ?? []).map((item) => item.path),
+  ].filter(Boolean);
+  for (const item of manifest.screenshots ?? []) {
+    if (!String(item.caption ?? "").trim())
+      errors.push(
+        `Screenshot ${item.path ?? "(missing path)"} has no caption.`,
+      );
+  }
+  for (const path of referencedPaths) {
+    const target = isAbsolute(path) ? path : resolve(manifestDirectory, path);
+    try {
+      await access(target);
+    } catch {
+      errors.push(`Manifest evidence path does not exist: ${path}.`);
+    }
+  }
   if (/^- \[ \]/m.test(guide))
     errors.push(
       "Submission documentation still contains an unfinished checklist item.",
@@ -97,6 +203,7 @@ if (final) {
   for (const url of [
     manifest.production.marketingUrl,
     manifest.production.applicationUrl,
+    ...manifest.production.publicWidgetUrls,
   ]) {
     try {
       const response = await fetch(url, { redirect: "follow" });
@@ -105,6 +212,21 @@ if (final) {
       errors.push(`${url} could not be reached: ${error.message}`);
     }
   }
+
+  const unitClaim = matrix.match(/(\d+)-file\/(\d+)-test suite/);
+  if (
+    unitClaim &&
+    (Number(unitClaim[1]) !== manifest.tests.unitFiles ||
+      Number(unitClaim[2]) !== manifest.tests.unitCases)
+  )
+    errors.push("Traceability-matrix unit test count is stale.");
+  const playwrightClaim = matrix.match(/passed (\d+)\/(\d+)/);
+  if (
+    playwrightClaim &&
+    (Number(playwrightClaim[1]) !== manifest.tests.playwrightPassed ||
+      Number(playwrightClaim[2]) !== manifest.tests.playwrightExecuted)
+  )
+    errors.push("Traceability-matrix Playwright count is stale.");
 }
 
 if (errors.length) {

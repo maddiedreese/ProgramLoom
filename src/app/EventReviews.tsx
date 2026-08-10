@@ -919,11 +919,11 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
                 <h2>{selected.title}</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close review details"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={() => setSelected(undefined)}
               >
-                <X size={19} />
+                <X size={16} /> Close review details
               </button>
             </header>
             <div className="review-proposal">

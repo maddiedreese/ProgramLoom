@@ -756,14 +756,14 @@ function SpeakerPortal({
                 <h2>{selectedFile.filename || selectedFile.purpose}</h2>
               </div>
               <button
-                className="plain-icon"
-                aria-label="Close file details"
+                className="button button-small button-ghost"
+                data-dismiss
                 onClick={() => {
                   setSelectedFile(undefined);
                   setFileDetail(undefined);
                 }}
               >
-                <X />
+                <X size={16} /> Close file details
               </button>
             </header>
             <section className="revision-list">

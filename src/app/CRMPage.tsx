@@ -1547,8 +1547,12 @@ function Modal({
             <p className="kicker">{subtitle}</p>
             <h2>{title}</h2>
           </div>
-          <button aria-label="Close" onClick={close}>
-            <X />
+          <button
+            className="button button-small button-ghost"
+            data-dismiss
+            onClick={close}
+          >
+            <X size={16} /> Close details
           </button>
         </header>
         {children}
