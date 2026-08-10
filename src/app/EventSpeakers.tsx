@@ -952,6 +952,34 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
+  async function removeTaskAssignment(assignment: TaskAssignment) {
+    if (
+      !window.confirm(
+        `Remove “${assignment.title}” from ${assignment.speakerName}? Only this untouched assignment and its empty file request will be removed.`,
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await api(
+        `/api/speakers/admin/events/${eventId}/tasks/${assignment.taskId}/assignments/${assignment.speakerId}`,
+        { method: "DELETE" },
+      );
+      await load();
+      setFeedback({
+        kind: "success",
+        message: `Untouched assignment removed from ${assignment.speakerName}; audit history was retained.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Assignment not removed.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
   async function createFileRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -1219,6 +1247,38 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             </button>
           </article>
         ))}
+      </section>
+      <section className="file-review-list" aria-label="Onboarding progress">
+        <h2>Onboarding progress</h2>
+        {taskAssignments.map((assignment) => (
+          <article
+            key={`${assignment.taskId}:${assignment.speakerId}:progress`}
+          >
+            <span>
+              <strong>{assignment.speakerName}</strong>
+              <small>{assignment.title}</small>
+            </span>
+            <em className={`submission-status status-${assignment.status}`}>
+              {assignment.status.replaceAll("_", " ")}
+            </em>
+            {(assignment.status === "todo" ||
+              assignment.status === "in_progress") && (
+              <button
+                className="button button-ghost button-small"
+                onClick={() => removeTaskAssignment(assignment)}
+                disabled={busy}
+              >
+                Remove assignment
+              </button>
+            )}
+          </article>
+        ))}
+        {!taskAssignments.length && (
+          <div className="inline-empty">
+            No onboarding assignments yet. Assign a task to populate this
+            progress view.
+          </div>
+        )}
       </section>
       <section className="file-review-list" aria-label="Speaker resources">
         <h2>Speaker resources</h2>

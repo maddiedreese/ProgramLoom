@@ -183,7 +183,17 @@ describe("speaker workspace", () => {
                   dueAt: null,
                 },
               ],
-              taskAssignments: [],
+              taskAssignments: [
+                {
+                  taskId: "task-1",
+                  speakerId: "speaker-1",
+                  speakerName: "Priya Raman",
+                  title: "Confirm participation",
+                  status: "todo",
+                  response: {},
+                  completedAt: null,
+                },
+              ],
               resources: [],
               files: [],
             }),
@@ -217,14 +227,19 @@ describe("speaker workspace", () => {
       "href",
       `/app/crm?action=import-speakers&eventId=${eventId}`,
     );
-    expect(await screen.findByText("Priya Raman")).toBeVisible();
+    expect((await screen.findAllByText("Priya Raman"))[0]).toBeVisible();
     expect(screen.getByLabelText("Filter speaker status")).toBeVisible();
     expect(screen.getByRole("button", { name: "Delete task" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Remove assignment" }),
+    ).toBeVisible();
     expect(screen.getByLabelText("Filter task progress")).toBeVisible();
     fireEvent.change(screen.getByLabelText("Filter task progress"), {
       target: { value: "incomplete" },
     });
-    expect(screen.queryByText("Priya Raman")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Edit speaker profile" }),
+    ).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Filter task progress"), {
       target: { value: "all" },
     });

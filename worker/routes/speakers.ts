@@ -708,6 +708,79 @@ router.delete("/admin/events/:eventId/tasks/:taskId", async (context) => {
   return context.json({ ok: true });
 });
 
+router.delete(
+  "/admin/events/:eventId/tasks/:taskId/assignments/:speakerId",
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const taskId = context.req.param("taskId");
+    const speakerId = context.req.param("speakerId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const db = database(context.env);
+    const assignment = await db
+      .prepare(
+        `SELECT sta.status,t.title,sp.first_name||' '||sp.last_name AS speakerName
+         FROM speaker_task_assignments sta
+         JOIN onboarding_tasks t ON t.id=sta.task_id
+         JOIN speaker_profiles sp ON sp.id=sta.speaker_id
+         WHERE sta.task_id=? AND sta.speaker_id=? AND t.event_id=?`,
+      )
+      .bind(taskId, speakerId, eventId)
+      .first<{ status: string; title: string; speakerName: string }>();
+    if (!assignment)
+      throw new HttpError(
+        404,
+        "assignment_not_found",
+        "Task assignment not found.",
+      );
+    if (!["todo", "in_progress"].includes(assignment.status))
+      throw new HttpError(
+        409,
+        "assignment_has_progress",
+        "Only untouched task assignments can be removed. Keep submitted or completed work for auditability.",
+      );
+    const uploaded = await db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM file_versions fv JOIN files f ON f.id=fv.file_id
+         WHERE f.task_id=? AND f.speaker_id=? AND f.event_id=?`,
+      )
+      .bind(taskId, speakerId, eventId)
+      .first<{ count: number }>();
+    if (Number(uploaded?.count ?? 0) > 0)
+      throw new HttpError(
+        409,
+        "assignment_has_uploads",
+        "This assignment has uploaded file history and cannot be removed.",
+      );
+    await db.batch([
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "speaker_task.assignment_removed",
+        entityType: "speaker_task",
+        entityId: `${taskId}:${speakerId}`,
+        before: assignment,
+        after: { removed: true, emptyFileRequestRemoved: true },
+        requestId: context.get("requestId"),
+      }),
+      db
+        .prepare(
+          `DELETE FROM files WHERE task_id=? AND speaker_id=? AND event_id=?
+           AND current_version_id IS NULL`,
+        )
+        .bind(taskId, speakerId, eventId),
+      db
+        .prepare(
+          "DELETE FROM speaker_task_assignments WHERE task_id=? AND speaker_id=?",
+        )
+        .bind(taskId, speakerId),
+    ]);
+    return context.json({ ok: true });
+  },
+);
+
 router.get(
   "/events/:eventId/files/:fileId/versions/:versionId/download",
   async (context) => {
