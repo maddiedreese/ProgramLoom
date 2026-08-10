@@ -46,6 +46,23 @@ type AirtableProjection = {
   fields: Record<string, unknown>;
 };
 
+export function isAirtableDeletionAudit(action: string) {
+  return action.includes("deleted") || action.endsWith(".assignment_removed");
+}
+
+function outboxRequestsDeletion(outbox: OutboxRecord) {
+  if (outbox.action === "delete") return true;
+  try {
+    const payload = JSON.parse(outbox.payloadJson) as { action?: unknown };
+    return (
+      typeof payload.action === "string" &&
+      isAirtableDeletionAudit(payload.action)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export const speakerTaskAssignmentSql = `SELECT t.event_id AS eventId,a.speaker_id AS speakerId,t.title,a.status,t.due_at AS dueAt,
         a.response_json AS responseJson,a.updated_at AS updatedAt
  FROM speaker_task_assignments a JOIN onboarding_tasks t ON t.id=a.task_id
@@ -105,7 +122,7 @@ export async function queueAirtableAudits(
         `airtable-${audit.id}`,
         audit.organizationId,
         audit.eventId,
-        audit.action.includes("deleted") ? "delete" : "upsert",
+        isAirtableDeletionAudit(audit.action) ? "delete" : "upsert",
         audit.entityType,
         audit.entityId,
         JSON.stringify({ auditId: audit.id, action: audit.action }),
@@ -181,7 +198,7 @@ export async function processAirtableOutbox(
   try {
     if (outbox.entityType === "crm_import") {
       await syncCrmCollection(env, outbox.organizationId);
-    } else if (outbox.action === "delete") {
+    } else if (outboxRequestsDeletion(outbox)) {
       await deleteExternalEntity(env, outbox);
     } else {
       await upsertExternalEntity(env, outbox);

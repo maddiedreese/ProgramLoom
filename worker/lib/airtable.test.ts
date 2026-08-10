@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../env";
 import {
+  isAirtableDeletionAudit,
   resolvedConflictCompactionSql,
   speakerTaskAssignmentSql,
   speakerTaskEntityParts,
   verifyAirtableWebhook,
 } from "./airtable";
+
+describe("Airtable deletion intent", () => {
+  it("classifies deleted records and removed composite assignments as deletions", () => {
+    expect(isAirtableDeletionAudit("speaker_task.deleted")).toBe(true);
+    expect(isAirtableDeletionAudit("speaker_task.assignment_removed")).toBe(
+      true,
+    );
+    expect(isAirtableDeletionAudit("speaker_task.updated")).toBe(false);
+  });
+});
 
 describe("Airtable conflict recovery", () => {
   it("compacts an older resolved snapshot before resolving a repeated failure", () => {
