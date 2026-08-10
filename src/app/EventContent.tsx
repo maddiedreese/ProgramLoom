@@ -2,6 +2,7 @@ import {
   Archive,
   ArrowLeft,
   CheckCircle2,
+  CalendarClock,
   Clock3,
   Download,
   FileArchive,
@@ -914,6 +915,12 @@ export function EventContent({ user }: { user: User }) {
                 <Sparkles size={15} /> Suggest clearer content
               </button>
             </form>
+            <a
+              className="button button-ghost"
+              href={`/app/events/${eventId}/agenda`}
+            >
+              <CalendarClock size={16} /> Schedule session
+            </a>
             {aiSuggestion && (
               <section className="ai-suggestion">
                 <small>Workers AI suggestion · review before applying</small>
