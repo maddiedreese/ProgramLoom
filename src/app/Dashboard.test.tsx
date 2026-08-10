@@ -109,4 +109,67 @@ describe("organizer onboarding", () => {
       screen.getByRole("link", { name: /open speaker portal/i }),
     ).toHaveAttribute("href", "/app/events/event-1/speakers");
   });
+
+  it("gives speakers an explicit persisted proposal tracker", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const path = String(input);
+        const body = path.includes("/my-submissions")
+          ? {
+              submissions: [
+                {
+                  id: "submission-1",
+                  title: "Reliable programs",
+                  status: "pending",
+                  decisionState: "none",
+                  submittedAt: "2027-01-01T00:00:00.000Z",
+                  updatedAt: "2027-01-02T00:00:00.000Z",
+                  formName: "Community CFP",
+                  formSlug: "community-cfp",
+                  editClosesAt: null,
+                  eventName: "Assigned Program",
+                  eventSlug: "assigned-program",
+                  organizationName: "Programs",
+                  organizationSlug: "programs",
+                },
+              ],
+            }
+          : path.includes("/events")
+            ? { events: [] }
+            : {
+                organizations: [
+                  {
+                    id: "organization-1",
+                    name: "Programs",
+                    slug: "programs",
+                    storageMode: "native",
+                    role: "member",
+                    eventCount: 1,
+                  },
+                ],
+              };
+        return Promise.resolve(Response.json(body));
+      }),
+    );
+
+    render(
+      <Dashboard
+        user={{
+          id: "speaker-1",
+          email: "speaker@example.com",
+          name: "Priya Speaker",
+        }}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "My proposals" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Reliable programs")).toBeInTheDocument();
+    expect(screen.getByText("pending")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /open proposal/i }),
+    ).toHaveAttribute("href", "/c/programs/assigned-program/community-cfp");
+  });
 });

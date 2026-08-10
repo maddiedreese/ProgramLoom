@@ -615,8 +615,6 @@ export function EventWorkspace({ user }: { user: User }) {
                       <a
                         className="public-form-link"
                         href={`/c/${event.organizationSlug}/${event.slug}/${selected.slug}`}
-                        target="_blank"
-                        rel="noreferrer"
                       >
                         Open public form <ExternalLink size={12} />
                       </a>

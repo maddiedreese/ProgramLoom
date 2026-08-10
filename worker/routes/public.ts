@@ -318,6 +318,31 @@ router.get("/cfp", async (context) => {
   });
 });
 
+router.get("/my-submissions", async (context) => {
+  const user = await authenticatedUserOrNull(context);
+  if (!user)
+    throw new HttpError(401, "authentication_required", "Sign in to continue.");
+  const result = await database(context.env)
+    .prepare(
+      `SELECT DISTINCT s.id,s.title,s.status,s.decision_state AS decisionState,
+              s.submitted_at AS submittedAt,s.updated_at AS updatedAt,
+              f.name AS formName,f.slug AS formSlug,f.edit_closes_at AS editClosesAt,
+              e.id AS eventId,e.name AS eventName,e.slug AS eventSlug,
+              o.name AS organizationName,o.slug AS organizationSlug
+       FROM submissions s
+       JOIN submission_people person ON person.submission_id=s.id
+       JOIN cfp_forms f ON f.id=s.form_id
+       JOIN events e ON e.id=s.event_id
+       JOIN organizations o ON o.id=e.organization_id
+       WHERE person.user_id=? OR lower(person.email)=lower(?)
+       ORDER BY COALESCE(s.submitted_at,s.updated_at) DESC,s.id
+       LIMIT 100`,
+    )
+    .bind(user.id, user.email)
+    .all();
+  return context.json({ submissions: result.results });
+});
+
 export function matches(operator: string, actual: unknown, expected: unknown) {
   if (operator === "is_checked") return actual === true;
   if (operator === "equals")

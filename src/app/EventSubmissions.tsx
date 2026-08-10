@@ -127,20 +127,22 @@ export function EventSubmissions({ user }: { user: User }) {
     setBusy(true);
     setFeedback(undefined);
     try {
-      const [result, aiResult] = await Promise.all([
-        api<{
-          submission: SubmissionDetail;
-          fields: Field[];
-          people: Person[];
-        }>(`/api/events/${eventId}/submissions/${id}`),
-        api<{ assessments: AiAssessment[] }>(
-          `/api/reviews/events/${eventId}/submissions/${id}/ai-assessments`,
-        ),
-      ]);
+      const result = await api<{
+        submission: SubmissionDetail;
+        fields: Field[];
+        people: Person[];
+      }>(`/api/events/${eventId}/submissions/${id}`);
       setSelected(result.submission);
       setFields(result.fields);
       setPeople(result.people);
-      setAssessments(aiResult.assessments);
+      const url = new URL(window.location.href);
+      url.searchParams.set("submission", id);
+      window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+      api<{ assessments: AiAssessment[] }>(
+        `/api/reviews/events/${eventId}/submissions/${id}/ai-assessments`,
+      )
+        .then((aiResult) => setAssessments(aiResult.assessments))
+        .catch(() => setAssessments([]));
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -153,6 +155,20 @@ export function EventSubmissions({ user }: { user: User }) {
       setBusy(false);
     }
   }
+  function closeSubmission() {
+    setSelected(undefined);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("submission");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+  }
+  useEffect(() => {
+    if (loading) return;
+    const submissionId = new URLSearchParams(window.location.search).get(
+      "submission",
+    );
+    if (submissionId && submissionId !== selected?.id)
+      void openSubmission(submissionId);
+  }, [loading, eventId]);
   async function changeDecision(
     state:
       "none" | "acceptance_staged" | "waitlist_staged" | "rejection_staged",
@@ -307,10 +323,15 @@ export function EventSubmissions({ user }: { user: User }) {
         <div
           className="detail-backdrop"
           onMouseDown={(event) => {
-            if (event.currentTarget === event.target) setSelected(undefined);
+            if (event.currentTarget === event.target) closeSubmission();
           }}
         >
-          <aside className="submission-detail" aria-label="Submission details">
+          <aside
+            className="submission-detail"
+            aria-label="Submission details"
+            aria-modal="true"
+            role="dialog"
+          >
             <header>
               <div>
                 <small>{selected.formName}</small>
@@ -318,7 +339,7 @@ export function EventSubmissions({ user }: { user: User }) {
               </div>
               <button
                 className="plain-icon"
-                onClick={() => setSelected(undefined)}
+                onClick={closeSubmission}
                 aria-label="Close submission details"
               >
                 <X size={19} />

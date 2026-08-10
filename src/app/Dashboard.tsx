@@ -3,6 +3,7 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
+  FileInput,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -38,6 +39,21 @@ type EventRecord = {
   accessRole?: string;
 };
 type Feedback = { kind: "error" | "success"; message: string };
+type MySubmission = {
+  id: string;
+  title: string;
+  status: string;
+  decisionState: string;
+  submittedAt: string | null;
+  updatedAt: string;
+  formName: string;
+  formSlug: string;
+  editClosesAt: string | null;
+  eventName: string;
+  eventSlug: string;
+  organizationName: string;
+  organizationSlug: string;
+};
 type AirtableStatus = {
   configured: boolean;
   pending: number;
@@ -74,6 +90,7 @@ export function Dashboard({ user }: { user: User }) {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [events, setEvents] = useState<EventRecord[]>([]);
+  const [mySubmissions, setMySubmissions] = useState<MySubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -86,6 +103,9 @@ export function Dashboard({ user }: { user: User }) {
     selected !== undefined && ["owner", "admin"].includes(selected.role);
 
   useEffect(() => {
+    api<{ submissions: MySubmission[] }>("/api/public/my-submissions")
+      .then(({ submissions }) => setMySubmissions(submissions ?? []))
+      .catch(() => setMySubmissions([]));
     api<{ organizations: Organization[] }>("/api/organizations")
       .then(({ organizations: items }) => {
         setOrganizations(items);
@@ -325,6 +345,47 @@ export function Dashboard({ user }: { user: User }) {
                 </div>
               </div>
             )}
+          </section>
+        )}
+        {mySubmissions.length > 0 && (
+          <section aria-labelledby="my-proposals-title">
+            <div className="content-heading">
+              <div>
+                <p className="kicker">Speaker workspace</p>
+                <h2 id="my-proposals-title">My proposals</h2>
+                <p>Track every draft, submitted proposal, and decision.</p>
+              </div>
+            </div>
+            <div className="event-grid">
+              {mySubmissions.map((submission) => (
+                <article className="event-card" key={submission.id}>
+                  <div className="event-status">
+                    {submission.decisionState !== "none"
+                      ? submission.decisionState.replaceAll("_", " ")
+                      : submission.status}
+                  </div>
+                  <FileInput size={20} />
+                  <h3>{submission.title || "Untitled proposal"}</h3>
+                  <p>
+                    {submission.eventName} · {submission.formName}
+                  </p>
+                  <span>
+                    Updated{" "}
+                    {new Intl.DateTimeFormat("en-US", {
+                      dateStyle: "medium",
+                    }).format(new Date(submission.updatedAt))}
+                  </span>
+                  <a
+                    href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}`}
+                  >
+                    {submission.status === "draft"
+                      ? "Continue proposal"
+                      : "Open proposal"}{" "}
+                    <ArrowRight size={15} />
+                  </a>
+                </article>
+              ))}
+            </div>
           </section>
         )}
         {!organizations.length ? (
