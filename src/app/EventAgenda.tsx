@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   CalendarClock,
+  CalendarX2,
   CheckCircle2,
   Clock3,
   Code2,
@@ -10,6 +11,7 @@ import {
   LoaderCircle,
   MapPin,
   Plus,
+  RotateCcw,
   Sparkles,
   Trash2,
   UsersRound,
@@ -49,6 +51,7 @@ type AgendaItem = {
   endsAt: string | null;
   status: string;
   version: number;
+  cancelledAt: string | null;
   roomName: string | null;
   trackName: string | null;
 };
@@ -283,9 +286,28 @@ export function EventAgenda({ user }: { user: User }) {
             trackId: data.get("trackId") || null,
             startsAt: new Date(String(data.get("startsAt"))).toISOString(),
             endsAt: new Date(String(data.get("endsAt"))).toISOString(),
+            reschedule: Boolean(item.cancelledAt),
           }),
         }),
-      `${item.title} placed without conflicts.`,
+      item.cancelledAt
+        ? `${item.title} explicitly rescheduled and restored.`
+        : `${item.title} placed without conflicts.`,
+    );
+  }
+  async function cancel(item: AgendaItem) {
+    if (
+      !window.confirm(
+        `Cancel “${item.title}”? This removes it from public agendas and sends participant calendar cancellations.`,
+      )
+    )
+      return;
+    await act(
+      () =>
+        api(`/api/agenda/admin/events/${eventId}/items/${item.id}/cancel`, {
+          method: "POST",
+          body: "{}",
+        }),
+      `${item.title} cancelled and removed from public agendas.`,
     );
   }
   async function clear(item: AgendaItem) {
@@ -347,7 +369,7 @@ export function EventAgenda({ user }: { user: User }) {
         <LoaderCircle className="spin" /> Loading agenda…
       </main>
     );
-  const scheduled = items.filter((item) => item.startsAt);
+  const scheduled = items.filter((item) => item.startsAt && !item.cancelledAt);
   const unscheduled = items.filter((item) => !item.startsAt);
   const availableSessions = sessions.filter(
     (session) => !items.some((item) => item.submissionId === session.id),
@@ -424,9 +446,21 @@ export function EventAgenda({ user }: { user: User }) {
                     className="plain-icon"
                     onClick={() => clear(item)}
                     title="Clear placement"
+                    aria-label={`Clear placement for ${item.title}`}
                   >
                     <Trash2 size={15} />
                   </button>
+                  {item.itemType === "session" && (
+                    <button
+                      className="plain-icon"
+                      onClick={() => cancel(item)}
+                      title="Cancel session"
+                      aria-label={`Cancel ${item.title}`}
+                      disabled={busy}
+                    >
+                      <CalendarX2 size={15} />
+                    </button>
+                  )}
                 </article>
               ))}
             </div>
@@ -443,6 +477,7 @@ export function EventAgenda({ user }: { user: User }) {
                   <strong>{item.title}</strong>
                   <small>
                     {item.itemType} · v{item.version}
+                    {item.cancelledAt ? " · cancelled" : ""}
                   </small>
                 </div>
                 <label>
@@ -492,7 +527,13 @@ export function EventAgenda({ user }: { user: User }) {
                   />
                 </label>
                 <button className="button button-small" disabled={busy}>
-                  Save
+                  {item.cancelledAt ? (
+                    <>
+                      <RotateCcw size={14} /> Reschedule
+                    </>
+                  ) : (
+                    "Save"
+                  )}
                 </button>
               </form>
             ))}

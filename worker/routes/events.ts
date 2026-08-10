@@ -22,6 +22,41 @@ type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const organizerRoles = ["owner", "admin"] as const;
 
+export function acceptedSpeakerFileRequestStatement(
+  db: D1Database,
+  input: {
+    id: string;
+    organizationId: string;
+    eventId: string;
+    submissionId: string;
+    speakerId: string;
+    taskId: string;
+    purpose: string;
+  },
+) {
+  return db
+    .prepare(
+      `INSERT INTO files
+       (id,organization_id,event_id,submission_id,speaker_id,task_id,purpose)
+       SELECT ?,?,?,?,?,?,?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM files WHERE event_id=? AND speaker_id=? AND task_id=?
+       )`,
+    )
+    .bind(
+      input.id,
+      input.organizationId,
+      input.eventId,
+      input.submissionId,
+      input.speakerId,
+      input.taskId,
+      input.purpose,
+      input.eventId,
+      input.speakerId,
+      input.taskId,
+    );
+}
+
 const trackSchema = z.object({
   name: z.string().trim().min(1).max(100),
   slug: z.string().trim().max(64).optional(),
@@ -1458,7 +1493,21 @@ router.post(
       ];
       if (input.decision === "accepted") {
         const nameParts = submission.name.trim().split(/\s+/);
-        const speakerId = crypto.randomUUID();
+        const [existingSpeaker, fileTasks] = await Promise.all([
+          db
+            .prepare(
+              "SELECT id FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE",
+            )
+            .bind(event.organizationId, submission.email)
+            .first<{ id: string }>(),
+          db
+            .prepare(
+              "SELECT id,title FROM onboarding_tasks WHERE event_id=? AND task_type='file_request' ORDER BY position,id",
+            )
+            .bind(eventId)
+            .all<{ id: string; title: string }>(),
+        ]);
+        const speakerId = existingSpeaker?.id ?? crypto.randomUUID();
         deliveryStatements.push(
           db
             .prepare(
@@ -1474,19 +1523,14 @@ router.post(
             ),
           db
             .prepare(
-              "INSERT INTO session_speakers (submission_id, speaker_id, role) SELECT ?, id, 'speaker' FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE ON CONFLICT (submission_id, speaker_id) DO NOTHING",
+              "INSERT INTO session_speakers (submission_id, speaker_id, role) VALUES (?,?,'speaker') ON CONFLICT (submission_id, speaker_id) DO NOTHING",
             )
-            .bind(submission.id, event.organizationId, submission.email),
+            .bind(submission.id, speakerId),
           db
             .prepare(
-              "INSERT OR IGNORE INTO event_speakers(event_id,speaker_id,source,added_by) SELECT ?,id,'accepted_submission',? FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE",
+              "INSERT OR IGNORE INTO event_speakers(event_id,speaker_id,source,added_by) VALUES (?,?,'accepted_submission',?)",
             )
-            .bind(
-              eventId,
-              access.user.id,
-              event.organizationId,
-              submission.email,
-            ),
+            .bind(eventId, speakerId, access.user.id),
           db
             .prepare(
               "INSERT INTO crm_contacts(id,organization_id,speaker_profile_id,email,first_name,last_name,company,bio,tags_json,source) SELECT ?,organization_id,id,email,first_name,last_name,company,bio,'[]','accepted_session' FROM speaker_profiles WHERE organization_id=? AND email=? COLLATE NOCASE ON CONFLICT(organization_id,email) DO UPDATE SET speaker_profile_id=excluded.speaker_profile_id,first_name=excluded.first_name,last_name=excluded.last_name,company=excluded.company,bio=COALESCE(excluded.bio,crm_contacts.bio),updated_at=CURRENT_TIMESTAMP",
@@ -1494,10 +1538,22 @@ router.post(
             .bind(crypto.randomUUID(), event.organizationId, submission.email),
           db
             .prepare(
-              "INSERT INTO speaker_task_assignments (task_id, speaker_id) SELECT task.id, speaker.id FROM onboarding_tasks task JOIN speaker_profiles speaker ON speaker.organization_id=? AND speaker.email=? COLLATE NOCASE WHERE task.event_id=? ON CONFLICT (task_id,speaker_id) DO NOTHING",
+              "INSERT INTO speaker_task_assignments (task_id, speaker_id) SELECT task.id, ? FROM onboarding_tasks task WHERE task.event_id=? ON CONFLICT (task_id,speaker_id) DO NOTHING",
             )
-            .bind(event.organizationId, submission.email, eventId),
+            .bind(speakerId, eventId),
         );
+        for (const task of fileTasks.results)
+          deliveryStatements.push(
+            acceptedSpeakerFileRequestStatement(db, {
+              id: crypto.randomUUID(),
+              organizationId: event.organizationId,
+              eventId,
+              submissionId: submission.id,
+              speakerId,
+              taskId: task.id,
+              purpose: task.title,
+            }),
+          );
       }
       await db.batch(deliveryStatements);
       let queued = false;

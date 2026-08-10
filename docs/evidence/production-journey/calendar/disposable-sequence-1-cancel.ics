@@ -1,0 +1,23 @@
+BEGIN:VCALENDAR
+PRODID:-//ProgramLoom//Participant Calendar//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:CANCEL
+X-WR-TIMEZONE:America/New_York
+BEGIN:VEVENT
+UID:e41dbde3-731a-4ee9-9943-fd954b49153e@programloom.com
+SEQUENCE:1
+DTSTAMP:20260810T012044Z
+DTSTART:20270914T180000Z
+DTEND:20270914T183000Z
+SUMMARY:Disposable Calendar Lifecycle Verification
+DESCRIPTION:\n\nProgramLoom Production Readiness
+LOCATION:Breakout room\, ProgramLoom verification venue
+ORGANIZER;CN="ProgramLoom Organizer":mailto:maddie+programloom-organizer@ma
+ ddiedreese.com
+ATTENDEE;CN="Priya Raman";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=T
+ RUE:mailto:maddie+programloom-speaker@maddiedreese.com
+STATUS:CANCELLED
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR

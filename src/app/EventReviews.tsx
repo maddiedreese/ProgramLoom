@@ -116,12 +116,14 @@ function EventChrome({
   event,
   user,
   eventId,
+  role,
   children,
   active,
 }: {
   event?: EventRecord;
   user: User;
   eventId: string;
+  role?: string;
   children: React.ReactNode;
   active: "reviews";
 }) {
@@ -143,27 +145,35 @@ function EventChrome({
           <span>{event?.status}</span>
         </div>
         <nav className="event-nav" aria-label="Event workspace">
-          <a href={`/app/events/${eventId}`}>
-            <FileInput size={18} /> Call for proposals
-          </a>
-          <a href={`/app/events/${eventId}/submissions`}>
-            <Inbox size={18} /> Submissions
-          </a>
+          {role !== "reviewer" && (
+            <>
+              <a href={`/app/events/${eventId}`}>
+                <FileInput size={18} /> Call for proposals
+              </a>
+              <a href={`/app/events/${eventId}/submissions`}>
+                <Inbox size={18} /> Submissions
+              </a>
+            </>
+          )}
           <a
             className={active === "reviews" ? "active" : ""}
             href={`/app/events/${eventId}/reviews`}
           >
             <ClipboardCheck size={18} /> Reviews
           </a>
-          <a href={`/app/events/${eventId}/speakers`}>
-            <UsersRound size={18} /> Speakers
-          </a>
-          <a href={`/app/events/${eventId}/content`}>
-            <Files size={18} /> Content
-          </a>
-          <a href={`/app/events/${eventId}/agenda`}>
-            <CheckCircle2 size={18} /> Agenda
-          </a>
+          {role !== "reviewer" && (
+            <>
+              <a href={`/app/events/${eventId}/speakers`}>
+                <UsersRound size={18} /> Speakers
+              </a>
+              <a href={`/app/events/${eventId}/content`}>
+                <Files size={18} /> Content
+              </a>
+              <a href={`/app/events/${eventId}/agenda`}>
+                <CheckCircle2 size={18} /> Agenda
+              </a>
+            </>
+          )}
         </nav>
         <SidebarUser user={user} />
       </aside>
@@ -199,7 +209,13 @@ export function EventReviews({ user }: { user: User }) {
       </main>
     );
   return (
-    <EventChrome event={event} user={user} eventId={eventId} active="reviews">
+    <EventChrome
+      event={event}
+      user={user}
+      eventId={eventId}
+      role={role}
+      active="reviews"
+    >
       <main id="main-content" className="event-main reviews-main">
         {feedback && (
           <div className={`form-status form-status-${feedback.kind}`}>

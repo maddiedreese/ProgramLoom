@@ -46,6 +46,21 @@ type AirtableProjection = {
   fields: Record<string, unknown>;
 };
 
+export const speakerTaskAssignmentSql = `SELECT t.event_id AS eventId,a.speaker_id AS speakerId,t.title,a.status,t.due_at AS dueAt,
+        a.response_json AS responseJson,a.updated_at AS updatedAt
+ FROM speaker_task_assignments a JOIN onboarding_tasks t ON t.id=a.task_id
+ WHERE a.task_id=? AND (? IS NULL OR a.speaker_id=?)
+ ORDER BY a.updated_at DESC LIMIT 1`;
+
+export function speakerTaskEntityParts(entityId: string) {
+  const separator = entityId.indexOf(":");
+  if (separator < 0) return { taskId: entityId, speakerId: null };
+  return {
+    taskId: entityId.slice(0, separator),
+    speakerId: entityId.slice(separator + 1) || null,
+  };
+}
+
 const pullResources = [
   { entityType: "organization", table: "PL Organizations" },
   { entityType: "event", table: "PL Events" },
@@ -643,14 +658,10 @@ async function projectEntity(
         : null;
     }
     case "speaker_task": {
+      const { taskId, speakerId } = speakerTaskEntityParts(entityId);
       const row = await db
-        .prepare(
-          `SELECT t.event_id AS eventId,a.speaker_id AS speakerId,t.title,a.status,t.due_at AS dueAt,
-                  a.response_json AS responseJson,a.updated_at AS updatedAt
-           FROM speaker_task_assignments a JOIN onboarding_tasks t ON t.id=a.task_id
-           WHERE a.id=? OR t.id=? ORDER BY a.updated_at DESC LIMIT 1`,
-        )
-        .bind(entityId, entityId)
+        .prepare(speakerTaskAssignmentSql)
+        .bind(taskId, speakerId, speakerId)
         .first<Record<string, unknown>>();
       return row
         ? projection("PL Speaker Tasks", {

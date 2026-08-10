@@ -56,6 +56,14 @@ D1 and R2 are the durable application stores; Airtable is authoritative only for
 
 Run `npm run airtable:provision` only against the dedicated ProgramLoom base. `npm run airtable:webhook` rotates/configures the filtered HMAC webhook and deploys its generated secrets. Never enumerate or modify unrelated bases. Normal writes enter the D1 outbox, move through Queue, and receive stable external IDs; webhook pulls are coalesced and tenancy-row deletion becomes a visible conflict instead of deleting the workspace.
 
+Speaker-task external IDs are composite (`task ID:speaker ID`). A retrying conflict must remain open until the Queue worker records a successful provider write; the API retry action only requeues it. Confirm recovery by checking the external-record mapping, the resolved conflict timestamp, the `integration.recovered` notification, and zero pending/failed/conflict counts. Never mark a conflict resolved before the provider attempt succeeds.
+
+## Calendar lifecycle operations
+
+Use the session cancellation action when an invitation is no longer valid. It records agenda cancellation, removes the item from public widgets, stores a higher-sequence `CANCEL` revision, and queues the participant-addressed message. Ordinary placement changes are rejected while cancelled. To restore a cancelled session, use the explicit reschedule action; confirm the same UID, a higher sequence, a new `REQUEST`, and renewed public visibility only after publication. Calendar resend, update, cancellation, and reschedule actions are organizer/admin-only and must be verified in the Communications outbox before retrying.
+
+For evidence, retain the downloaded bytes for the initial `REQUEST`, a material update, and final `CANCEL`. Verify identical UID, strictly increasing sequence, correct method, organizer/attendee/timezone fields, and provider delivery attempts. Test imports in Gmail, Outlook, and Apple Calendar with a disposable session; remove the disposable calendar item after evidence is recorded.
+
 ## Control Room operations
 
 Open an event's Control Room first during program-readiness or integration triage. Blocking items sort before warnings and informational drafts; overdue items sort first within a severity. Counts are derived live and should reconcile with the linked filtered records. Assign an owner for coordination, then resolve the underlying workflow rather than trying to hide an item. Only new-submission triage, review conflicts, recorded schedule conflicts, and integration acknowledgement have direct safe resolution controls.

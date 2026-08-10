@@ -33,6 +33,8 @@ Organizer search is a bounded server-side federation over indexed domain tables,
 
 Notifications are durable per-recipient operational records. Domain mutations fan out only to role-appropriate users and stable coalescing keys prevent repetitive updates from creating noise. Channel preferences are evaluated independently: in-app visibility is enforced by scoped read queries, while email defaults off and is prepared through the existing idempotent communications/Queue pipeline only when explicitly enabled. Personal notification state, preferences, and channel attempts remain in D1 rather than Airtable because they are application operations—not authoritative event business records.
 
+Calendar invitations are durable records linked one-to-one with agenda items. The agenda-item ID supplies the stable iCalendar UID; every material schedule change advances a monotonic sequence and stores the exact generated revision before a Queue-backed communication is prepared. Cancellation marks the agenda item with actor and timestamp, removes it from public read models, sends a `CANCEL` revision, and requires an explicit reschedule transition before another `REQUEST` can be issued. Public itinerary feeds are separately generated, anonymous calendars and never reuse participant-addressed invitation delivery.
+
 ## Trust boundaries
 
 - Organizer registration is public and protected by verified email and Turnstile.

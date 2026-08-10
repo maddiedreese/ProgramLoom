@@ -80,7 +80,8 @@ async function widgetData(db: D1Database, eventId: string) {
          FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id
          LEFT JOIN submissions s ON s.id=a.submission_id
          LEFT JOIN session_content_state cs ON cs.submission_id=a.submission_id
-         WHERE a.event_id=? AND a.status='published' AND (a.submission_id IS NULL OR cs.status='approved')
+         WHERE a.event_id=? AND a.status='published' AND a.cancelled_at IS NULL
+           AND (a.submission_id IS NULL OR cs.status='approved')
          ORDER BY a.starts_at,title`,
       )
       .bind(eventId)

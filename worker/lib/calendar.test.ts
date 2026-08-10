@@ -5,6 +5,7 @@ import {
   renderCalendarMessage,
   safeCalendarFilename,
 } from "./calendar";
+import { calendarCancellationNotificationStatement } from "./calendarLifecycle";
 
 const base = {
   uid: calendarUid("session-1"),
@@ -39,6 +40,32 @@ describe("participant calendar messages", () => {
         .split("\r\n")
         .every((line) => new TextEncoder().encode(line).length <= 75),
     ).toBe(true);
+  });
+
+  it("creates a speaker-scoped in-app cancellation notification", () => {
+    let bindings: unknown[] = [];
+    const db = {
+      prepare() {
+        return {
+          bind(...next: unknown[]) {
+            bindings = next;
+            return this;
+          },
+        };
+      },
+    } as unknown as D1Database;
+    calendarCancellationNotificationStatement(db, {
+      organizationId: "organization-id",
+      eventId: "event-id",
+      recipientUserId: "speaker-user-id",
+      agendaItemId: "agenda-item-id",
+      calendarRecordId: "calendar-record-id",
+      sessionTitle: "Disposable session",
+    });
+    expect(bindings[3]).toBe("speaker-user-id");
+    expect(bindings[4]).toBe("agenda");
+    expect(bindings[5]).toBe("agenda.session_cancelled");
+    expect(bindings[11]).toBe("calendar-record-id");
   });
 
   it("renders cancellation and deterministic material identity", async () => {

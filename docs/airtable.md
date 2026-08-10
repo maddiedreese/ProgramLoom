@@ -12,6 +12,8 @@ Deleting an authoritative event, CRM contact, or pipeline card in Airtable remov
 
 Owners and admins see pending records, failed work, conflicts, and last-sync state in the workspace. “Sync now” performs an explicit recovery pass. Authentication, authorization, audit history, and queue state always remain in D1 and cannot be changed through Airtable cells.
 
+Speaker-task assignments use a composite stable identifier containing both the task and speaker IDs. The serializer resolves both source records explicitly; there is no synthetic assignment-row ID. Conflict retry is two-phase: the organizer action requeues the failed outbox record, and only a successful Queue worker write resolves the conflict and emits recovery audit/notification state. This prevents a still-failing provider write from disappearing from operational views.
+
 Production setup is:
 
 1. Run `npm run airtable:provision` to idempotently create any missing `PL …` tables.

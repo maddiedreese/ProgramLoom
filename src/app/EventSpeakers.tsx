@@ -142,11 +142,13 @@ function EventChrome({
   event,
   user,
   eventId,
+  role,
   children,
 }: {
   event?: EventRecord;
   user: User;
   eventId: string;
+  role?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -167,24 +169,32 @@ function EventChrome({
           <span>{event?.status}</span>
         </div>
         <nav className="event-nav" aria-label="Event workspace">
-          <a href={`/app/events/${eventId}`}>
-            <FileInput size={18} /> Call for proposals
-          </a>
-          <a href={`/app/events/${eventId}/submissions`}>
-            <Inbox size={18} /> Submissions
-          </a>
-          <a href={`/app/events/${eventId}/reviews`}>
-            <CheckCircle2 size={18} /> Reviews
-          </a>
+          {role !== "speaker" && (
+            <>
+              <a href={`/app/events/${eventId}`}>
+                <FileInput size={18} /> Call for proposals
+              </a>
+              <a href={`/app/events/${eventId}/submissions`}>
+                <Inbox size={18} /> Submissions
+              </a>
+              <a href={`/app/events/${eventId}/reviews`}>
+                <CheckCircle2 size={18} /> Reviews
+              </a>
+            </>
+          )}
           <a className="active" href={`/app/events/${eventId}/speakers`}>
             <UsersRound size={18} /> Speakers
           </a>
-          <a href={`/app/events/${eventId}/content`}>
-            <Files size={18} /> Content
-          </a>
-          <a href={`/app/events/${eventId}/agenda`}>
-            <Clock3 size={18} /> Agenda
-          </a>
+          {role !== "speaker" && (
+            <>
+              <a href={`/app/events/${eventId}/content`}>
+                <Files size={18} /> Content
+              </a>
+              <a href={`/app/events/${eventId}/agenda`}>
+                <Clock3 size={18} /> Agenda
+              </a>
+            </>
+          )}
         </nav>
         <SidebarUser user={user} />
       </aside>
@@ -220,7 +230,7 @@ export function EventSpeakers({ user }: { user: User }) {
       </main>
     );
   return (
-    <EventChrome event={event} user={user} eventId={eventId}>
+    <EventChrome event={event} user={user} eventId={eventId} role={role}>
       <main id="main-content" className="event-main speaker-main">
         {feedback && (
           <div className={`form-status form-status-${feedback.kind}`}>

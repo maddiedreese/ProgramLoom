@@ -7,10 +7,25 @@ import {
   reconcileAirtableOrganization,
   verifyAirtableWebhook,
 } from "../lib/airtable";
+import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireOrganizationRole } from "../lib/authz";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+export function airtableConflictRetryStatement(
+  db: D1Database,
+  organizationId: string,
+  entityType: string,
+  entityId: string,
+) {
+  return db
+    .prepare(
+      `UPDATE integration_outbox SET attempts=0,last_error=NULL,available_at=CURRENT_TIMESTAMP
+       WHERE organization_id=? AND integration='airtable' AND entity_type=? AND entity_id=? AND completed_at IS NULL`,
+    )
+    .bind(organizationId, entityType, entityId);
+}
 
 router.post("/airtable/webhook/:pathSecret", async (context) => {
   if (
@@ -67,7 +82,10 @@ router.post(
   "/organizations/:organizationId/airtable/conflicts/:conflictId/retry",
   async (context) => {
     const organizationId = context.req.param("organizationId");
-    await requireOrganizationRole(context, organizationId, ["owner", "admin"]);
+    const access = await requireOrganizationRole(context, organizationId, [
+      "owner",
+      "admin",
+    ]);
     const db = database(context.env);
     const conflict = await db
       .prepare(
@@ -84,18 +102,25 @@ router.post(
         "Sync conflict not found.",
       );
     await db.batch([
-      db
-        .prepare(
-          `UPDATE integration_conflicts SET status='resolved',resolved_at=CURRENT_TIMESTAMP
-           WHERE id=? AND organization_id=?`,
-        )
-        .bind(context.req.param("conflictId"), organizationId),
-      db
-        .prepare(
-          `UPDATE integration_outbox SET attempts=0,last_error=NULL,available_at=CURRENT_TIMESTAMP
-           WHERE organization_id=? AND integration='airtable' AND entity_type=? AND entity_id=? AND completed_at IS NULL`,
-        )
-        .bind(organizationId, conflict.entityType, conflict.entityId),
+      airtableConflictRetryStatement(
+        db,
+        organizationId,
+        conflict.entityType,
+        conflict.entityId,
+      ),
+      auditStatement(db, {
+        organizationId,
+        actorUserId: access.user.id,
+        action: "airtable.conflict_retry_requested",
+        entityType: "integration_conflict",
+        entityId: context.req.param("conflictId"),
+        after: {
+          integration: "airtable",
+          entityType: conflict.entityType,
+          entityId: conflict.entityId,
+        },
+        requestId: context.get("requestId"),
+      }),
     ]);
     await dispatchPendingAirtableOutbox(context.env);
     if (conflict.direction === "pull")

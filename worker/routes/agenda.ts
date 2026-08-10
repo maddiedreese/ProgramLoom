@@ -19,10 +19,42 @@ type AgendaItem = {
   roomId: string | null;
   startsAt: string | null;
   endsAt: string | null;
+  cancelledAt: string | null;
 };
 
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const organizerRoles = ["owner", "admin"] as const;
+
+export function publishedAgendaItemAuditStatements(
+  db: D1Database,
+  input: {
+    organizationId: string;
+    eventId: string;
+    actorUserId: string;
+    requestId: string;
+  },
+  itemIds: string[],
+) {
+  return itemIds.map((itemId) =>
+    auditStatement(db, {
+      organizationId: input.organizationId,
+      eventId: input.eventId,
+      actorUserId: input.actorUserId,
+      action: "agenda_item.published",
+      entityType: "agenda_item",
+      entityId: itemId,
+      after: { status: "published" },
+      requestId: input.requestId,
+    }),
+  );
+}
+
+export function requiresExplicitReschedule(
+  cancelledAt: string | null,
+  reschedule: boolean,
+) {
+  return Boolean(cancelledAt && !reschedule);
+}
 
 const roomSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -40,6 +72,7 @@ const placementSchema = z.object({
   trackId: z.string().uuid().nullable().optional(),
   startsAt: z.iso.datetime({ offset: true }).nullable(),
   endsAt: z.iso.datetime({ offset: true }).nullable(),
+  reschedule: z.boolean().default(false),
 });
 const constraintSchema = z.object({
   constraintType: z.enum([
@@ -88,7 +121,7 @@ async function eventData(db: D1Database, eventId: string) {
         .all(),
       db
         .prepare(
-          `SELECT a.id,a.submission_id AS submissionId,a.track_id AS trackId,a.room_id AS roomId,a.item_type AS itemType,a.title,a.description,a.starts_at AS startsAt,a.ends_at AS endsAt,a.status,a.version,r.name AS roomName,t.name AS trackName FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id WHERE a.event_id=? ORDER BY COALESCE(a.starts_at,'9999'),a.title`,
+          `SELECT a.id,a.submission_id AS submissionId,a.track_id AS trackId,a.room_id AS roomId,a.item_type AS itemType,a.title,a.description,a.starts_at AS startsAt,a.ends_at AS endsAt,a.status,a.version,a.cancelled_at AS cancelledAt,r.name AS roomName,t.name AS trackName FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id WHERE a.event_id=? ORDER BY CASE WHEN a.cancelled_at IS NULL THEN 0 ELSE 1 END,COALESCE(a.starts_at,'9999'),a.title`,
         )
         .bind(eventId)
         .all(),
@@ -138,7 +171,7 @@ async function placementConflicts(
   }[] = [];
   const overlapping = await db
     .prepare(
-      "SELECT id,title,submission_id AS submissionId,room_id AS roomId FROM agenda_items WHERE event_id=? AND id!=? AND starts_at<? AND ends_at>?",
+      "SELECT id,title,submission_id AS submissionId,room_id AS roomId FROM agenda_items WHERE event_id=? AND id!=? AND cancelled_at IS NULL AND starts_at<? AND ends_at>?",
     )
     .bind(eventId, item.id, endsAt, startsAt)
     .all<{
@@ -325,7 +358,7 @@ router.patch(
     const db = database(context.env);
     const item = await db
       .prepare(
-        "SELECT id,submission_id AS submissionId,room_id AS roomId,starts_at AS startsAt,ends_at AS endsAt FROM agenda_items WHERE id=? AND event_id=?",
+        "SELECT id,submission_id AS submissionId,room_id AS roomId,starts_at AS startsAt,ends_at AS endsAt,cancelled_at AS cancelledAt FROM agenda_items WHERE id=? AND event_id=?",
       )
       .bind(context.req.param("itemId"), eventId)
       .first<AgendaItem>();
@@ -334,6 +367,12 @@ router.patch(
         404,
         "agenda_item_not_found",
         "Agenda item not found.",
+      );
+    if (requiresExplicitReschedule(item.cancelledAt, input.reschedule))
+      throw new HttpError(
+        409,
+        "explicit_reschedule_required",
+        "This session was cancelled. Use the explicit reschedule action to restore it.",
       );
     if ((input.startsAt === null) !== (input.endsAt === null))
       throw new HttpError(
@@ -449,15 +488,26 @@ router.patch(
     await db.batch([
       db
         .prepare(
-          "UPDATE agenda_items SET room_id=?,track_id=COALESCE(?,track_id),starts_at=?,ends_at=?,status='draft',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+          "UPDATE agenda_items SET room_id=?,track_id=COALESCE(?,track_id),starts_at=?,ends_at=?,status='draft',cancelled_at=CASE WHEN ? THEN NULL ELSE cancelled_at END,cancelled_by=CASE WHEN ? THEN NULL ELSE cancelled_by END,version=version+1,updated_at=CURRENT_TIMESTAMP WHERE id=?",
         )
         .bind(
           input.roomId,
           input.trackId ?? null,
           input.startsAt,
           input.endsAt,
+          input.reschedule,
+          input.reschedule,
           item.id,
         ),
+      ...(input.reschedule && item.submissionId
+        ? [
+            db
+              .prepare(
+                "UPDATE submissions SET status='accepted',updated_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND status='withdrawn' AND decision_state='accepted'",
+              )
+              .bind(item.submissionId, eventId),
+          ]
+        : []),
       db
         .prepare(
           `UPDATE schedule_conflict_records SET status='resolved',resolved_by=?,
@@ -469,7 +519,11 @@ router.patch(
         organizationId: access.organizationId,
         eventId,
         actorUserId: access.user.id,
-        action: input.startsAt ? "agenda_item.placed" : "agenda_item.cleared",
+        action: input.reschedule
+          ? "agenda_item.rescheduled"
+          : input.startsAt
+            ? "agenda_item.placed"
+            : "agenda_item.cleared",
         entityType: "agenda_item",
         entityId: item.id,
         after: input,
@@ -489,6 +543,7 @@ router.patch(
             ? "material_change"
             : "placement"
           : "cancellation",
+        explicitReschedule: input.reschedule,
       });
     } catch (error) {
       calendarError =
@@ -509,6 +564,80 @@ router.patch(
     });
   },
 );
+
+router.post("/admin/events/:eventId/items/:itemId/cancel", async (context) => {
+  const eventId = context.req.param("eventId");
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
+  const db = database(context.env);
+  const item = await db
+    .prepare(
+      `SELECT a.id,a.submission_id AS submissionId,a.room_id AS roomId,
+                a.starts_at AS startsAt,a.ends_at AS endsAt,a.cancelled_at AS cancelledAt,
+                s.status AS submissionStatus
+         FROM agenda_items a LEFT JOIN submissions s ON s.id=a.submission_id
+         WHERE a.id=? AND a.event_id=?`,
+    )
+    .bind(context.req.param("itemId"), eventId)
+    .first<AgendaItem & { submissionStatus: string | null }>();
+  if (!item)
+    throw new HttpError(404, "agenda_item_not_found", "Agenda item not found.");
+  if (!item.submissionId)
+    throw new HttpError(
+      409,
+      "session_required",
+      "Only scheduled sessions can use the participant cancellation lifecycle.",
+    );
+  if (item.cancelledAt)
+    return context.json({
+      item: { id: item.id, cancelledAt: item.cancelledAt },
+      calendar: { created: 0, updated: 0, cancelled: 0, skipped: 1 },
+    });
+  const cancelledAt = new Date().toISOString();
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE agenda_items SET room_id=NULL,starts_at=NULL,ends_at=NULL,status='draft',
+             cancelled_at=?,cancelled_by=?,version=version+1,updated_at=CURRENT_TIMESTAMP
+           WHERE id=? AND event_id=?`,
+      )
+      .bind(cancelledAt, access.user.id, item.id, eventId),
+    db
+      .prepare(
+        "UPDATE submissions SET status='withdrawn',updated_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND status='accepted'",
+      )
+      .bind(item.submissionId, eventId),
+    auditStatement(db, {
+      organizationId: access.organizationId,
+      eventId,
+      actorUserId: access.user.id,
+      action: "agenda_session.cancelled",
+      entityType: "agenda_item",
+      entityId: item.id,
+      before: item,
+      after: { cancelledAt, submissionStatus: "withdrawn" },
+      requestId: context.get("requestId"),
+    }),
+    auditStatement(db, {
+      organizationId: access.organizationId,
+      eventId,
+      actorUserId: access.user.id,
+      action: "submission.cancelled",
+      entityType: "submission",
+      entityId: item.submissionId,
+      before: { status: item.submissionStatus },
+      after: { status: "withdrawn", agendaItemId: item.id },
+      requestId: context.get("requestId"),
+    }),
+  ]);
+  const calendar = await syncAgendaCalendarInvitations(context.env, {
+    eventId,
+    agendaItemId: item.id,
+    actorUserId: access.user.id,
+    correlationId: context.get("requestId"),
+    action: "cancellation",
+  });
+  return context.json({ item: { id: item.id, cancelledAt }, calendar });
+});
 
 router.post(
   "/admin/events/:eventId/constraints",
@@ -567,7 +696,7 @@ router.post(
         "Add at least one room before assisted scheduling.",
       );
     const unscheduled = data.items.filter(
-      (item: Record<string, unknown>) => !item.startsAt,
+      (item: Record<string, unknown>) => !item.startsAt && !item.cancelledAt,
     ) as unknown as AgendaItem[];
     const duration = input.durationMinutes * 60_000;
     let cursor = new Date(input.startsAt).getTime();
@@ -586,7 +715,8 @@ router.post(
       ]),
     );
     const scheduled = data.items.filter(
-      (item: Record<string, unknown>) => item.startsAt && item.endsAt,
+      (item: Record<string, unknown>) =>
+        item.startsAt && item.endsAt && !item.cancelledAt,
     ) as unknown as AgendaItem[];
     while (remaining.length && cursor + duration <= limit) {
       const slotStart = new Date(cursor).toISOString();
@@ -702,12 +832,14 @@ router.post("/admin/events/:eventId/publish", async (context) => {
   const db = database(context.env);
   const missing = await db
     .prepare(
-      "SELECT COUNT(*) AS count FROM agenda_items WHERE event_id=? AND (starts_at IS NULL OR ends_at IS NULL OR room_id IS NULL)",
+      "SELECT COUNT(*) AS count FROM agenda_items WHERE event_id=? AND cancelled_at IS NULL AND (starts_at IS NULL OR ends_at IS NULL OR room_id IS NULL)",
     )
     .bind(eventId)
     .first<{ count: number }>();
   const total = await db
-    .prepare("SELECT COUNT(*) AS count FROM agenda_items WHERE event_id=?")
+    .prepare(
+      "SELECT COUNT(*) AS count FROM agenda_items WHERE event_id=? AND cancelled_at IS NULL",
+    )
     .bind(eventId)
     .first<{ count: number }>();
   if (!total?.count)
@@ -724,13 +856,13 @@ router.post("/admin/events/:eventId/publish", async (context) => {
     );
   const roomConflict = await db
     .prepare(
-      "SELECT leftItem.id FROM agenda_items leftItem JOIN agenda_items rightItem ON rightItem.event_id=leftItem.event_id AND rightItem.id>leftItem.id AND rightItem.room_id=leftItem.room_id AND rightItem.starts_at<leftItem.ends_at AND rightItem.ends_at>leftItem.starts_at WHERE leftItem.event_id=? LIMIT 1",
+      "SELECT leftItem.id FROM agenda_items leftItem JOIN agenda_items rightItem ON rightItem.event_id=leftItem.event_id AND rightItem.id>leftItem.id AND rightItem.cancelled_at IS NULL AND rightItem.room_id=leftItem.room_id AND rightItem.starts_at<leftItem.ends_at AND rightItem.ends_at>leftItem.starts_at WHERE leftItem.event_id=? AND leftItem.cancelled_at IS NULL LIMIT 1",
     )
     .bind(eventId)
     .first();
   const speakerConflict = await db
     .prepare(
-      "SELECT leftItem.id FROM agenda_items leftItem JOIN agenda_items rightItem ON rightItem.event_id=leftItem.event_id AND rightItem.id>leftItem.id AND rightItem.starts_at<leftItem.ends_at AND rightItem.ends_at>leftItem.starts_at JOIN session_speakers leftSpeaker ON leftSpeaker.submission_id=leftItem.submission_id JOIN session_speakers rightSpeaker ON rightSpeaker.submission_id=rightItem.submission_id AND rightSpeaker.speaker_id=leftSpeaker.speaker_id WHERE leftItem.event_id=? LIMIT 1",
+      "SELECT leftItem.id FROM agenda_items leftItem JOIN agenda_items rightItem ON rightItem.event_id=leftItem.event_id AND rightItem.id>leftItem.id AND rightItem.cancelled_at IS NULL AND rightItem.starts_at<leftItem.ends_at AND rightItem.ends_at>leftItem.starts_at JOIN session_speakers leftSpeaker ON leftSpeaker.submission_id=leftItem.submission_id JOIN session_speakers rightSpeaker ON rightSpeaker.submission_id=rightItem.submission_id AND rightSpeaker.speaker_id=leftSpeaker.speaker_id WHERE leftItem.event_id=? AND leftItem.cancelled_at IS NULL LIMIT 1",
     )
     .bind(eventId)
     .first();
@@ -745,14 +877,20 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       `SELECT DISTINCT sp.user_id userId FROM agenda_items a
        JOIN session_speakers ss ON ss.submission_id=a.submission_id
        JOIN speaker_profiles sp ON sp.id=ss.speaker_id
-       WHERE a.event_id=? AND sp.user_id IS NOT NULL LIMIT 500`,
+       WHERE a.event_id=? AND a.cancelled_at IS NULL AND sp.user_id IS NOT NULL LIMIT 500`,
     )
     .bind(eventId)
     .all<{ userId: string }>();
+  const items = await db
+    .prepare(
+      "SELECT id FROM agenda_items WHERE event_id=? AND cancelled_at IS NULL ORDER BY id LIMIT 1000",
+    )
+    .bind(eventId)
+    .all<{ id: string }>();
   await db.batch([
     db
       .prepare(
-        "UPDATE agenda_items SET status='published',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE event_id=?",
+        "UPDATE agenda_items SET status='published',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND cancelled_at IS NULL",
       )
       .bind(eventId),
     auditStatement(db, {
@@ -760,11 +898,21 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       eventId,
       actorUserId: access.user.id,
       action: "agenda.published",
-      entityType: "agenda_item",
+      entityType: "event",
       entityId: eventId,
       after: { itemCount: total.count },
       requestId: context.get("requestId"),
     }),
+    ...publishedAgendaItemAuditStatements(
+      db,
+      {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        requestId: context.get("requestId"),
+      },
+      items.results.map((item) => item.id),
+    ),
     ...speakerUsers.results.map((speaker) =>
       notificationStatement(db, {
         organizationId: access.organizationId,
@@ -782,12 +930,6 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       }),
     ),
   ]);
-  const items = await db
-    .prepare(
-      "SELECT id FROM agenda_items WHERE event_id=? ORDER BY id LIMIT 1000",
-    )
-    .bind(eventId)
-    .all<{ id: string }>();
   let calendarFailures = 0;
   for (const item of items.results) {
     try {

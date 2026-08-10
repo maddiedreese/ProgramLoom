@@ -81,6 +81,8 @@ export function Dashboard({ user }: { user: User }) {
   const selected = organizations.find(
     (organization) => organization.id === selectedId,
   );
+  const canOrganize =
+    selected !== undefined && ["owner", "admin"].includes(selected.role);
 
   useEffect(() => {
     api<{ organizations: Organization[] }>("/api/organizations")
@@ -225,14 +227,18 @@ export function Dashboard({ user }: { user: User }) {
           <a className="active" href="/app">
             <CalendarDays size={18} /> Events
           </a>
-          <a href="/app/team">
-            <UsersRound size={18} /> Team
-          </a>
-          <a
-            href={`/app/crm${selectedId ? `?organization=${selectedId}` : ""}`}
-          >
-            <Building2 size={18} /> Speaker CRM
-          </a>
+          {canOrganize && (
+            <>
+              <a href="/app/team">
+                <UsersRound size={18} /> Team
+              </a>
+              <a
+                href={`/app/crm${selectedId ? `?organization=${selectedId}` : ""}`}
+              >
+                <Building2 size={18} /> Speaker CRM
+              </a>
+            </>
+          )}
         </nav>
         <SidebarUser user={user} />
       </aside>
@@ -242,7 +248,7 @@ export function Dashboard({ user }: { user: User }) {
             <p className="kicker">Program workspace</p>
             <h1>{selected ? selected.name : "Welcome to ProgramLoom"}</h1>
           </div>
-          {selected && (
+          {canOrganize && selected && (
             <span
               className={`storage-pill ${
                 airtableStatus?.failed || airtableStatus?.conflicts.length
@@ -357,14 +363,16 @@ export function Dashboard({ user }: { user: User }) {
                 <p className="kicker">Your events</p>
                 <h2>Keep every program moving.</h2>
               </div>
-              <button
-                className="button button-small"
-                onClick={() =>
-                  document.getElementById("new-event")?.scrollIntoView()
-                }
-              >
-                <Plus size={16} /> New event
-              </button>
+              {canOrganize && (
+                <button
+                  className="button button-small"
+                  onClick={() =>
+                    document.getElementById("new-event")?.scrollIntoView()
+                  }
+                >
+                  <Plus size={16} /> New event
+                </button>
+              )}
             </div>
             <div className="event-grid">
               {events.map((item) => (
@@ -404,14 +412,19 @@ export function Dashboard({ user }: { user: User }) {
         ) : (
           <section className="empty-events">
             <CalendarDays size={34} />
-            <h2>Your first program starts here.</h2>
+            <h2>
+              {canOrganize
+                ? "Your first program starts here."
+                : "No event access is assigned yet."}
+            </h2>
             <p>
-              Create the event shell now; CFP, speakers, agenda, and publishing
-              stay connected to it.
+              {canOrganize
+                ? "Create the event shell now; CFP, speakers, agenda, and publishing stay connected to it."
+                : "Ask an organizer to invite you to the event where you will review or speak."}
             </p>
           </section>
         )}
-        {selected && (
+        {canOrganize && selected && (
           <section
             className="new-event-card"
             id="new-event"

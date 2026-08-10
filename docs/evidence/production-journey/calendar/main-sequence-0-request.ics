@@ -1,0 +1,23 @@
+BEGIN:VCALENDAR
+PRODID:-//ProgramLoom//Participant Calendar//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:REQUEST
+X-WR-TIMEZONE:America/New_York
+BEGIN:VEVENT
+UID:d1066b3f-a15b-4dab-9ac0-0fcc9bcf4fb7@programloom.com
+SEQUENCE:0
+DTSTAMP:20260810T010809Z
+DTSTART:20270914T140000Z
+DTEND:20270914T144500Z
+SUMMARY:Reliable Programs: From Proposal to Published Agenda
+DESCRIPTION:\n\nProgramLoom Production Readiness
+LOCATION:Main stage\, ProgramLoom verification venue
+ORGANIZER;CN="ProgramLoom Organizer":mailto:maddie+programloom-organizer@ma
+ ddiedreese.com
+ATTENDEE;CN="Priya Raman";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=T
+ RUE:mailto:maddie+programloom-speaker@maddiedreese.com
+STATUS:CONFIRMED
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR

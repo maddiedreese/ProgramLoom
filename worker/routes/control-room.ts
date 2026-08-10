@@ -22,7 +22,7 @@ type IssueRow = {
   ownerName: string | null;
 };
 
-const issuesSql = `
+export const issuesSql = `
   SELECT 'submissions_new' category,'submission' entityType,s.id entityId,s.title title,
     CASE WHEN s.status='draft' THEN 'Draft proposal' ELSE 'New proposal awaiting triage' END detail,
     CASE WHEN s.status='draft' THEN 'info' ELSE 'warning' END severity,s.status status,
@@ -73,7 +73,7 @@ const issuesSql = `
     'blocking',sp.portal_status,NULL,sp.updated_at,'/app/events/'||s.event_id||'/speakers?speaker='||sp.id,
     (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1)
   FROM submissions s JOIN session_speakers ss ON ss.submission_id=s.id JOIN speaker_profiles sp ON sp.id=ss.speaker_id
-  WHERE s.event_id=?1 AND s.decision_state='accepted' AND (sp.user_id IS NULL OR sp.portal_status NOT IN ('active','complete'))
+  WHERE s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted' AND (sp.user_id IS NULL OR sp.portal_status NOT IN ('active','complete'))
   UNION ALL
   SELECT 'onboarding','speaker_task',ot.id||':'||sta.speaker_id,ot.title,
     TRIM(sp.first_name||' '||sp.last_name)||' · '||CASE WHEN ot.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'incomplete' END,
@@ -85,7 +85,7 @@ const issuesSql = `
   SELECT 'assets','speaker',sp.id,TRIM(sp.first_name||' '||sp.last_name),'Accepted speaker is missing a headshot','warning','missing',NULL,sp.updated_at,
     '/app/events/'||s.event_id||'/content?speaker='||sp.id,NULL
   FROM submissions s JOIN session_speakers ss ON ss.submission_id=s.id JOIN speaker_profiles sp ON sp.id=ss.speaker_id
-  WHERE s.event_id=?1 AND s.decision_state='accepted' AND sp.headshot_key IS NULL
+  WHERE s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted' AND sp.headshot_key IS NULL
   UNION ALL
   SELECT 'assets','file',f.id,COALESCE(f.purpose,'Requested file'),
     CASE WHEN f.status='needs_changes' THEN 'File was returned for changes' ELSE 'Requested file is missing or incomplete' END,
@@ -97,18 +97,18 @@ const issuesSql = `
     NULL,COALESCE(scs.updated_at,s.updated_at),'/app/events/'||s.event_id||'/content?submission='||s.id,
     (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1)
   FROM submissions s LEFT JOIN session_content_state scs ON scs.submission_id=s.id
-  WHERE s.event_id=?1 AND s.decision_state='accepted' AND COALESCE(scs.status,'draft')!='approved'
+  WHERE s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted' AND COALESCE(scs.status,'draft')!='approved'
   UNION ALL
   SELECT 'public_exclusions','submission',s.id,s.title,'Accepted session is excluded from public surfaces until content is approved',
     'warning',COALESCE(scs.status,'draft'),NULL,s.updated_at,'/app/events/'||s.event_id||'/content?submission='||s.id,
     (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1)
   FROM submissions s LEFT JOIN session_content_state scs ON scs.submission_id=s.id
-  WHERE s.event_id=?1 AND s.decision_state='accepted' AND COALESCE(scs.status,'draft')!='approved'
+  WHERE s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted' AND COALESCE(scs.status,'draft')!='approved'
   UNION ALL
   SELECT 'agenda_missing','submission',s.id,s.title,'Accepted session has no agenda placement','blocking','unplaced',NULL,s.updated_at,
     '/app/events/'||s.event_id||'/agenda?submission='||s.id,
     (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1)
-  FROM submissions s WHERE s.event_id=?1 AND s.decision_state='accepted' AND NOT EXISTS (
+  FROM submissions s WHERE s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted' AND NOT EXISTS (
     SELECT 1 FROM agenda_items ai WHERE ai.event_id=s.event_id AND ai.submission_id=s.id AND ai.starts_at IS NOT NULL)
   UNION ALL
   SELECT 'schedule_conflicts','schedule_conflict',scr.id,ai.title,scr.summary,'blocking',scr.status,
@@ -117,7 +117,7 @@ const issuesSql = `
   UNION ALL
   SELECT 'agenda_unpublished','agenda_item',ai.id,ai.title,'Agenda change has not been published','warning',ai.status,
     ai.starts_at,ai.updated_at,'/app/events/'||ai.event_id||'/agenda?item='||ai.id,ai.track_id
-  FROM agenda_items ai WHERE ai.event_id=?1 AND ai.status!='published'
+  FROM agenda_items ai WHERE ai.event_id=?1 AND ai.cancelled_at IS NULL AND ai.status!='published'
   UNION ALL
   SELECT 'queue_failures','operational_job',oj.id,oj.job_kind,'Queue job needs intervention',
     CASE WHEN oj.status='exhausted' THEN 'blocking' ELSE 'warning' END,oj.status,oj.available_at,oj.updated_at,

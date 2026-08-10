@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../env";
-import { verifyAirtableWebhook } from "./airtable";
+import {
+  speakerTaskAssignmentSql,
+  speakerTaskEntityParts,
+  verifyAirtableWebhook,
+} from "./airtable";
 
 describe("Airtable webhook verification", () => {
   it("accepts the matching Airtable HMAC and rejects altered payloads", async () => {
@@ -29,5 +33,21 @@ describe("Airtable webhook verification", () => {
     await expect(verifyAirtableWebhook(env, body, undefined)).resolves.toBe(
       false,
     );
+  });
+});
+
+describe("Airtable speaker task projection", () => {
+  it("targets the composite assignment key without querying a missing id column", () => {
+    expect(speakerTaskEntityParts("task-id:speaker-id")).toEqual({
+      taskId: "task-id",
+      speakerId: "speaker-id",
+    });
+    expect(speakerTaskEntityParts("task-id")).toEqual({
+      taskId: "task-id",
+      speakerId: null,
+    });
+    expect(speakerTaskAssignmentSql).toContain("a.task_id=?");
+    expect(speakerTaskAssignmentSql).toContain("a.speaker_id=?");
+    expect(speakerTaskAssignmentSql).not.toContain("a.id");
   });
 });

@@ -20,6 +20,10 @@ describe("ProgramLoom application", () => {
       "href",
       "/register",
     );
+    expect(screen.getByRole("link", { name: /browse cfps/i })).toHaveAttribute(
+      "href",
+      "/cfp",
+    );
   });
 
   it("publishes the privacy notice", async () => {

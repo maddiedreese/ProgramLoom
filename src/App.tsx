@@ -114,6 +114,7 @@ function MarketingPage() {
         <nav aria-label="Primary navigation">
           <a href="#product">Product</a>
           <a href="#principles">Why ProgramLoom</a>
+          <a href={applicationHref("/cfp")}>Browse CFPs</a>
           <a
             className="button button-small button-ghost"
             href={applicationHref("/login")}

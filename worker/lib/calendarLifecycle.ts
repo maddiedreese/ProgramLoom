@@ -12,7 +12,7 @@ import {
   prepareCommunicationStatement,
 } from "./communications";
 import { renderSimpleTransactionalEmail } from "./email";
-import { domainEventStatement } from "./operations";
+import { domainEventStatement, notificationStatement } from "./operations";
 
 type CalendarAction =
   "placement" | "material_change" | "publication" | "manual" | "cancellation";
@@ -41,6 +41,33 @@ type CalendarItem = {
   status: string;
   roomName: string | null;
 };
+
+export function calendarCancellationNotificationStatement(
+  db: D1Database,
+  input: {
+    organizationId: string;
+    eventId: string;
+    recipientUserId: string;
+    agendaItemId: string;
+    calendarRecordId: string;
+    sessionTitle: string;
+  },
+) {
+  return notificationStatement(db, {
+    organizationId: input.organizationId,
+    eventId: input.eventId,
+    recipientUserId: input.recipientUserId,
+    category: "agenda",
+    notificationType: "agenda.session_cancelled",
+    severity: "warning",
+    title: "A scheduled session was cancelled",
+    body: input.sessionTitle,
+    actionUrl: `/app/events/${input.eventId}/speaker`,
+    entityType: "calendar_record",
+    entityId: input.calendarRecordId,
+    coalesceKey: `calendar-cancelled:${input.calendarRecordId}`,
+  });
+}
 
 export async function syncAgendaCalendarInvitations(
   env: Env,
@@ -106,7 +133,7 @@ export async function syncAgendaCalendarInvitations(
   const speakers = item.submissionId
     ? await db
         .prepare(
-          `SELECT sp.id,sp.email,sp.first_name||' '||sp.last_name AS name
+          `SELECT sp.id,sp.user_id AS userId,sp.email,sp.first_name||' '||sp.last_name AS name
            FROM session_speakers ss JOIN speaker_profiles sp ON sp.id=ss.speaker_id
            WHERE ss.submission_id=? AND (? IS NULL OR sp.id=?) ORDER BY sp.id LIMIT 50`,
         )
@@ -115,8 +142,15 @@ export async function syncAgendaCalendarInvitations(
           input.speakerId ?? null,
           input.speakerId ?? null,
         )
-        .all<{ id: string; email: string; name: string }>()
-    : { results: [] as Array<{ id: string; email: string; name: string }> };
+        .all<{ id: string; userId: string | null; email: string; name: string }>()
+    : {
+        results: [] as Array<{
+          id: string;
+          userId: string | null;
+          email: string;
+          name: string;
+        }>,
+      };
   if (input.speakerId && !speakers.results.length)
     throw new Error("The selected speaker is not assigned to this session.");
   const summary = {
@@ -347,6 +381,18 @@ export async function syncAgendaCalendarInvitations(
           },
           requestId: input.correlationId,
         }),
+        ...(cancel && speaker.userId
+          ? [
+              calendarCancellationNotificationStatement(db, {
+                organizationId: item.organizationId,
+                eventId: item.eventId,
+                recipientUserId: speaker.userId,
+                agendaItemId: item.id,
+                calendarRecordId: recordId,
+                sessionTitle: item.title,
+              }),
+            ]
+          : []),
       ]);
     } catch (error) {
       await env.FILES.delete(r2Key);

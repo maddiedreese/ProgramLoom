@@ -148,18 +148,26 @@ router.post("/", zValidator("json", organizationSchema), async (context) => {
 
 router.get("/:organizationId/events", async (context) => {
   const organizationId = context.req.param("organizationId");
-  await requireOrganizationRole(context, organizationId, [
+  const access = await requireOrganizationRole(context, organizationId, [
     "owner",
     "admin",
     "member",
   ]);
+  const restricted = access.role === "member";
   const result = await database(context.env)
     .prepare(
-      `SELECT id, name, slug, event_type AS eventType, timezone, starts_at AS startsAt, ends_at AS endsAt,
-            venue_name AS venueName, website_url AS websiteUrl, status
-     FROM events WHERE organization_id = ? ORDER BY starts_at ASC`,
+      restricted
+        ? `SELECT e.id, e.name, e.slug, e.event_type AS eventType, e.timezone,
+              e.starts_at AS startsAt, e.ends_at AS endsAt, e.venue_name AS venueName,
+              e.website_url AS websiteUrl, e.status, em.role AS accessRole
+           FROM events e JOIN event_members em ON em.event_id=e.id AND em.user_id=?
+           WHERE e.organization_id=? ORDER BY e.starts_at ASC`
+        : `SELECT id, name, slug, event_type AS eventType, timezone, starts_at AS startsAt,
+              ends_at AS endsAt, venue_name AS venueName, website_url AS websiteUrl,
+              status, ? AS accessRole
+           FROM events WHERE organization_id=? ORDER BY starts_at ASC`,
     )
-    .bind(organizationId)
+    .bind(access.user.id, organizationId)
     .all();
   return context.json({ events: result.results });
 });
