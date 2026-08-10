@@ -1430,7 +1430,7 @@ function HistoryPanel({
           className={tab === "emails" ? "active" : ""}
           onClick={() => setTab("emails")}
         >
-          Sent emails
+          Email deliveries
         </button>
       </div>
       <table>
@@ -1442,16 +1442,16 @@ function HistoryPanel({
                   "Recipients",
                   "Unique opens",
                   "Status",
-                  "Sent by",
-                  "Sent at",
+                  "Created by",
+                  "Created at",
                 ]
               : [
                   "Recipient",
                   "Email",
                   "Subject",
                   "Status",
-                  "Sent by",
-                  "Sent at",
+                  "Prepared by",
+                  "Prepared at",
                 ]
             ).map((heading) => (
               <th key={heading}>{heading}</th>
@@ -1492,7 +1492,10 @@ function HistoryPanel({
         <div className="crm-empty">
           <Mail />
           <h2>No outreach history</h2>
-          <p>Messages sent from the directory will appear here.</p>
+          <p>
+            Messages prepared from the directory will appear here with their
+            exact delivery state.
+          </p>
         </div>
       )}
     </section>

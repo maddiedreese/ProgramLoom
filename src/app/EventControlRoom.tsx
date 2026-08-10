@@ -68,7 +68,7 @@ const categories = [
   ],
   [
     "decisions_uncommunicated",
-    "Decisions not sent",
+    "Decisions not communicated",
     "Staged outcomes awaiting communication",
   ],
   ["deliveries", "Delivery exceptions", "Pending and failed program messages"],

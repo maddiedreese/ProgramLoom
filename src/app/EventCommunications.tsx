@@ -733,8 +733,9 @@ export function EventCommunications({ user }: { user: User }) {
                   <Inbox size={26} />
                   <strong>No communications match this view.</strong>
                   <span>
-                    Prepared and delivered messages will appear here with
-                    provider evidence.
+                    Prepared messages will appear here with queued, processing,
+                    sent, delivered, bounced, failed, or cancelled evidence as
+                    it becomes available.
                   </span>
                   <button
                     className="button button-small"

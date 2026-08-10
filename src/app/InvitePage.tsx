@@ -37,7 +37,7 @@ export function InvitePage() {
     {state === "loading" && <div className="invite-state" aria-busy="true"><LoaderCircle className="spin" /><h1>Checking your invitation…</h1></div>}
     {state === "error" && <div className="invite-state"><ShieldCheck /><h1>Invitation unavailable</h1><p>{message}</p><a className="button button-large" href="/login">Go to sign in</a></div>}
     {state === "accepted" && <div className="invite-state"><CheckCircle2 /><h1>You’re in.</h1><p>Opening your ProgramLoom workspace…</p></div>}
-    {(state === "ready" || state === "submitting") && invitation && <div className="invite-state"><p className="kicker">You’ve been invited</p><h1>Join {invitation.organizationName}</h1><p>Accept access as a <strong>{invitation.role}</strong>{invitation.eventName ? <> for <strong>{invitation.eventName}</strong></> : null}. This invitation was sent to {invitation.email}.</p>
+    {(state === "ready" || state === "submitting") && invitation && <div className="invite-state"><p className="kicker">You’ve been invited</p><h1>Join {invitation.organizationName}</h1><p>Accept access as a <strong>{invitation.role}</strong>{invitation.eventName ? <> for <strong>{invitation.eventName}</strong></> : null}. This invitation was issued for {invitation.email}.</p>
       <form onSubmit={accept}>{invitation.needsName && <label>Full name<input name="name" autoComplete="name" minLength={2} required /></label>}<button className="button button-large" disabled={state === "submitting"}>{state === "submitting" ? "Joining…" : "Accept invitation"}<ArrowRight size={18} /></button></form>
       <small>Expires {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(invitation.expiresAt))}</small>
     </div>}
