@@ -142,8 +142,10 @@ router.post("/resend/webhook", async (context) => {
   if (!message) return context.json({ accepted: true, matched: false });
 
   const status = providerStatus(input.type);
+  const appliesStatus =
+    status !== null && shouldApplyProviderStatus(message.status, status);
   const owners =
-    status && ["bounced", "failed"].includes(status)
+    appliesStatus && ["bounced", "failed"].includes(status)
       ? await db
           .prepare(
             `SELECT user_id AS userId FROM organization_members
@@ -168,7 +170,7 @@ router.post("/resend/webhook", async (context) => {
         await sha256(body),
       ),
   ];
-  if (status) {
+  if (appliesStatus) {
     const timestampColumn =
       status === "delivered"
         ? "delivered_at"
@@ -191,22 +193,17 @@ router.post("/resend/webhook", async (context) => {
            WHERE message_id=? AND attempt_number=(SELECT MAX(attempt_number) FROM communication_attempts WHERE message_id=?)`,
         )
         .bind(status === "sent" ? "accepted" : status, message.id, message.id),
-      db
-        .prepare(
-          `INSERT INTO audit_events
-            (id,organization_id,event_id,action,entity_type,entity_id,before_json,after_json,request_id,correlation_id)
-           VALUES(?,?,?,'communication.provider_status','communication',?,?,?,?,?,?)`,
-        )
-        .bind(
-          crypto.randomUUID(),
-          message.organizationId,
-          message.eventId,
-          message.id,
-          JSON.stringify({ status: message.status }),
-          JSON.stringify({ status, providerEventType: input.type }),
-          webhookId,
-          message.correlationId,
-        ),
+      auditStatement(db, {
+        organizationId: message.organizationId,
+        eventId: message.eventId,
+        action: "communication.provider_status",
+        entityType: "communication",
+        entityId: message.id,
+        before: { status: message.status },
+        after: { status, providerEventType: input.type },
+        requestId: webhookId,
+        correlationId: message.correlationId,
+      }),
     );
     if (["bounced", "failed"].includes(status))
       statements.push(
@@ -229,7 +226,7 @@ router.post("/resend/webhook", async (context) => {
       );
   }
   await db.batch(statements);
-  if (status)
+  if (appliesStatus)
     await syncCrmCommunicationState(
       db,
       message.id,
@@ -240,7 +237,7 @@ router.post("/resend/webhook", async (context) => {
         : undefined,
     );
   logOperationalEvent(
-    status && ["bounced", "failed"].includes(status) ? "error" : "info",
+    appliesStatus && ["bounced", "failed"].includes(status) ? "error" : "info",
     {
       operation: "communication_provider_event",
       correlationId: message.correlationId,
@@ -248,7 +245,7 @@ router.post("/resend/webhook", async (context) => {
       messageId: message.id,
       providerId: input.data.email_id,
       errorCode:
-        status && ["bounced", "failed"].includes(status)
+        appliesStatus && ["bounced", "failed"].includes(status)
           ? input.type
           : undefined,
     },
@@ -1705,6 +1702,16 @@ function providerStatus(eventType: string) {
     return "bounced" as const;
   if (eventType === "email.failed") return "failed" as const;
   return null;
+}
+
+export function shouldApplyProviderStatus(
+  currentStatus: string,
+  incomingStatus: "sent" | "delivered" | "bounced" | "failed",
+) {
+  if (currentStatus === "cancelled") return false;
+  if (incomingStatus === "sent")
+    return !["delivered", "bounced", "failed"].includes(currentStatus);
+  return !["delivered", "bounced", "failed"].includes(currentStatus);
 }
 
 export default router;

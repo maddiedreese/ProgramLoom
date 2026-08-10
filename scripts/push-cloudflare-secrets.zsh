@@ -12,10 +12,13 @@ secrets=(
   ENCRYPTION_KEY
   POSTHOG_KEY
   RESEND_API_KEY
-  RESEND_WEBHOOK_SECRET
   SESSION_SECRET
   TURNSTILE_SECRET_KEY
 )
+
+# RESEND_WEBHOOK_SECRET is endpoint-specific and is rotated directly between
+# the authenticated Resend and Cloudflare dashboards. Excluding it from this
+# bulk helper prevents an older local value from replacing the active secret.
 
 uploaded=0
 for secret_name in $secrets; do

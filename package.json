@@ -27,6 +27,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply programloom-production --remote",
     "smoke:crm": "node scripts/smoke-crm.mjs",
     "smoke:content": "node scripts/smoke-content.mjs",
+    "verify:production-journey": "node scripts/verify-production-journey.mjs",
     "seed:control-room": "wrangler d1 execute programloom-production --local --file scripts/seed-control-room.sql",
     "seed:submission-workspace": "wrangler d1 execute programloom-production --local --file scripts/seed-submission-workspace.sql",
     "seed:notifications": "wrangler d1 execute programloom-production --local --file scripts/seed-notifications.sql",

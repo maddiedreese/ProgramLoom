@@ -30,7 +30,7 @@ Never print or commit environment values. `.env.local`, `.dev.vars`, evaluator a
 1. Confirm `git status` contains only the intended release.
 2. Run `npm run check`.
 3. Apply additive production migrations with `npm run db:migrate:remote` and retain the command result.
-4. Upload changed secrets individually with `zsh scripts/push-cloudflare-secrets.zsh`. The script skips absent keys and never prints values.
+4. Upload changed secrets individually with `zsh scripts/push-cloudflare-secrets.zsh`. The script skips absent keys and never prints values. Rotate `RESEND_WEBHOOK_SECRET` directly from the Resend webhook into the Cloudflare encrypted Worker secret; the bulk helper intentionally excludes it to prevent stale replacement.
 5. Run `npm run deploy` and record the returned Worker version ID.
 6. Verify `https://app.programloom.com/api/health`, both HTML domains, authenticated boundaries, and any changed workflow.
 7. Confirm the Airtable integration screen shows no pending jobs, failures, or open conflicts after any Airtable-authoritative mutation.
@@ -69,7 +69,7 @@ The authoritative upstream kit is `swyx/killmysaas-evals` at the commit recorded
 1. Configure the production URL and distinct organizer, speaker, and reviewer inbox aliases in the evaluator’s ignored `evalconfig.json`.
 2. Save each authenticated persona in the evaluator’s ignored `.auth` directory. Do not commit or print session cookies.
 3. Run its free browser smoke and `--dry-run --include-optional` first.
-4. With explicit approval for Anthropic usage, run all areas in order with optional scope included. Preserve the run directory and use resume rather than restarting an interrupted run.
+4. With explicit approval for the OpenRouter spend ceiling, run all areas in order with optional scope included through the approved OpenRouter provider adaptation. Preserve the run directory and use resume rather than restarting an interrupted run.
 5. Complete the generated manual checklist with real mailbox, ICS/calendar, ZIP, and second-account evidence; then finalize the report.
 6. Record only nonsensitive results and artifact paths in the evaluation matrix. Revoke evaluator sessions after submission.
 
@@ -90,3 +90,5 @@ The bell count is a global unread count; panel filters report their own matching
 Scheduled work creates overdue-task notifications, dispatches explicitly enabled notification emails, and performs daily 180-day archive/30-day deletion cleanup. Filter Cloudflare logs by `service=notifications` and `operation=email_dispatch` or `retention_cleanup`. Logs must not include recipient addresses, titles, bodies, preference values tied to a person, or action URLs.
 
 For an email-channel incident, inspect `notification_channel_deliveries`, the linked Communications outbox record, operational job, provider attempt, and correlation ID. Do not insert a second message manually: the deterministic notification idempotency key makes the normal dispatcher/retry path safe. In-app delivery remains independent of email provider state.
+
+Resend lifecycle callbacks must be signed, deduplicated by provider event ID, and monotonic: late `email.sent` retries cannot downgrade `delivered`, `bounced`, `failed`, or `cancelled` records. After rotating a webhook secret, send a controlled test message and require the outbox detail to contain both provider lifecycle events and a final `delivered` state. A provider dashboard success alone is insufficient evidence.
