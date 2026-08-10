@@ -193,6 +193,9 @@ export async function processAirtableOutbox(
         )
         .bind(new Date().toISOString(), outbox.id),
       db
+        .prepare(resolvedConflictCompactionSql)
+        .bind(outbox.organizationId, outbox.entityType, outbox.entityId),
+      db
         .prepare(
           `UPDATE integration_conflicts SET status='resolved',resolved_at=?
            WHERE organization_id=? AND integration='airtable' AND entity_type=? AND entity_id=? AND status='open'`,
@@ -266,6 +269,12 @@ export async function processAirtableOutbox(
     throw error;
   }
 }
+
+// A record may fail, recover, and fail again. The schema permits only one row
+// per identity and status, so compact the older resolved snapshot before the
+// current open conflict transitions to resolved.
+export const resolvedConflictCompactionSql = `DELETE FROM integration_conflicts
+ WHERE organization_id=? AND integration='airtable' AND entity_type=? AND entity_id=? AND status='resolved'`;
 
 async function upsertExternalEntity(env: Env, outbox: OutboxRecord) {
   const projection = await projectEntity(

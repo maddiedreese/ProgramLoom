@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../env";
 import {
+  resolvedConflictCompactionSql,
   speakerTaskAssignmentSql,
   speakerTaskEntityParts,
   verifyAirtableWebhook,
 } from "./airtable";
+
+describe("Airtable conflict recovery", () => {
+  it("compacts an older resolved snapshot before resolving a repeated failure", () => {
+    expect(resolvedConflictCompactionSql).toContain(
+      "DELETE FROM integration_conflicts",
+    );
+    expect(resolvedConflictCompactionSql).toContain("status='resolved'");
+    expect(resolvedConflictCompactionSql).toContain("organization_id=?");
+    expect(resolvedConflictCompactionSql).toContain("entity_type=?");
+    expect(resolvedConflictCompactionSql).toContain("entity_id=?");
+  });
+});
 
 describe("Airtable webhook verification", () => {
   it("accepts the matching Airtable HMAC and rejects altered payloads", async () => {

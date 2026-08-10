@@ -48,7 +48,19 @@ describe("speaker workspace", () => {
                 portalStatus: "active",
               },
               sessions: [],
-              tasks: [],
+              tasks: [
+                {
+                  id: "task-1",
+                  title: "Confirm participation",
+                  description: "Confirm that you can attend.",
+                  taskType: "confirmation",
+                  dueAt: "2027-09-01T23:59:00.000Z",
+                  status: "pending",
+                  responseJson: {},
+                  completedAt: null,
+                  updatedAt: "2027-08-01T00:00:00.000Z",
+                },
+              ],
               resources: [],
               files: [],
             }),
@@ -90,5 +102,8 @@ describe("speaker workspace", () => {
     expect(screen.queryByRole("link", { name: "Reviews" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Content" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Agenda" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mark complete" }),
+    ).toBeInTheDocument();
   });
 });

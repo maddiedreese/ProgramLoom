@@ -86,7 +86,12 @@ app.use(
         "https://*.posthog.com",
       ],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      scriptSrc: ["'self'", "https://challenges.cloudflare.com"],
+      scriptSrc: [
+        "'self'",
+        "https://challenges.cloudflare.com",
+        "https://*.posthog.com",
+        "https://static.cloudflareinsights.com",
+      ],
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "data:"],
       frameSrc: [
@@ -163,11 +168,27 @@ app.route("/api/notifications", notificationRoutes);
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);
   const asset = await context.env.ASSETS.fetch(new Request(assetUrl));
+  const headers = new Headers(asset.headers);
+  headers.set("cache-control", "no-cache, no-store, must-revalidate");
   return new Response(asset.body, {
     status: asset.status,
     statusText: asset.statusText,
-    headers: new Headers(asset.headers),
+    headers,
   });
+});
+
+app.get("/assets/*", async (context) => {
+  const asset = await context.env.ASSETS.fetch(context.req.raw);
+  if (asset.headers.get("content-type")?.includes("text/html")) {
+    return new Response("Asset not found.", {
+      status: 404,
+      headers: {
+        "cache-control": "no-cache, no-store, must-revalidate",
+        "content-type": "text/plain; charset=utf-8",
+      },
+    });
+  }
+  return asset;
 });
 
 app.notFound(async (context) => {
@@ -183,7 +204,15 @@ app.notFound(async (context) => {
       404,
     );
   }
-  return context.env.ASSETS.fetch(context.req.raw);
+  const asset = await context.env.ASSETS.fetch(context.req.raw);
+  const headers = new Headers(asset.headers);
+  if (headers.get("content-type")?.includes("text/html"))
+    headers.set("cache-control", "no-cache, no-store, must-revalidate");
+  return new Response(asset.body, {
+    status: asset.status,
+    statusText: asset.statusText,
+    headers,
+  });
 });
 
 app.onError((error, context) => {

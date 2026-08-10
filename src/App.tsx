@@ -7,7 +7,14 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { lazy, Suspense, type FormEvent, useEffect, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  type ComponentType,
+  type FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Dashboard } from "./app/Dashboard";
 import { InvitePage } from "./app/InvitePage";
@@ -24,40 +31,62 @@ import { CommandPalette } from "./app/CommandPalette";
 import { NotificationCenter } from "./app/NotificationCenter";
 import { PublicWidgetPage } from "./app/PublicWidgetPage";
 
-const LazyCRMPage = lazy(() =>
+function deploymentSafeLazy<T extends ComponentType<any>>(
+  key: string,
+  load: () => Promise<{ default: T }>,
+) {
+  return lazy(async () => {
+    const recoveryKey = `programloom:lazy-recovery:${key}`;
+    try {
+      const module = await load();
+      sessionStorage.removeItem(recoveryKey);
+      return module;
+    } catch (error) {
+      if (!sessionStorage.getItem(recoveryKey)) {
+        sessionStorage.setItem(recoveryKey, "1");
+        window.location.reload();
+        return new Promise<{ default: T }>(() => undefined);
+      }
+      sessionStorage.removeItem(recoveryKey);
+      throw error;
+    }
+  });
+}
+
+const LazyCRMPage = deploymentSafeLazy("crm", () =>
   import("./app/CRMPage").then(({ CRMPage }) => ({ default: CRMPage })),
 );
-const LazyEventContent = lazy(() =>
+const LazyEventContent = deploymentSafeLazy("content", () =>
   import("./app/EventContent").then(({ EventContent }) => ({
     default: EventContent,
   })),
 );
-const LazyEventCalendar = lazy(() =>
+const LazyEventCalendar = deploymentSafeLazy("calendar", () =>
   import("./app/EventCalendar").then(({ EventCalendar }) => ({
     default: EventCalendar,
   })),
 );
-const LazyEventControlRoom = lazy(() =>
+const LazyEventControlRoom = deploymentSafeLazy("control-room", () =>
   import("./app/EventControlRoom").then(({ EventControlRoom }) => ({
     default: EventControlRoom,
   })),
 );
-const LazySubmissionEditAction = lazy(() =>
+const LazySubmissionEditAction = deploymentSafeLazy("submission-edit", () =>
   import("./app/SubmissionEditActionPage").then(
     ({ SubmissionEditActionPage }) => ({ default: SubmissionEditActionPage }),
   ),
 );
-const LazyEventSpeakers = lazy(() =>
+const LazyEventSpeakers = deploymentSafeLazy("speakers", () =>
   import("./app/EventSpeakers").then(({ EventSpeakers }) => ({
     default: EventSpeakers,
   })),
 );
-const LazyPublicInterestPage = lazy(() =>
+const LazyPublicInterestPage = deploymentSafeLazy("interest", () =>
   import("./app/PublicInterestPage").then(({ PublicInterestPage }) => ({
     default: PublicInterestPage,
   })),
 );
-const LazyLegalPage = lazy(() =>
+const LazyLegalPage = deploymentSafeLazy("legal", () =>
   import("./app/LegalPage").then(({ LegalPage }) => ({ default: LegalPage })),
 );
 

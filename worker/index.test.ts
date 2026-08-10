@@ -34,6 +34,27 @@ describe("ProgramLoom Worker", () => {
     expect(await response.text()).toBe("asset");
   });
 
+  it("does not serve the application shell for a missing hashed asset", async () => {
+    const response = await app.request(
+      "/assets/stale-chunk.js",
+      {},
+      {
+        ...env,
+        ASSETS: {
+          fetch: () =>
+            Promise.resolve(
+              new Response("<html>shell</html>", {
+                headers: { "content-type": "text/html" },
+              }),
+            ),
+        },
+      },
+    );
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("content-type")).toContain("text/plain");
+  });
+
   it("allows public widgets to be framed without weakening application routes", async () => {
     const widget = await app.request("/embed/public-key", {}, env);
     expect(widget.status).toBe(200);

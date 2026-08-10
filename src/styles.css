@@ -2865,7 +2865,7 @@ input {
   gap: 4px;
 }
 .control-issue-copy > span {
-  color: #767a72;
+  color: #686d65;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.07em;
@@ -5956,6 +5956,12 @@ input {
   margin: 0;
   opacity: 0.65;
 }
+.widget-timezone {
+  display: block;
+  margin-top: 4px;
+  opacity: 0.7;
+  font-size: 10px;
+}
 .widget-header > a {
   opacity: 0.55;
   font-size: 9px;
@@ -6036,7 +6042,6 @@ input {
 }
 .widget-card h2,
 .speaker-widget-grid h2,
-.agenda-widget-list h2,
 .gallery-widget h2 {
   margin: 0;
   font-size: 17px;
@@ -6049,8 +6054,67 @@ input {
   font-size: 11px;
   line-height: 1.55;
 }
+.widget-speaker-lines p {
+  display: grid;
+  gap: 1px;
+}
+.widget-speaker-lines p strong {
+  color: inherit;
+  font-size: 11px;
+}
+.widget-speaker-lines p span {
+  font-size: 10px;
+}
+.widget-card .widget-card-abstract,
+.speaker-bio-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.widget-result-count {
+  margin: 0 0 10px;
+  color: color-mix(in srgb, currentColor 68%, transparent);
+  font-size: 11px;
+  font-weight: 750;
+}
+.widget-detail-hint {
+  display: inline-block;
+  margin-top: 7px;
+  color: var(--widget-color);
+  font-size: 10px;
+  font-weight: 800;
+}
+.widget-card-meta {
+  margin-top: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.widget-card-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.75;
+  font-size: 10px;
+}
+.widget-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  border: 1px dashed rgba(80, 85, 78, 0.3);
+  border-radius: 11px;
+  color: color-mix(in srgb, currentColor 65%, transparent);
+  text-align: center;
+}
+.widget-empty p {
+  margin: 0;
+  font-size: 12px;
+}
 .widget-card em,
-.agenda-widget-list em {
+.agenda-card em {
   display: inline-block;
   margin-top: 8px;
   color: var(--widget-color);
@@ -6063,20 +6127,28 @@ input {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 12px;
 }
-.speaker-widget-grid article {
+.speaker-widget-grid details {
   padding: 16px;
-  display: flex;
-  gap: 13px;
   border: 1px solid rgba(80, 85, 78, 0.2);
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.7);
 }
-.theme-dark .speaker-widget-grid article {
+.speaker-widget-grid summary {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+.speaker-widget-grid summary::-webkit-details-marker {
+  display: none;
+}
+.theme-dark .speaker-widget-grid details {
   border-color: rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.05);
 }
 .speaker-widget-grid img,
-.speaker-widget-grid article > span {
+.speaker-widget-grid summary > span {
   width: 64px;
   height: 64px;
   display: grid;
@@ -6086,6 +6158,34 @@ input {
   background: color-mix(in srgb, var(--widget-color) 13%, white);
   color: var(--widget-color);
   object-fit: cover;
+}
+.speaker-widget-grid .speaker-bio {
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.speaker-bio-preview {
+  max-width: 38ch;
+}
+.speaker-session-count {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--widget-color);
+  font-size: 9px;
+  font-weight: 800;
+}
+.speaker-session-links {
+  margin-top: 12px;
+  display: grid;
+  gap: 5px;
+  font-size: 10px;
+}
+.speaker-session-links strong {
+  color: var(--widget-color);
+}
+.speaker-session-links > span {
+  display: grid;
+  gap: 2px;
 }
 .speaker-widget-grid p {
   margin: 5px 0;
@@ -6097,44 +6197,129 @@ input {
   font-size: 10px;
   line-height: 1.45;
 }
-.agenda-widget-list {
-  overflow: hidden;
+.agenda-day-tabs {
+  margin-bottom: 10px;
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+}
+.agenda-day-tabs button {
+  padding: 8px 12px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(80, 85, 78, 0.24);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.agenda-day-tabs button[aria-selected="true"] {
+  border-color: var(--widget-color);
+  background: var(--widget-color);
+  color: white;
+}
+.agenda-grid-scroll {
+  overflow-x: auto;
+}
+.agenda-grid {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0;
   border: 1px solid rgba(80, 85, 78, 0.2);
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.7);
 }
-.theme-dark .agenda-widget-list {
-  border-color: rgba(255, 255, 255, 0.12);
+.theme-dark .agenda-grid {
   background: rgba(255, 255, 255, 0.04);
 }
-.agenda-widget-list article {
-  padding: 15px 17px;
-  display: grid;
-  grid-template-columns: 145px 4px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  border-bottom: 1px solid rgba(80, 85, 78, 0.14);
+.agenda-grid th,
+.agenda-grid td {
+  padding: 10px;
+  border-right: 1px solid rgba(80, 85, 78, 0.12);
+  border-bottom: 1px solid rgba(80, 85, 78, 0.12);
+  vertical-align: top;
 }
-.agenda-widget-list article:last-child {
-  border: 0;
+.agenda-grid tr:last-child > * {
+  border-bottom: 0;
 }
-.agenda-widget-list time {
+.agenda-grid tr > *:last-child {
+  border-right: 0;
+}
+.agenda-grid thead th {
+  text-align: left;
   font-size: 10px;
+  font-weight: 850;
+}
+.agenda-grid tbody > tr > th {
+  width: 84px;
+  font-size: 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+.agenda-grid-empty {
+  opacity: 0.25;
+}
+.agenda-card {
+  min-width: 190px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--widget-color) 7%, transparent);
+}
+.agenda-card-summary {
+  padding: 10px;
+  display: flex;
+  gap: 9px;
+}
+.agenda-card .agenda-track-line {
+  width: 4px;
+  flex: 0 0 4px;
+}
+.agenda-card-summary small {
+  font-size: 9px;
   font-weight: 800;
+}
+.agenda-card h2 {
+  margin: 4px 0;
+  font-size: 13px;
+}
+.agenda-card-facts,
+.agenda-card-speakers {
+  margin-top: 5px;
+  display: grid;
+  gap: 3px;
+  font-size: 9px;
+  line-height: 1.4;
+}
+.agenda-card-facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.agenda-card-speakers strong {
+  color: inherit;
+}
+.agenda-card-detail p {
+  margin: 0;
+  padding: 0 10px 10px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.agenda-card .agenda-detail-trigger {
+  margin-top: 7px;
+  padding: 0;
+  border: 0;
+  font-size: 9px;
+  text-decoration: underline;
+}
+.agenda-card > button {
+  margin: 0 10px 10px;
 }
 .agenda-track-line {
   align-self: stretch;
   border-radius: 999px;
 }
-.agenda-widget-list p {
-  margin: 5px 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0.65;
-  font-size: 10px;
-}
-.agenda-widget-list button,
+.agenda-card button,
 .itinerary-heading button {
   padding: 8px 10px;
   display: inline-flex;
@@ -6148,7 +6333,7 @@ input {
   font-weight: 800;
   cursor: pointer;
 }
-.agenda-widget-list button.saved,
+.agenda-card button.saved,
 .itinerary-heading button {
   background: var(--widget-color);
   color: white;
@@ -6187,6 +6372,29 @@ input {
     color-mix(in srgb, var(--widget-color) 45%, #e87757)
   );
   color: white;
+}
+.gallery-tile summary {
+  cursor: pointer;
+  list-style: none;
+}
+.gallery-tile summary::-webkit-details-marker {
+  display: none;
+}
+.gallery-tile img {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 16px;
+  border: 3px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  object-fit: cover;
+}
+.gallery-tile small {
+  display: block;
+  margin-top: 12px;
+  font-weight: 800;
+}
+.gallery-tile > p {
+  line-height: 1.55;
 }
 .gallery-tile.tile-1 {
   grid-row: span 2;
@@ -6227,8 +6435,8 @@ input {
   .gallery-widget {
     grid-template-columns: 1fr 1fr;
   }
-  .agenda-widget-list article {
-    grid-template-columns: 105px 4px minmax(0, 1fr) auto;
+  .agenda-grid {
+    min-width: 560px;
   }
 }
 @media (max-width: 560px) {
@@ -6244,16 +6452,6 @@ input {
   }
   .widget-controls select {
     width: 100%;
-  }
-  .agenda-widget-list article {
-    grid-template-columns: 4px minmax(0, 1fr) auto;
-  }
-  .agenda-widget-list time {
-    grid-column: 2/-1;
-  }
-  .agenda-track-line {
-    grid-row: 2;
-    grid-column: 1;
   }
   .gallery-widget {
     grid-template-columns: 1fr;

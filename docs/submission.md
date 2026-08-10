@@ -92,6 +92,6 @@ Browser ---- explicit product events ----> PostHog
 - [x] Architecture, data model, Airtable, evaluation, security, and runbook documentation
 - [x] Privacy and Terms pages
 - [x] Free evaluator browser smoke and 96-rubric dry run
-- [ ] Full paid ordered evaluator report
-- [ ] Manual real-inbox, calendar, archive, and second-account evidence
+- [ ] Full paid ordered evaluator report (partial paid area reports retained; final rerun pending)
+- [x] Manual real-inbox, Gmail/Apple calendar, archive, and second-account evidence (Outlook explicitly waived)
 - [ ] Finalized report and competition form submission

@@ -540,7 +540,9 @@ function SpeakerPortal({
                       }
                       disabled={busy}
                     >
-                      {task.taskType === "file_request" ? "Upload" : "Submit"}
+                      {task.taskType === "file_request"
+                        ? "Upload requested file"
+                        : "Mark complete"}
                     </button>
                   )}
                 </div>

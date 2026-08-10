@@ -19,6 +19,6 @@ The main session artifacts separately prove a stable UID across a material time-
 
 - Gmail parsed the main initial invitation and update as native calendar messages, showing the new time and room. It parsed the disposable cancellation as `Event cancelled` and `Removed from Google Calendar`. Every message exposed the attached `.ics` file and was received in the controlled speaker inbox.
 - Apple Calendar imported disposable sequence 0 as one event, applied sequence 2 in place to the new date/time, and applied sequence 3 to that same entry as `Canceled`. The accessibility tree contained exactly one disposable event after each step.
-- Outlook remains a required manual evidence step. No Outlook desktop application is installed and the external-browser Outlook session is signed out; no result is claimed.
+- Outlook verification was explicitly waived by the account owner because no Outlook account is available. No Outlook result is claimed; Gmail, Apple Calendar, and exact ICS-byte evidence cover the supported verification set for this submission.
 
 The sibling `.ics` files are the exact authenticated revision downloads retained from production R2. They preserve CRLF line endings and RFC 5545 folding.
