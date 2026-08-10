@@ -1037,7 +1037,8 @@ router.get("/:eventId/submissions/:submissionId", async (context) => {
     .prepare(
       `SELECT s.id, s.form_id AS formId, f.name AS formName, s.title, s.abstract, s.format,
             s.duration_minutes AS durationMinutes, s.status,s.decision_state AS decisionState,
-            s.submitted_at AS submittedAt, s.created_at AS createdAt, s.updated_at AS updatedAt
+            s.answers_json AS answersJson,s.submitted_at AS submittedAt,
+            s.created_at AS createdAt, s.updated_at AS updatedAt
      FROM submissions s JOIN cfp_forms f ON f.id = s.form_id WHERE s.id = ? AND s.event_id = ?`,
     )
     .bind(context.req.param("submissionId"), eventId)
