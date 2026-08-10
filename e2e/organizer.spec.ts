@@ -35,6 +35,9 @@ test.describe("authenticated organizer operations", () => {
     page,
   }) => {
     await page.goto(`/app/events/${eventId}`);
+    await expect(
+      page.getByRole("button", { name: /Search and commands/i }),
+    ).toBeVisible();
     await page.keyboard.press(
       process.platform === "darwin" ? "Meta+K" : "Control+K",
     );

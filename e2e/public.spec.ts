@@ -6,6 +6,10 @@ for (const route of ["/", "/login", "/privacy", "/terms", "/cfp"]) {
     const response = await page.goto(route);
     expect(response?.ok()).toBeTruthy();
     await expect(page.locator("body")).toBeVisible();
+    await page
+      .locator(".inline-empty", { hasText: /^Loading/ })
+      .waitFor({ state: "detached" })
+      .catch(() => undefined);
     await expectNoHorizontalOverflow(page);
     await expectAccessible(page);
   });

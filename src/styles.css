@@ -2780,7 +2780,7 @@ input {
   gap: 5px;
 }
 .control-category-grid small {
-  color: #73776f;
+  color: #696e66;
   line-height: 1.3;
 }
 .control-category-grid b {
@@ -2882,7 +2882,7 @@ input {
   font-size: 13px;
 }
 .control-issue-copy small {
-  color: #777c74;
+  color: #666b64;
 }
 .control-issue-actions {
   display: flex;
@@ -3062,7 +3062,7 @@ input {
   font-size: 13px;
 }
 .form-list button small {
-  color: #777c74;
+  color: #666b64;
   font-size: 10px;
 }
 .quick-create {
@@ -3296,7 +3296,7 @@ input {
   place-items: center;
   align-content: center;
   gap: 5px;
-  color: #777c74;
+  color: #666b64;
 }
 .inline-empty strong {
   color: var(--ink);
@@ -3695,7 +3695,7 @@ input {
   letter-spacing: 0.06em;
 }
 .public-field-grid label > small {
-  color: #777c74;
+  color: #666b64;
   font-weight: 400;
   line-height: 1.4;
 }
@@ -3919,7 +3919,7 @@ input {
 .submission-table-head {
   padding: 11px 18px;
   background: #efede5;
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
@@ -4488,7 +4488,7 @@ input {
   gap: 7px;
 }
 .detail-answers small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
@@ -4636,7 +4636,7 @@ input {
   font-size: 22px;
 }
 .review-round-heading > div:last-child small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   text-transform: uppercase;
 }
@@ -4658,7 +4658,7 @@ input {
   font-size: 20px;
 }
 .review-stats span {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -4705,7 +4705,7 @@ input {
   font-size: 11px;
 }
 .scorecard-list small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .score-field-form {
@@ -4728,7 +4728,7 @@ input {
   background: white;
 }
 .score-field-form label small {
-  color: #777c74;
+  color: #666b64;
   font-weight: 400;
 }
 .assignment-columns {
@@ -4772,7 +4772,7 @@ input {
   font-size: 11px;
 }
 .assignment-choice small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .reviewer-list {
@@ -4804,7 +4804,7 @@ input {
   gap: 4px;
 }
 .reviewer-list button small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .reviewer-list button p {
@@ -4858,7 +4858,7 @@ input {
   background: rgba(255, 253, 246, 0.96);
 }
 .review-detail header small {
-  color: #777c74;
+  color: #666b64;
 }
 .review-detail header h2 {
   margin: 5px 0 0;
@@ -4891,7 +4891,7 @@ input {
   gap: 7px;
 }
 .review-proposal section small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
@@ -4918,7 +4918,7 @@ input {
   text-transform: uppercase;
 }
 .review-scorecard label > small {
-  color: #777c74;
+  color: #666b64;
   font-weight: 400;
 }
 .review-actions {
@@ -5006,7 +5006,7 @@ input {
   font-size: 12px;
 }
 .ai-heading small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .ai-assessment {
@@ -5030,7 +5030,7 @@ input {
 }
 .ai-assessment > div:first-child span {
   margin-top: 12px;
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .ai-assessment > div:first-child em {
@@ -5088,7 +5088,7 @@ input {
 }
 .ai-empty {
   margin: 15px 0 0;
-  color: #777c74;
+  color: #666b64;
   font-size: 10px;
 }
 .modal-backdrop {
@@ -5157,7 +5157,7 @@ input {
   font-size: 11px;
 }
 .decision-recipients small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .decision-composer form {
@@ -5166,7 +5166,7 @@ input {
 }
 .template-help {
   margin: -7px 0 0;
-  color: #777c74;
+  color: #666b64;
   font:
     10px ui-monospace,
     monospace;
@@ -5201,7 +5201,7 @@ input {
   font-size: 25px;
 }
 .portal-progress span {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -5260,7 +5260,7 @@ input {
 }
 .portal-card-title p {
   margin: 0;
-  color: #777c74;
+  color: #666b64;
   font-size: 11px;
 }
 .portal-task {
@@ -5376,7 +5376,7 @@ input {
 }
 .speaker-file-list small,
 .file-review-list small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .speaker-file-list article > div:last-child,
@@ -5430,7 +5430,7 @@ input {
 }
 .speaker-progress span {
   display: grid;
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   text-align: center;
 }
@@ -5482,7 +5482,7 @@ input {
   background: white;
 }
 .operations-card > small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .file-review-list {
@@ -5575,7 +5575,7 @@ input {
   object-fit: cover;
 }
 .headshot-editor small {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .agenda-main {
@@ -5605,7 +5605,7 @@ input {
   align-items: baseline;
   gap: 6px;
   border-right: 1px solid var(--line);
-  color: #777c74;
+  color: #666b64;
   font-size: 10px;
   text-transform: uppercase;
 }
@@ -5647,7 +5647,7 @@ input {
   font-size: 12px;
 }
 .agenda-list article > div span {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .agenda-canvas > h2 {
@@ -5676,12 +5676,12 @@ input {
   font-size: 11px;
 }
 .agenda-placement > div small {
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
 }
 .agenda-placement label {
   gap: 4px;
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
   text-transform: uppercase;
 }
@@ -5732,7 +5732,7 @@ input {
   font-size: 10px;
 }
 .session-add small {
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
 }
 .assist-card > p {
@@ -5892,7 +5892,7 @@ input {
   margin: 3px 0 0;
 }
 .widget-config-list article span {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .widget-links {
@@ -6301,7 +6301,7 @@ input {
 .crm-org-switcher {
   gap: 6px;
   padding: 0 7px;
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -6384,7 +6384,7 @@ input {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .crm-kpis {
@@ -6401,7 +6401,7 @@ input {
   background: #fbfaf6;
 }
 .crm-kpis span {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
@@ -6503,7 +6503,7 @@ input {
   top: 50%;
   left: 11px;
   transform: translateY(-50%);
-  color: #777c74;
+  color: #666b64;
 }
 .crm-search input {
   width: 100%;
@@ -6634,7 +6634,7 @@ input {
 .history-panel th,
 .import-preview th {
   background: #f1efe8;
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -6679,7 +6679,7 @@ input {
 }
 .table-footer {
   padding: 10px 13px;
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
 }
 .pipeline-toolbar {
@@ -6859,7 +6859,7 @@ input {
   text-align: center;
 }
 .interest-form-list dt {
-  color: #777c74;
+  color: #666b64;
   font-size: 7px;
   text-transform: uppercase;
 }
@@ -7063,7 +7063,7 @@ input {
   gap: 5px;
 }
 .merge-tags span {
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
 }
 .merge-tags button {
@@ -7082,7 +7082,7 @@ input {
   background: white;
 }
 .email-preview small {
-  color: #777c74;
+  color: #666b64;
 }
 .email-preview h3 {
   margin: 16px 0 24px;
@@ -7140,7 +7140,7 @@ input {
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
   font-weight: 800;
   text-transform: capitalize;
@@ -7234,7 +7234,7 @@ input {
   font-size: 10px;
 }
 .profile-timeline time {
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
 }
 .connections-grid,
@@ -7249,7 +7249,7 @@ input {
   border-bottom: 1px solid var(--line);
 }
 .connections-grid span {
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
 }
 .card-detail-grid > section {
@@ -7264,7 +7264,7 @@ input {
   border-bottom: 1px solid var(--line);
 }
 .card-detail-grid dt {
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
   text-transform: uppercase;
 }
@@ -7291,7 +7291,7 @@ input {
   gap: 3px;
 }
 .card-detail-grid article span {
-  color: #777c74;
+  color: #666b64;
   font-size: 8px;
 }
 
@@ -7375,7 +7375,7 @@ input {
 }
 .interest-form-heading > p:last-child,
 .interest-privacy {
-  color: #777c74;
+  color: #666b64;
   font-size: 9px;
 }
 .interest-public-card fieldset {
