@@ -335,6 +335,101 @@ router.put(
         "invalid_speaker",
         "Choose speakers from this event's roster.",
       );
+    const schedulingConflicts = await db
+      .prepare(
+        `SELECT item.id AS agendaItemId,other.id AS conflictingItemId,
+                item.room_id AS roomId,item.starts_at AS startsAt,item.ends_at AS endsAt,
+                other.title AS conflictingTitle,sp.first_name||' '||sp.last_name AS speakerName
+         FROM agenda_items item
+         JOIN agenda_items other ON other.event_id=item.event_id AND other.id!=item.id
+           AND other.cancelled_at IS NULL AND other.starts_at<item.ends_at AND other.ends_at>item.starts_at
+         JOIN session_speakers otherSpeaker ON otherSpeaker.submission_id=other.submission_id
+         JOIN speaker_profiles sp ON sp.id=otherSpeaker.speaker_id
+         WHERE item.event_id=? AND item.submission_id=? AND item.cancelled_at IS NULL
+           AND item.starts_at IS NOT NULL AND item.ends_at IS NOT NULL
+           AND otherSpeaker.speaker_id IN (${input.speakerIds.map(() => "?").join(",")})`,
+      )
+      .bind(eventId, submissionId, ...input.speakerIds)
+      .all<{
+        agendaItemId: string;
+        conflictingItemId: string;
+        roomId: string | null;
+        startsAt: string;
+        endsAt: string;
+        conflictingTitle: string;
+        speakerName: string;
+      }>();
+    if (schedulingConflicts.results.length) {
+      const statements: D1PreparedStatement[] = [];
+      for (const conflict of schedulingConflicts.results) {
+        const conflictId = crypto.randomUUID();
+        const summary = `${conflict.speakerName} is already speaking in ${conflict.conflictingTitle}.`;
+        statements.push(
+          db
+            .prepare(
+              `INSERT OR IGNORE INTO schedule_conflict_records
+                (id,organization_id,event_id,agenda_item_id,conflicting_item_id,
+                 conflict_type,summary,attempted_room_id,attempted_starts_at,attempted_ends_at)
+               VALUES(?,?,?,?,?,'speaker',?,?,?,?)`,
+            )
+            .bind(
+              conflictId,
+              access.organizationId,
+              eventId,
+              conflict.agendaItemId,
+              conflict.conflictingItemId,
+              summary,
+              conflict.roomId,
+              conflict.startsAt,
+              conflict.endsAt,
+            ),
+          auditStatement(db, {
+            organizationId: access.organizationId,
+            eventId,
+            actorUserId: access.user.id,
+            action: "schedule_conflict.detected",
+            entityType: "schedule_conflict",
+            entityId: conflictId,
+            after: {
+              agendaItemId: conflict.agendaItemId,
+              conflictingItemId: conflict.conflictingItemId,
+              conflictType: "speaker",
+              source: "speaker_assignment",
+            },
+            requestId: context.get("requestId"),
+          }),
+          eventManagerNotificationStatement(db, {
+            organizationId: access.organizationId,
+            eventId,
+            category: "agenda",
+            notificationType: "agenda.conflict_introduced",
+            severity: "blocking",
+            title: "A speaker assignment would create a scheduling conflict",
+            body: summary,
+            actionUrl: `/app/events/${eventId}/control-room?category=schedule_conflicts`,
+            entityType: "schedule_conflict",
+            entityId: conflictId,
+            coalesceKey: `schedule-conflict:${conflictId}`,
+          }),
+        );
+      }
+      await db.batch(statements);
+      return context.json(
+        {
+          error: {
+            code: "schedule_conflict",
+            message:
+              "This speaker is already scheduled at that time. Move a session before changing the speaker assignment.",
+          },
+          conflicts: schedulingConflicts.results.map((conflict) => ({
+            type: "speaker",
+            itemId: conflict.conflictingItemId,
+            message: `${conflict.speakerName} is already speaking in ${conflict.conflictingTitle}.`,
+          })),
+        },
+        409,
+      );
+    }
     await db.batch([
       db
         .prepare("DELETE FROM session_speakers WHERE submission_id=?")
