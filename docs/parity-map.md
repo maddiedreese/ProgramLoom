@@ -14,6 +14,15 @@ Routes use `{eventId}` for the selected authorized event. Every listed productio
 | Organizer-wide search and command palette | Visible Search control or macOS `Command+K`  | Bounded server-side ranking, role/blind-review filtering, safe quick actions, keyboard/mobile/latency tests and privacy-bounded PostHog evidence                                       |
 | In-app notification center                | Global notification bell and center          | Durable read state/preferences, recipient scoping, coalescing, cleanup, action links, domain integration, audit/logging, keyboard/mobile tests                                         |
 
+## Extended product capabilities
+
+| Capability | Primary production surface | Core evidence and tests |
+| --- | --- | --- |
+| Category-based reviewer routing | `/app/events/{eventId}/reviews` → **Automatic reviewer routing** | Plain-language AND/OR rules over form, track, format, tags, and custom fields; deterministic preview/diagnostics; capacity/conflict/recusal-safe idempotent execution; Control Room warning, audit, Airtable, duplication, unit/API/authorization/browser coverage |
+| Multi-view agenda builder | `/app/events/{eventId}/agenda` | List, Day, Week, Track, and Room projections; pointer/touch drag, keyboard-equivalent scheduling, URL state, conflict-safe transactional preview, calendar/publication consequences, responsive and large-program coverage |
+| Public developer platform | `/app/settings` and public `/developers` | One-time hash-only tokens, scopes/event restrictions/PII masking, `/api/v1`, OpenAPI, REST/query/MCP, OAuth 2.1 PKCE, signed Queue-backed webhooks, rate limits, idempotency, concurrency, usage/audit records, desktop/mobile production smoke tests |
+| Safe resource embeds | Speaker resources and organization embed-domain settings | Exact HTTPS allowlist, client/server sanitization, publish preview and removal explanations, restrictive iframe policy, malicious-markup and mobile tests |
+
 ## Evaluator-facing closure
 
 | Requirement                  | Product or evidence location                                                                                                                                |

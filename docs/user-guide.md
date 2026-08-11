@@ -126,7 +126,7 @@ Organizations using Airtable can keep business records in their authoritative ba
 
 PostHog receives deliberately limited events such as feature use and result selection; search text, private record contents, tokens, and personal data are not analytics properties. Normal structured Cloudflare logs contain correlation IDs and operational metadata, not message bodies, tokens, or personal data.
 
-Organization owners and admins open **Developer settings** to create hashed, one-time-reveal API tokens, signed webhooks, and OAuth 2.1 clients. The stable `/api/v1` REST API uses `x-access-token`, granular scopes, event restrictions, PII masking, bounded pagination, rate limits, idempotency keys, optimistic concurrency, short-lived file downloads, and structured errors. Public developer documentation is at [app.programloom.com/developers](https://app.programloom.com/developers).
+Organization owners and admins open **Developer settings** to create hashed, one-time-reveal API tokens, signed webhooks, and OAuth 2.1 clients. The stable `/api/v1` REST API uses `x-access-token`, granular scopes, event restrictions, PII masking, bounded pagination, rate limits, idempotency keys, optimistic concurrency, short-lived file downloads, and structured errors. Continue with the public [developer reference](https://app.programloom.com/developers) or the repository [developer-platform guide](developer-platform.md).
 
 ## Common status questions
 

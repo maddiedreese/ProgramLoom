@@ -38,7 +38,7 @@ New to program operations? Start with the [complete user guide](docs/user-guide.
 
 The user interface and API run together on a Cloudflare Worker. D1 stores account access and durable workflow state; R2 stores private file versions and generated exports; Cloudflare Queues handles retry-safe email and Airtable synchronization. Resend delivers transactional email, Airtable can remain the authoritative business-record store, and PostHog receives only intentionally limited product events. Structured Cloudflare logs and Workers Observability provide operational diagnosis.
 
-Organization owners can also connect trusted systems through hashed API tokens, signed webhooks, OAuth 2.1, a stable REST API, a bounded query surface, and remote MCP. The public [developer guide](https://app.programloom.com/developers) explains scopes, event restrictions, PII masking, pagination, safe writes, and examples.
+Organization owners can also connect trusted systems through hashed API tokens, signed webhooks, OAuth 2.1, a stable REST API, a bounded query surface, and remote MCP. The public [developer guide](https://app.programloom.com/developers) and repository [developer-platform guide](docs/developer-platform.md) explain scopes, event restrictions, PII masking, pagination, safe writes, webhooks, versioning, and examples.
 
 Technical readers can continue with the [architecture](docs/architecture.md), [data model](docs/data-model.md), [Airtable design](docs/airtable.md), and [operator runbook](docs/runbook.md).
 

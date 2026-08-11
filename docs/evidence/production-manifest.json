@@ -29,7 +29,8 @@
   },
   "controlRoom": {
     "openItems": null,
-    "reconciled": false
+    "reconciled": false,
+    "explanation": null
   },
   "communications": {
     "states": [

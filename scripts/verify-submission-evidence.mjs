@@ -108,8 +108,18 @@ if (final) {
     );
   if (manifest.controlRoom?.reconciled !== true)
     errors.push("Final Control Room state is not marked reconciled.");
-  if (manifest.controlRoom?.openItems !== 0)
-    errors.push("Final Control Room does not reconcile to zero open items.");
+  if (
+    !Number.isInteger(manifest.controlRoom?.openItems) ||
+    manifest.controlRoom.openItems < 0
+  )
+    errors.push("Final Control Room open-item count is missing or invalid.");
+  if (
+    manifest.controlRoom?.openItems > 0 &&
+    !String(manifest.controlRoom?.explanation ?? "").trim()
+  )
+    errors.push(
+      "A nonzero final Control Room needs an explicit reconciliation explanation.",
+    );
   if (
     !Number.isInteger(manifest.tests?.unitFiles) ||
     manifest.tests.unitFiles < 1 ||

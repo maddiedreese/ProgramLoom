@@ -4,6 +4,8 @@ This index separates verifiable product evidence from private evaluator state. N
 
 The committed `production-manifest.json` is a sanitized schema and draft-state template. The exact final active release is retained in the restricted evidence bundle outside source. Set `PROGRAMLOOM_EVIDENCE_MANIFEST` to that file when running `npm run verify:evidence -- --final`; the verifier requires its source commit to match both local `HEAD` and the production `/api/health` response, validates the Worker version format, checks canonical links, and rejects unfinished submission checklist claims.
 
+Control Room evidence must reconcile the displayed total to the persisted category counts. A clear event records zero. A deliberately seeded evidence event may retain documented blockers so every category remains independently testable; in that case the restricted manifest records the exact nonzero total and a plain-language explanation instead of falsely describing the room as clear.
+
 | Area           | Nonsensitive committed evidence                                               | Restricted final evidence kept outside source                                       |
 | -------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | Communications | Idempotency, monotonic webhook, retry, authorization and structured-log tests | Controlled inbox receipt, provider state transitions, failure/retry screenshots     |
