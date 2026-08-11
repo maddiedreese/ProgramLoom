@@ -456,6 +456,17 @@ export function EventAgenda({ user }: { user: User }) {
             </p>
           </div>
           <button
+            className="button button-ghost"
+            type="button"
+            onClick={() =>
+              document
+                .getElementById("assisted-scheduling")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+          >
+            <Sparkles size={15} /> Build schedule automatically
+          </button>
+          <button
             className="button"
             onClick={publish}
             disabled={busy || !items.length}
@@ -791,7 +802,12 @@ export function EventAgenda({ user }: { user: User }) {
                 <Plus size={14} /> Add block
               </button>
             </form>
-            <form className="operations-card assist-card" onSubmit={assist}>
+            <form
+              className="operations-card assist-card"
+              id="assisted-scheduling"
+              onSubmit={assist}
+              tabIndex={-1}
+            >
               <Sparkles size={20} />
               <h2>Assisted scheduling</h2>
               <p>

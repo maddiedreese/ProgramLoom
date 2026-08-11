@@ -35,6 +35,8 @@ Never print or commit environment values. `.env.local`, `.dev.vars`, evaluator a
 6. Verify `https://app.programloom.com/api/health`, both HTML domains, authenticated boundaries, and any changed workflow. Populate the restricted final evidence manifest with the source SHA and Worker version, then run `PROGRAMLOOM_EVIDENCE_MANIFEST=/absolute/restricted/manifest.json npm run verify:evidence -- --final`.
 7. Confirm the Airtable integration screen shows no pending jobs, failures, or open conflicts after any Airtable-authoritative mutation.
 
+For a scored evaluator run, execute `npm run prepare:evaluator` with the documented production confirmation, controlled persona variables, and a unique `PROGRAMLOOM_EVALUATOR_RUN_ID`. Use only the emitted event routes. The preparation command deliberately refuses a contaminated baseline with prior submissions, assignments, or extra review rounds.
+
 ## Observability and incident response
 
 Every request receives an `x-request-id`; unexpected request, queue, cron, and integration errors are structured JSON with an operation and request/job identifier. Use Cloudflare Workers Observability to filter by service, operation, level, request ID, message ID, or time window. Product analytics in PostHog are not an error-monitoring source.

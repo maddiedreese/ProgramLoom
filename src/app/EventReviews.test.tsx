@@ -130,12 +130,37 @@ describe("reviewer workspace", () => {
                   completedCount: 0,
                 },
               ],
-              reviewerPools: [],
+              reviewerPools: [
+                {
+                  roundId: "round-1",
+                  reviewerUserId: "20000000-0000-4000-8000-000000000001",
+                  capacity: 4,
+                },
+              ],
               results: [],
             }),
           );
         if (path.includes("/submissions?status=pending"))
-          return Promise.resolve(Response.json({ submissions: [] }));
+          return Promise.resolve(
+            Response.json({
+              submissions: [
+                {
+                  id: "30000000-0000-4000-8000-000000000001",
+                  title: "A durable proposal",
+                  submitterName: "Priya Raman",
+                },
+              ],
+            }),
+          );
+        if (path === `/api/reviews/events/${eventId}/assignments`)
+          return Promise.resolve(
+            Response.json({
+              created: 1,
+              alreadyAssigned: 0,
+              capacitySkipped: 0,
+              conflicts: [],
+            }),
+          );
         return Promise.resolve(Response.json({ ok: true }));
       }),
     );
@@ -162,6 +187,10 @@ describe("reviewer workspace", () => {
     expect(
       await screen.findByRole("button", { name: "Save review window" }),
     ).toBeVisible();
+    expect(
+      screen.getByText("Jan 10, 2027–Jan 20, 2027 · 0 criteria"),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Create round" })).toBeEnabled();
     expect(screen.getByLabelText("Sort aggregate score")).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Export review results CSV" }),
@@ -189,11 +218,6 @@ describe("reviewer workspace", () => {
       ).toBe(true),
     );
 
-    fireEvent.click(
-      document.querySelector(
-        'input[name="reviewerUserId"]',
-      ) as HTMLInputElement,
-    );
     fireEvent.change(screen.getByLabelText("Capacity"), {
       target: { value: "4" },
     });
@@ -209,6 +233,36 @@ describe("reviewer workspace", () => {
         ),
       ).toBe(true),
     );
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /A durable proposal/ }),
+    );
+    const reviewerChoices = screen.getAllByRole("checkbox", {
+      name: /Sam Reviewer/,
+    });
+    fireEvent.click(reviewerChoices[reviewerChoices.length - 1]);
+    expect(
+      screen.getByText(/1 proposal and 1 reviewer selected/),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Assign reviewers" }));
+    await waitFor(() =>
+      expect(
+        requests.some(
+          (request) =>
+            request.path === `/api/reviews/events/${eventId}/assignments` &&
+            request.init?.method === "POST" &&
+            String(request.init.body).includes(
+              '"submissionIds":["30000000-0000-4000-8000-000000000001"]',
+            ),
+        ),
+      ).toBe(true),
+    );
+    expect(
+      await screen.findByText(/1 reviewer assignment created/),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/0 proposals and 0 reviewers selected/),
+    ).toBeVisible();
   });
 
   it("exposes individual reviewer scores and comments from aggregate results", async () => {

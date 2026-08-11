@@ -363,6 +363,8 @@ export function EventWorkspace({ user }: { user: User }) {
     const data = new FormData(formEvent.currentTarget);
     const iso = (key: string) =>
       data.get(key) ? new Date(String(data.get(key))).toISOString() : null;
+    const closesAt = iso("closesAt");
+    const editClosesAt = iso("editClosesAt");
     try {
       const result = await api<{ form: CfpForm }>(
         `/api/events/${eventId}/forms/${selectedId}`,
@@ -373,8 +375,8 @@ export function EventWorkspace({ user }: { user: User }) {
             slug: data.get("slug"),
             description: data.get("description"),
             opensAt: iso("opensAt"),
-            closesAt: iso("closesAt"),
-            editClosesAt: iso("editClosesAt"),
+            closesAt,
+            editClosesAt,
             allowDrafts: data.get("allowDrafts") === "on",
             submissionLimit: data.get("submissionLimit")
               ? Number(data.get("submissionLimit"))
@@ -389,7 +391,13 @@ export function EventWorkspace({ user }: { user: User }) {
           item.id === selectedId ? { ...item, ...result.form } : item,
         ),
       );
-      setFeedback({ kind: "success", message: "CFP settings saved." });
+      setFeedback({
+        kind: "success",
+        message:
+          closesAt && closesAt <= new Date().toISOString()
+            ? "CFP settings saved. Submissions are now closed, and proposal editing is locked. Next, verify the anonymous public portal."
+            : "CFP settings saved. The public portal now uses these durable availability and editing deadlines.",
+      });
     } catch (error) {
       setFeedback({
         kind: "error",

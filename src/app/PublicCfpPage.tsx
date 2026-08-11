@@ -206,7 +206,7 @@ export function PublicCfpPage() {
             message:
               result.currentSubmission.status === "draft"
                 ? "Your saved draft is ready to continue."
-                : "Your submitted proposal is open for updates until the editing deadline.",
+                : "Your submitted proposal is open for updates until the CFP closes or the organizer's earlier editing deadline.",
           });
         }
       })

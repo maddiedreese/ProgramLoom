@@ -29,7 +29,7 @@ router.post(
       .prepare(
         `SELECT t.id,t.organization_id AS organizationId,t.event_id AS eventId,
                 t.entity_id AS submissionId,t.expires_at AS expiresAt,
-                s.status,f.edit_closes_at AS editClosesAt,f.slug AS formSlug,
+                s.status,f.closes_at AS closesAt,f.edit_closes_at AS editClosesAt,f.slug AS formSlug,
                 e.slug AS eventSlug,o.slug AS organizationSlug
          FROM communication_action_tokens t JOIN submissions s ON s.id=t.entity_id
          JOIN cfp_forms f ON f.id=s.form_id JOIN events e ON e.id=s.event_id
@@ -45,6 +45,7 @@ router.post(
         submissionId: string;
         expiresAt: string;
         status: string;
+        closesAt: string | null;
         editClosesAt: string | null;
         formSlug: string;
         eventSlug: string;
@@ -57,10 +58,7 @@ router.post(
         "action_link_expired",
         "This private action link is invalid or has expired.",
       );
-    if (
-      ["accepted", "declined", "withdrawn"].includes(token.status) ||
-      (token.editClosesAt && token.editClosesAt <= now)
-    )
+    if (submissionEditingIsClosed(token, token.status, now))
       throw new HttpError(
         409,
         "submission_locked",
@@ -262,11 +260,25 @@ async function formDefinition(db: D1Database, formId: string) {
   return { fields, conditions };
 }
 
-function availability(form: Pick<FormRecord, "opensAt" | "closesAt">) {
-  const now = new Date().toISOString();
+export function cfpAvailability(
+  form: Pick<FormRecord, "opensAt" | "closesAt">,
+  now = new Date().toISOString(),
+) {
   if (form.opensAt && now < form.opensAt) return "upcoming" as const;
-  if (form.closesAt && now > form.closesAt) return "closed" as const;
+  if (form.closesAt && now >= form.closesAt) return "closed" as const;
   return "open" as const;
+}
+
+export function submissionEditingIsClosed(
+  form: Pick<FormRecord, "closesAt" | "editClosesAt">,
+  status: string,
+  now = new Date().toISOString(),
+) {
+  return (
+    ["accepted", "declined", "withdrawn"].includes(status) ||
+    Boolean(form.closesAt && now >= form.closesAt) ||
+    Boolean(form.editClosesAt && now >= form.editClosesAt)
+  );
 }
 
 router.get("/cfp", async (context) => {
@@ -316,7 +328,7 @@ router.get("/cfp", async (context) => {
   return context.json({
     forms: result.results.map((form) => ({
       ...form,
-      availability: availability(form),
+      availability: cfpAvailability(form),
       url: `/c/${form.organizationSlug}/${form.eventSlug}/${form.slug}`,
     })),
   });
@@ -553,7 +565,7 @@ router.get(`${route}`, async (context) => {
     form: {
       ...form,
       allowDrafts: Boolean(form.allowDrafts),
-      availability: availability(form),
+      availability: cfpAvailability(form),
     },
     ...definition,
     currentSubmission,
@@ -586,7 +598,7 @@ router.post(
         "challenge_failed",
         "Please complete the security check.",
       );
-    if (availability(form) !== "open")
+    if (cfpAvailability(form) !== "open")
       throw new HttpError(
         400,
         "cfp_closed",
@@ -636,17 +648,11 @@ router.post(
           "submission_not_found",
           "This private edit link is invalid.",
         );
-      if (["accepted", "declined", "withdrawn"].includes(existing.status))
-        throw new HttpError(
-          409,
-          "submission_locked",
-          "This submission can no longer be edited.",
-        );
-      if (form.editClosesAt && now > form.editClosesAt)
+      if (submissionEditingIsClosed(form, existing.status, now))
         throw new HttpError(
           409,
           "edit_deadline_passed",
-          "The editing deadline has passed.",
+          "The call for proposals or editing window has closed.",
         );
       submissionId = existing.id;
       previousStatus = existing.status;
@@ -683,17 +689,11 @@ router.post(
           "submission_not_found",
           "This proposal is not available to your account.",
         );
-      if (["accepted", "declined", "withdrawn"].includes(existing.status))
-        throw new HttpError(
-          409,
-          "submission_locked",
-          "This submission can no longer be edited.",
-        );
-      if (form.editClosesAt && now > form.editClosesAt)
+      if (submissionEditingIsClosed(form, existing.status, now))
         throw new HttpError(
           409,
           "edit_deadline_passed",
-          "The editing deadline has passed.",
+          "The call for proposals or editing window has closed.",
         );
       submissionId = existing.id;
       previousStatus = existing.status;

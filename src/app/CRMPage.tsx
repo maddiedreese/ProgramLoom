@@ -200,19 +200,28 @@ export function resolveHandoffContacts<T extends { id: string }>(
   return contacts.filter((contact) => selected.has(contact.id));
 }
 
+export function defaultCrmSegmentType(selectedCount: number) {
+  return selectedCount > 0 ? "curated" : "dynamic";
+}
+
 export function CRMPage({ user }: { user: User }) {
   const initialQuery = new URLSearchParams(window.location.search);
   const addSpeakerEventId = initialQuery.get("eventId") ?? "";
   const requestedContactId = initialQuery.get("contact") ?? "";
-  const opensSpeakerHandoff =
+  const createsSpeaker =
     initialQuery.get("action") === "add-speaker" && Boolean(addSpeakerEventId);
+  const opensSpeakerHandoff =
+    initialQuery.get("action") === "handoff-speaker" &&
+    Boolean(addSpeakerEventId);
   const importsSpeakers =
     initialQuery.get("action") === "import-speakers" &&
     Boolean(addSpeakerEventId);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState("");
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number][0]>(
-    opensSpeakerHandoff || importsSpeakers ? "directory" : "dashboard",
+    createsSpeaker || opensSpeakerHandoff || importsSpeakers
+      ? "directory"
+      : "dashboard",
   );
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
@@ -243,7 +252,13 @@ export function CRMPage({ user }: { user: User }) {
   const [pipelineDetail, setPipelineDetail] =
     useState<Record<string, unknown>>();
   const [modal, setModal] = useState<string | undefined>(
-    importsSpeakers ? "import" : opensSpeakerHandoff ? "handoff" : undefined,
+    importsSpeakers
+      ? "import"
+      : createsSpeaker
+        ? "add-contact"
+        : opensSpeakerHandoff
+          ? "handoff"
+          : undefined,
   );
   const [feedback, setFeedback] = useState<Feedback>();
   const [loading, setLoading] = useState(true);
@@ -381,7 +396,13 @@ export function CRMPage({ user }: { user: User }) {
   }
 
   useEffect(() => {
-    if (!organizationId || !requestedContactId || opensSpeakerHandoff) return;
+    if (
+      !organizationId ||
+      !requestedContactId ||
+      opensSpeakerHandoff ||
+      createsSpeaker
+    )
+      return;
     setActiveTab("directory");
     openContact(requestedContactId).catch((error: Error) =>
       setFeedback({ kind: "error", message: error.message }),
@@ -576,6 +597,19 @@ export function CRMPage({ user }: { user: User }) {
                 method: "POST",
                 body: JSON.stringify(payload),
               });
+              if (createsSpeaker) {
+                await api(`/api/crm/organizations/${organizationId}/handoff`, {
+                  method: "POST",
+                  body: JSON.stringify({
+                    contactId: result.contact.id,
+                    eventId: addSpeakerEventId,
+                  }),
+                });
+                window.location.assign(
+                  `/app/events/${addSpeakerEventId}/speakers`,
+                );
+                return;
+              }
               await loadAll();
               if (result.duplicates.length) {
                 await openContact(result.contact.id);
@@ -1929,6 +1963,7 @@ function SegmentModal({
   close: () => void;
   save: (payload: Record<string, unknown>) => void;
 }) {
+  const defaultType = defaultCrmSegmentType(selected.length);
   return (
     <Modal title="Save this audience" subtitle="Reusable segment" close={close}>
       <form
@@ -1955,7 +1990,7 @@ function SegmentModal({
               type="radio"
               name="segmentType"
               value="dynamic"
-              defaultChecked
+              defaultChecked={defaultType === "dynamic"}
             />
             <span>
               <strong>Dynamic segment</strong>
@@ -1965,7 +2000,12 @@ function SegmentModal({
             </span>
           </label>
           <label className="choice-card">
-            <input type="radio" name="segmentType" value="curated" />
+            <input
+              type="radio"
+              name="segmentType"
+              value="curated"
+              defaultChecked={defaultType === "curated"}
+            />
             <span>
               <strong>Curated list</strong>
               <small>
@@ -1975,6 +2015,11 @@ function SegmentModal({
             </span>
           </label>
         </fieldset>
+        <p className="form-help" role="status">
+          {selected.length
+            ? `${selected.length} selected contact${selected.length === 1 ? "" : "s"} will be saved as the exact curated membership by default.`
+            : "The current filters will define dynamic membership and include future matching contacts."}
+        </p>
         <button className="button" disabled={busy}>
           <Save size={15} /> Save segment
         </button>

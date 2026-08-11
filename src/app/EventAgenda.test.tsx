@@ -122,6 +122,12 @@ describe("agenda calendar lifecycle controls", () => {
       </MemoryRouter>,
     );
 
+    expect(
+      await screen.findByRole("button", {
+        name: "Build schedule automatically",
+      }),
+    ).toBeVisible();
+
     expect(await screen.findByRole("table")).toHaveAccessibleName(
       "Organizer agenda grid",
     );

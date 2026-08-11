@@ -807,7 +807,7 @@ router.get("/admin/events/:eventId", async (context) => {
   const db = database(context.env);
   const speakers = await db
     .prepare(
-      `SELECT sp.id,sp.email,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.portal_status AS portalStatus,
+      `SELECT sp.id,sp.email,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.headshot_key AS headshotKey,sp.social_json AS socialJson,sp.logistics_json AS logisticsJson,sp.portal_status AS portalStatus,
               COALESCE((SELECT es.status FROM event_speakers es WHERE es.event_id=? AND es.speaker_id=sp.id),'confirmed') AS eventStatus,
               COUNT(DISTINCT CASE WHEN session.event_id=? THEN ss.submission_id END) AS sessionCount,COUNT(DISTINCT task.id) AS taskCount,COUNT(DISTINCT CASE WHEN sta.status='complete' THEN task.id END) AS completedTaskCount,COUNT(DISTINCT f.id) AS fileRequestCount,COUNT(DISTINCT CASE WHEN f.status='approved' THEN f.id END) AS approvedFileCount FROM speaker_profiles sp JOIN (SELECT speaker_id FROM event_speakers WHERE event_id=? UNION SELECT ss2.speaker_id FROM session_speakers ss2 JOIN submissions s2 ON s2.id=ss2.submission_id WHERE s2.event_id=?) roster ON roster.speaker_id=sp.id LEFT JOIN session_speakers ss ON ss.speaker_id=sp.id LEFT JOIN submissions session ON session.id=ss.submission_id LEFT JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id LEFT JOIN onboarding_tasks task ON task.id=sta.task_id AND task.event_id=? LEFT JOIN files f ON f.speaker_id=sp.id AND f.event_id=? GROUP BY sp.id ORDER BY sp.last_name,sp.first_name`,
     )
@@ -838,7 +838,15 @@ router.get("/admin/events/:eventId", async (context) => {
     .bind(eventId)
     .all();
   return context.json({
-    speakers: speakers.results,
+    speakers: speakers.results.map((speaker: Record<string, unknown>) => ({
+      ...speaker,
+      social: speaker.socialJson ? JSON.parse(String(speaker.socialJson)) : {},
+      logistics: speaker.logisticsJson
+        ? JSON.parse(String(speaker.logisticsJson))
+        : {},
+      socialJson: undefined,
+      logisticsJson: undefined,
+    })),
     tasks: tasks.results,
     taskAssignments: taskAssignments.results.map(
       (assignment: Record<string, unknown>) => ({
@@ -853,6 +861,38 @@ router.get("/admin/events/:eventId", async (context) => {
     files: files.results,
   });
 });
+
+router.get(
+  "/admin/events/:eventId/speakers/:speakerId/headshot",
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    await requireEventRole(context, eventId, [...organizerRoles]);
+    const profile = await database(context.env)
+      .prepare(
+        `SELECT sp.headshot_key AS headshotKey FROM speaker_profiles sp
+         WHERE sp.id=? AND (
+           EXISTS(SELECT 1 FROM event_speakers es WHERE es.event_id=? AND es.speaker_id=sp.id)
+           OR EXISTS(SELECT 1 FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=? AND ss.speaker_id=sp.id)
+         )`,
+      )
+      .bind(context.req.param("speakerId"), eventId, eventId)
+      .first<{ headshotKey: string | null }>();
+    if (!context.env.FILES || !profile?.headshotKey)
+      throw new HttpError(404, "headshot_not_found", "No headshot was found.");
+    const object = await context.env.FILES.get(profile.headshotKey);
+    if (!object)
+      throw new HttpError(
+        404,
+        "headshot_not_found",
+        "The stored headshot was not found.",
+      );
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("cache-control", "private, max-age=300");
+    headers.set("x-content-type-options", "nosniff");
+    return new Response(object.body, { headers });
+  },
+);
 
 router.patch(
   "/admin/events/:eventId/speakers/:speakerId/status",

@@ -1,12 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
+  cfpAvailability,
   deriveProgramMetadata,
   matches,
   submissionSchema,
+  submissionEditingIsClosed,
   validateAnswers,
 } from "./public";
 
 describe("public CFP validation", () => {
+  it("closes submission and editing at the configured CFP deadline", () => {
+    const form = {
+      opensAt: "2027-01-01T00:00:00.000Z",
+      closesAt: "2027-02-01T00:00:00.000Z",
+      editClosesAt: "2027-03-01T00:00:00.000Z",
+    };
+    expect(cfpAvailability(form, "2027-01-31T23:59:59.999Z")).toBe("open");
+    expect(cfpAvailability(form, "2027-02-01T00:00:00.000Z")).toBe("closed");
+    expect(
+      submissionEditingIsClosed(form, "pending", "2027-02-01T00:00:00.000Z"),
+    ).toBe(true);
+  });
   it("evaluates scalar, list, checkbox, and numeric conditions", () => {
     expect(matches("equals", "Workshop", "Workshop")).toBe(true);
     expect(matches("contains", ["AI", "Web"], "AI")).toBe(true);

@@ -17,6 +17,16 @@ The Organizer Control Room is the center of ProgramLoom. It prioritizes live blo
 
 Use one coherent production-readiness event and the prescribed organizer, reviewer, and speaker personas. Keep generated state between steps; isolate disposable conflict/failure/cancellation records from the polished public program.
 
+Before a scored run, create a new isolated event instead of reusing records from an earlier evaluation:
+
+```bash
+PROGRAMLOOM_PRODUCTION_CONFIRM=programloom-production \
+PROGRAMLOOM_EVALUATOR_RUN_ID=final-01 \
+npm run prepare:evaluator
+```
+
+The command uses the approved organizer storage state, creates an unpublished conference dated May 12–14, 2027, provisions the controlled speaker and reviewer personas, creates only the basic CFP review round needed by the CFP scenario, and then fails unless there is exactly one unpublished form, zero submissions, zero assignments, and no extra review rounds. Copy the emitted event ID and public CFP route into the private evaluator configuration. Never point a scored run at an event mutated by an earlier run.
+
 1. State the product promise above in one sentence.
 2. From the dashboard, create the event from a maintained reusable template. Preview selected configuration and excluded private/history domains before confirming.
 3. Open **Call for proposals**, customize the duplicated form, and publish it. Open its working public route.

@@ -16,7 +16,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { Fragment, type FormEvent, useEffect, useState } from "react";
+import { Fragment, type FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
@@ -122,6 +122,17 @@ type Person = {
   role: string;
   organization: string | null;
 };
+
+function reviewRoundDate(value: string | null) {
+  return value
+    ? new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(new Date(value))
+    : "No date";
+}
 
 function localDateTimeValue(value: string | null) {
   if (!value) return "";
@@ -266,6 +277,15 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     overrideReason: string | null;
   }>();
   const selected = rounds.find((round) => round.id === selectedRoundId);
+  const reviewerCapacity = useMemo(
+    () =>
+      new Map(
+        reviewerPools
+          .filter((entry) => entry.roundId === selectedRoundId)
+          .map((entry) => [entry.reviewerUserId, entry.capacity]),
+      ),
+    [reviewerPools, selectedRoundId],
+  );
   async function load(preferred?: string) {
     const [config, intake] = await Promise.all([
       api<{
@@ -294,6 +314,10 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       setFeedback({ kind: "error", message: error.message }),
     );
   }, [eventId]);
+  useEffect(() => {
+    setSelectedSubmissions([]);
+    setSelectedReviewers([]);
+  }, [selectedRoundId]);
   async function createRound(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -507,6 +531,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     try {
       const result = await api<{
         created: number;
+        alreadyAssigned: number;
         capacitySkipped: number;
         conflicts: { reason: string }[];
       }>(`/api/reviews/events/${eventId}/assignments`, {
@@ -518,9 +543,11 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
         }),
       });
       await load(selected.id);
+      setSelectedSubmissions([]);
+      setSelectedReviewers([]);
       setFeedback({
         kind: result.conflicts.length ? "error" : "success",
-        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.capacitySkipped ? ` ${result.capacitySkipped} exceeded configured reviewer capacity and were skipped.` : ""}${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
+        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.alreadyAssigned ? ` ${result.alreadyAssigned} already existed and were left unchanged.` : ""}${result.capacitySkipped ? ` ${result.capacitySkipped} exceeded configured reviewer capacity and were skipped.` : ""}${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
       });
     } catch (error) {
       setFeedback({
@@ -599,7 +626,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   ?.scrollIntoView({ behavior: "smooth", block: "start" })
               }
             >
-              <UsersRound size={15} /> Assign reviewers
+              <UsersRound size={15} /> Go to reviewer assignment
             </button>
             <button
               className="button button-ghost button-small"
@@ -639,6 +666,15 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   {round.status} · {round.completedCount}/
                   {round.assignmentCount} complete
                 </small>
+                <small>
+                  {reviewRoundDate(round.opensAt)}–
+                  {reviewRoundDate(round.closesAt)} ·{" "}
+                  {
+                    scorecards.filter((field) => field.roundId === round.id)
+                      .length
+                  }{" "}
+                  criteria
+                </small>
               </span>
               <ChevronRight size={15} />
             </button>
@@ -665,7 +701,11 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
               Closes
               <input name="closesAt" type="datetime-local" />
             </label>
-            <button className="button button-small" disabled={busy}>
+            <button
+              className="button button-small"
+              disabled={busy}
+              aria-label="Create round"
+            >
               <Plus size={15} /> Create round
             </button>
           </form>
@@ -890,6 +930,13 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     conflicts are skipped automatically.
                   </p>
                 </div>
+                <p id="assignment-selection-status" role="status">
+                  {selectedSubmissions.length} proposal
+                  {selectedSubmissions.length === 1 ? "" : "s"} and{" "}
+                  {selectedReviewers.length} reviewer
+                  {selectedReviewers.length === 1 ? "" : "s"} selected. Choose
+                  at least one of each to create assignments.
+                </p>
                 {reviewers.length ? (
                   <div className="assignment-columns">
                     <div>
@@ -939,6 +986,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                           <span>
                             <strong>{reviewer.name}</strong>
                             <small>
+                              {reviewerCapacity.has(reviewer.id)
+                                ? `Capacity ${reviewerCapacity.get(reviewer.id)} · `
+                                : ""}
                               {reviewer.completedCount}/
                               {reviewer.assignmentCount} complete
                             </small>
@@ -962,6 +1012,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 <button
                   className="button"
                   onClick={assign}
+                  aria-describedby="assignment-selection-status"
                   disabled={
                     busy ||
                     !selectedSubmissions.length ||

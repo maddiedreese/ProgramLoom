@@ -162,7 +162,7 @@ describe("speaker workspace", () => {
                   jobTitle: "Staff engineer",
                   company: "Example Labs",
                   bio: "Builds reliable programs.",
-                  headshotKey: null,
+                  headshotKey: "org/event/speaker/headshot.png",
                   social: {},
                   logistics: {},
                   portalStatus: "active",
@@ -227,7 +227,24 @@ describe("speaker workspace", () => {
       "href",
       `/app/crm?action=import-speakers&eventId=${eventId}`,
     );
+    expect(screen.getByRole("link", { name: "Add speaker" })).toHaveAttribute(
+      "href",
+      `/app/crm?action=add-speaker&eventId=${eventId}`,
+    );
+    expect(
+      screen.getByRole("link", { name: "Add existing CRM contact" }),
+    ).toHaveAttribute(
+      "href",
+      `/app/crm?action=handoff-speaker&eventId=${eventId}`,
+    );
     expect((await screen.findAllByText("Priya Raman"))[0]).toBeVisible();
+    expect(
+      screen.getByRole("img", { name: "Priya Raman headshot" }),
+    ).toHaveAttribute(
+      "src",
+      `/api/speakers/admin/events/${eventId}/speakers/speaker-1/headshot`,
+    );
+    expect(screen.getByText("Builds reliable programs.")).toBeVisible();
     expect(screen.getByLabelText("Filter speaker status")).toBeVisible();
     expect(screen.getByRole("button", { name: "Delete task" })).toBeVisible();
     expect(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canSaveCrmSegment,
+  defaultCrmSegmentType,
   reconcileCrmSelection,
   resolveHandoffContacts,
 } from "./CRMPage";
@@ -15,6 +16,11 @@ describe("CRM segment availability", () => {
       true,
     );
     expect(canSaveCrmSegment(empty, 2)).toBe(true);
+  });
+
+  it("defaults explicit selections to an exact curated segment", () => {
+    expect(defaultCrmSegmentType(3)).toBe("curated");
+    expect(defaultCrmSegmentType(0)).toBe("dynamic");
   });
 
   it("preserves valid selections across live refreshes", () => {

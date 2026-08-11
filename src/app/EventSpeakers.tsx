@@ -1120,7 +1120,13 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             className="button button-ghost"
             href={`/app/crm?action=add-speaker&eventId=${eventId}`}
           >
-            Add speaker record
+            Add speaker
+          </a>
+          <a
+            className="button button-ghost"
+            href={`/app/crm?action=handoff-speaker&eventId=${eventId}`}
+          >
+            Add existing CRM contact
           </a>
           <a
             className="button button-ghost"
@@ -1165,10 +1171,18 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       <section className="speaker-roster">
         {visibleSpeakers.map((speaker) => (
           <article id={`speaker-${speaker.id}`} tabIndex={-1} key={speaker.id}>
-            <div className="speaker-avatar">
-              {speaker.firstName[0]}
-              {speaker.lastName[0]}
-            </div>
+            {speaker.headshotKey ? (
+              <img
+                className="speaker-avatar speaker-avatar-image"
+                src={`/api/speakers/admin/events/${eventId}/speakers/${speaker.id}/headshot`}
+                alt={`${speaker.firstName} ${speaker.lastName} headshot`}
+              />
+            ) : (
+              <div className="speaker-avatar" aria-hidden="true">
+                {speaker.firstName[0]}
+                {speaker.lastName[0]}
+              </div>
+            )}
             <div>
               <strong>
                 {speaker.firstName} {speaker.lastName}
@@ -1178,6 +1192,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
                 {speaker.company ? ` · ${speaker.company}` : ""}
               </span>
               <small>{speaker.email}</small>
+              <p>{speaker.bio || "Biography not provided yet."}</p>
             </div>
             <em className={`submission-status status-${speaker.portalStatus}`}>
               {speaker.portalStatus.replaceAll("_", " ")}

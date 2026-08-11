@@ -5862,9 +5862,19 @@ input {
   font-size: 12px;
   font-weight: 800;
 }
+.speaker-avatar-image {
+  object-fit: cover;
+}
 .speaker-roster article > div:nth-child(2) {
   display: grid;
   gap: 2px;
+}
+.speaker-roster article > div:nth-child(2) p {
+  max-width: 48ch;
+  margin: 4px 0 0;
+  color: #555b53;
+  font-size: 10px;
+  line-height: 1.45;
 }
 .speaker-roster article > div:nth-child(2) span,
 .speaker-roster article > div:nth-child(2) small {

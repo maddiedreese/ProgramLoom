@@ -133,6 +133,18 @@ describe("ProgramLoom Worker", () => {
     });
   });
 
+  it("protects organizer headshots before storage access", async () => {
+    const response = await app.request(
+      "/api/speakers/admin/events/00000000-0000-4000-8000-000000000003/speakers/00000000-0000-4000-8000-000000000004/headshot",
+      {},
+      env,
+    );
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "authentication_required" },
+    });
+  });
+
   it("protects the event communications center before database access", async () => {
     const response = await app.request(
       "/api/communications/events/00000000-0000-4000-8000-000000000003",
