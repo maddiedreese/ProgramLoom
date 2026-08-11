@@ -261,15 +261,75 @@ router.post("/events/:eventId/headshot", async (context) => {
       : upload.type === "image/webp"
         ? "webp"
         : "jpg";
-  const key = `${access.organizationId}/${eventId}/${profile.id}/headshots/${crypto.randomUUID()}.${extension}`;
-  await context.env.FILES.put(key, await upload.arrayBuffer(), {
+  const buffer = await upload.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  const checksum = Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  const trackedHeadshot = await db
+    .prepare(
+      "SELECT id FROM files WHERE event_id=? AND speaker_id=? AND purpose='Speaker headshot' ORDER BY created_at LIMIT 1",
+    )
+    .bind(eventId, profile.id)
+    .first<{ id: string }>();
+  const fileId = trackedHeadshot?.id ?? crypto.randomUUID();
+  const latest = await db
+    .prepare(
+      "SELECT COALESCE(MAX(version_number),0)+1 AS versionNumber FROM file_versions WHERE file_id=?",
+    )
+    .bind(fileId)
+    .first<{ versionNumber: number }>();
+  const version = Number(latest?.versionNumber ?? 1);
+  const versionId = crypto.randomUUID();
+  const safeName =
+    upload.name
+      .normalize("NFKC")
+      .replace(/[^a-zA-Z0-9._-]+/g, "-")
+      .slice(0, 160) || `headshot.${extension}`;
+  const key = `${access.organizationId}/${eventId}/${profile.id}/headshots/v${version}-${versionId}-${safeName}`;
+  await context.env.FILES.put(key, buffer, {
     httpMetadata: { contentType: upload.type },
-    customMetadata: { originalFilename: upload.name },
+    customMetadata: { originalFilename: upload.name, sha256: checksum },
   });
   const previousKey =
     typeof profile.headshotKey === "string" ? profile.headshotKey : null;
   try {
-    await db.batch([
+    const statements = [
+      ...(trackedHeadshot
+        ? []
+        : [
+            db
+              .prepare(
+                "INSERT INTO files (id,organization_id,event_id,speaker_id,purpose,status) VALUES (?,?,?,?,?,'submitted')",
+              )
+              .bind(
+                fileId,
+                access.organizationId,
+                eventId,
+                profile.id,
+                "Speaker headshot",
+              ),
+          ]),
+      db
+        .prepare(
+          "INSERT INTO file_versions (id,file_id,r2_key,filename,content_type,size_bytes,sha256,version_number,uploaded_by) VALUES (?,?,?,?,?,?,?,?,?)",
+        )
+        .bind(
+          versionId,
+          fileId,
+          key,
+          upload.name,
+          upload.type,
+          upload.size,
+          checksum,
+          version,
+          access.user.id,
+        ),
+      db
+        .prepare(
+          "UPDATE files SET current_version_id=?,status='submitted',updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        )
+        .bind(versionId, fileId),
       db
         .prepare(
           "UPDATE speaker_profiles SET headshot_key=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
@@ -280,8 +340,8 @@ router.post("/events/:eventId/headshot", async (context) => {
         eventId,
         actorUserId: access.user.id,
         action: "speaker_headshot.updated",
-        entityType: "speaker",
-        entityId: String(profile.id),
+        entityType: "file",
+        entityId: fileId,
         after: { contentType: upload.type, size: upload.size },
         requestId: context.get("requestId"),
       }),
@@ -295,19 +355,23 @@ router.post("/events/:eventId/headshot", async (context) => {
           ? "A speaker replaced their headshot"
           : "A speaker uploaded a headshot",
         body: `${profile.firstName} ${profile.lastName}`,
-        actionUrl: `/app/events/${eventId}/speakers#speaker-${profile.id}`,
-        entityType: "speaker",
-        entityId: String(profile.id),
+        actionUrl: `/app/events/${eventId}/content?file=${fileId}`,
+        entityType: "file",
+        entityId: fileId,
         coalesceKey: `speaker-headshot:${profile.id}`,
       }),
-    ]);
+    ];
+    await db.batch(statements);
   } catch (error) {
     await context.env.FILES.delete(key);
     throw error;
   }
-  if (previousKey) await context.env.FILES.delete(previousKey);
   return context.json(
-    { headshotUrl: `/api/speakers/events/${eventId}/headshot` },
+    {
+      headshotUrl: `/api/speakers/events/${eventId}/headshot`,
+      fileId,
+      version,
+    },
     201,
   );
 });

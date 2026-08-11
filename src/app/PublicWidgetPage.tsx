@@ -373,54 +373,50 @@ export function PublicWidgetPage() {
                   </span>
                   <div>
                     <h2>{session.title}</h2>
-                    {show("speakers") && (
-                      <div className="widget-speaker-lines">
-                        {data.speakers
-                          .filter((speaker) =>
-                            session.speakerIds.includes(speaker.id),
-                          )
-                          .map((speaker) => (
-                            <p key={speaker.id}>
-                              <strong>
-                                {speaker.firstName} {speaker.lastName}
-                              </strong>
-                              {(speaker.jobTitle || speaker.company) && (
-                                <span>
-                                  {speaker.jobTitle || "Speaker"}
-                                  {speaker.company
-                                    ? ` · ${speaker.company}`
-                                    : ""}
-                                </span>
-                              )}
-                            </p>
-                          ))}
-                        {!session.speakerIds.length && (
-                          <p>Speakers to be announced</p>
-                        )}
-                      </div>
-                    )}
-                    {show("abstract") && session.abstract && (
+                    <div className="widget-speaker-lines">
+                      {data.speakers
+                        .filter((speaker) =>
+                          session.speakerIds.includes(speaker.id),
+                        )
+                        .map((speaker) => (
+                          <p key={speaker.id}>
+                            <strong>
+                              {speaker.firstName} {speaker.lastName}
+                            </strong>
+                            {(speaker.jobTitle || speaker.company) && (
+                              <span>
+                                {speaker.jobTitle || "Speaker"}
+                                {speaker.company ? ` · ${speaker.company}` : ""}
+                              </span>
+                            )}
+                          </p>
+                        ))}
+                      {!session.speakerIds.length && (
+                        <p>Speakers to be announced</p>
+                      )}
+                    </div>
+                    {session.abstract && expandedSession !== session.id && (
                       <p className="widget-card-abstract">{session.abstract}</p>
                     )}
                     {(() => {
                       const placement = placementFor(session.id);
                       return (
                         <div className="widget-card-meta">
-                          {show("time") && placement?.startsAt && (
+                          {placement?.startsAt && (
                             <span>
                               <Clock3 size={13} />{" "}
                               {formatTime(placement.startsAt, event.timezone)}–
                               {formatClock(placement.endsAt, event.timezone)}
                             </span>
                           )}
-                          {show("room") && placement && (
+                          {placement && (
                             <span>
                               <MapPin size={13} />{" "}
                               {placement.roomName || "Location to be announced"}
                             </span>
                           )}
                           {session.format && <span>{session.format}</span>}
-                          {show("track") && session.trackId && (
+                          {session.trackId && (
                             <span>
                               {data.tracks.find(
                                 (item) => item.id === session.trackId,
@@ -448,10 +444,8 @@ export function PublicWidgetPage() {
                 </div>
                 {expandedSession === session.id && (
                   <div className="widget-card-expanded">
-                    {show("abstract") && (
-                      <p>{session.abstract || "Details coming soon."}</p>
-                    )}
-                    {show("track") && session.trackId && (
+                    <p>{session.abstract || "Details coming soon."}</p>
+                    {session.trackId && (
                       <em>
                         {
                           data.tracks.find(

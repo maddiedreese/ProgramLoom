@@ -215,8 +215,11 @@ export function PublicCfpPage() {
               result.currentSubmission.status === "draft"
                 ? "Your saved draft is ready to continue."
                 : result.currentSubmission.locked
-                  ? "This proposal is read-only because its decision is final or its editing window has closed."
-                  : "Your submitted proposal is open for updates until the CFP closes or the organizer's earlier editing deadline.",
+                  ? "This proposal is read-only because its editing window has closed. You can still start another proposal."
+                  : result.currentSubmission.status === "accepted" ||
+                      result.currentSubmission.status === "declined"
+                    ? "The organizer's decision remains recorded. You may still update proposal or co-presenter details until editing closes."
+                    : "Your submitted proposal is open for updates until the CFP closes or the organizer's earlier editing deadline.",
           });
         }
       })
@@ -515,7 +518,10 @@ export function PublicCfpPage() {
           </div>
         )}
         {status === "pending" && !locked && (
-          <section className="public-submission-next" aria-label="Proposal saved">
+          <section
+            className="public-submission-next"
+            aria-label="Proposal saved"
+          >
             <div>
               <strong>This proposal is submitted.</strong>
               <span>
@@ -540,8 +546,21 @@ export function PublicCfpPage() {
             <LockKeyhole size={30} />
             <h2>This proposal is read-only.</h2>
             <p>
-              The organizer has closed editing or recorded a final decision.
+              The organizer has closed the proposal editing window. Your saved
+              proposal and its decision are unchanged.
             </p>
+            <div className="public-form-actions">
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={startAnotherProposal}
+              >
+                Start another proposal
+              </button>
+              <a className="button" href="/app#my-proposals-title">
+                View all my submissions
+              </a>
+            </div>
           </section>
         ) : unavailable ? (
           <section className="public-locked">

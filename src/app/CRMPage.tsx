@@ -1803,7 +1803,7 @@ function ImportModal({
         ),
       );
     const aliases: Record<string, string[]> = {
-      firstName: ["firstname", "first"],
+      firstName: ["firstname", "first", "name", "fullname"],
       lastName: ["lastname", "last", "surname"],
       email: ["email", "emailaddress"],
       jobTitle: ["title", "jobtitle", "role"],
@@ -1827,7 +1827,17 @@ function ImportModal({
   const preview = rows.map((row, index) => {
     const mapped = Object.fromEntries(
       fields.map(([key]) => [key, row[mapping[key]] ?? ""]),
-    );
+    ) as Record<(typeof fields)[number][0], string>;
+    const firstNameHeader = slugHeader(mapping.firstName ?? "");
+    if (
+      !mapped.lastName &&
+      ["name", "fullname"].includes(firstNameHeader) &&
+      mapped.firstName.trim()
+    ) {
+      const parts = mapped.firstName.trim().split(/\s+/);
+      mapped.firstName = parts.shift() ?? "";
+      mapped.lastName = parts.join(" ");
+    }
     const rowIssues: string[] = [];
     if (!mapped.firstName) rowIssues.push("First name missing");
     if (!mapped.lastName) rowIssues.push("Last name missing");

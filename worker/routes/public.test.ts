@@ -27,6 +27,18 @@ describe("public CFP validation", () => {
     expect(submissionCanBeSavedAsDraft("pending")).toBe(false);
     expect(submissionCanBeSavedAsDraft("accepted")).toBe(false);
   });
+  it("keeps final decisions editable until the configured editing deadline", () => {
+    const form = {
+      closesAt: "2027-05-01T00:00:00.000Z",
+      editClosesAt: "2027-04-15T00:00:00.000Z",
+    };
+    expect(
+      submissionEditingIsClosed(form, "accepted", "2027-04-01T00:00:00.000Z"),
+    ).toBe(false);
+    expect(
+      submissionEditingIsClosed(form, "accepted", "2027-04-15T00:00:00.000Z"),
+    ).toBe(true);
+  });
   it("evaluates scalar, list, checkbox, and numeric conditions", () => {
     expect(matches("equals", "Workshop", "Workshop")).toBe(true);
     expect(matches("contains", ["AI", "Web"], "AI")).toBe(true);

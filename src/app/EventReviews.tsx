@@ -260,8 +260,6 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
   const [expandedResult, setExpandedResult] = useState<string>();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string>();
-  const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
-  const [selectedReviewers, setSelectedReviewers] = useState<string[]>([]);
   const [lastAssignedRoundId, setLastAssignedRoundId] = useState<string>();
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
@@ -313,10 +311,6 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       setFeedback({ kind: "error", message: error.message }),
     );
   }, [eventId]);
-  useEffect(() => {
-    setSelectedSubmissions([]);
-    setSelectedReviewers([]);
-  }, [selectedRoundId]);
   async function createRound(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
@@ -419,11 +413,45 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
         message:
           "Advisory assessment generated. Review the reasoning or record a human override.",
       });
-    } catch (error) {
-      setFeedback({
-        kind: "error",
-        message: error instanceof Error ? error.message : "Assessment failed.",
+      window.requestAnimationFrame(() => {
+        const target = document.getElementById("advisory-ai-assessment");
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        target?.focus({ preventScroll: true });
       });
+    } catch (error) {
+      try {
+        const existing = await api<{
+          assessments: Array<{
+            id: string;
+            submissionId?: string;
+            score: number;
+            effectiveScore: number;
+            reasoning: string;
+            overrideReason: string | null;
+          }>;
+        }>(
+          `/api/reviews/events/${eventId}/submissions/${submissionId}/ai-assessments`,
+        );
+        const latest = existing.assessments[0];
+        if (!latest) throw error;
+        setAiAssessment({ ...latest, submissionId });
+        setFeedback({
+          kind: "success",
+          message:
+            "The latest advisory assessment is shown below. Generate again after the one-minute duplicate-protection window if a fresh run is needed.",
+        });
+        window.requestAnimationFrame(() => {
+          const target = document.getElementById("advisory-ai-assessment");
+          target?.scrollIntoView({ behavior: "smooth", block: "center" });
+          target?.focus({ preventScroll: true });
+        });
+      } catch {
+        setFeedback({
+          kind: "error",
+          message:
+            error instanceof Error ? error.message : "Assessment failed.",
+        });
+      }
     } finally {
       setBusy(false);
     }
@@ -503,6 +531,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           closesAt: data.get("closesAt")
             ? new Date(String(data.get("closesAt"))).toISOString()
             : null,
+          isBlind: data.get("isBlind") === "on",
         }),
       });
       await load(selected.id);
@@ -523,9 +552,21 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       setBusy(false);
     }
   }
-  async function assign() {
-    if (!selected || !selectedSubmissions.length || !selectedReviewers.length)
+  async function assign(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected) return;
+    const formElement = event.currentTarget;
+    const data = new FormData(formElement);
+    const selectedSubmissions = data.getAll("submissionId").map(String);
+    const selectedReviewers = data.getAll("reviewerUserId").map(String);
+    if (!selectedSubmissions.length || !selectedReviewers.length) {
+      setFeedback({
+        kind: "error",
+        message:
+          "Select at least one proposal and one reviewer before creating assignments.",
+      });
       return;
+    }
     setBusy(true);
     try {
       const result = await api<{
@@ -542,8 +583,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
         }),
       });
       await load(selected.id);
-      setSelectedSubmissions([]);
-      setSelectedReviewers([]);
+      formElement.reset();
       if (result.created || result.alreadyAssigned)
         setLastAssignedRoundId(selected.id);
       setFeedback({
@@ -686,7 +726,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
               <input name="name" placeholder="Round 1: Program fit" required />
             </label>
             <label className="check-row">
-              <input name="isBlind" type="checkbox" />
+              <input name="isBlind" type="checkbox" defaultChecked />
               <span>
                 <strong>Blind review</strong>
                 <small>
@@ -784,8 +824,19 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     defaultValue={localDateTimeValue(selected.closesAt)}
                   />
                 </label>
+                <label className="check-row">
+                  <input
+                    name="isBlind"
+                    type="checkbox"
+                    defaultChecked={selected.isBlind}
+                  />
+                  <span>
+                    <strong>Blind review</strong>
+                    <small>Hide speaker identity from reviewers.</small>
+                  </span>
+                </label>
                 <button className="button button-small" disabled={busy}>
-                  Save review window
+                  Save review round settings
                 </button>
               </form>
               <form
@@ -935,7 +986,11 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   </button>
                 </form>
               </section>
-              <section className="assignment-section" id="assign-reviewers">
+              <form
+                className="assignment-section"
+                id="assign-reviewers"
+                onSubmit={assign}
+              >
                 <div>
                   <h3>Assign reviewers</h3>
                   <p>
@@ -943,12 +998,10 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     conflicts are skipped automatically.
                   </p>
                 </div>
-                <p id="assignment-selection-status" role="status">
-                  {selectedSubmissions.length === 0 &&
-                  selectedReviewers.length === 0
-                    ? "Nothing selected yet. Select each proposal and reviewer exactly once."
-                    : `${selectedSubmissions.length} proposal${selectedSubmissions.length === 1 ? "" : "s"} and ${selectedReviewers.length} reviewer${selectedReviewers.length === 1 ? "" : "s"} selected.`}{" "}
-                  Choose at least one of each to create assignments.
+                <p id="assignment-selection-status">
+                  Select each proposal and reviewer exactly once, then choose
+                  Assign reviewers. Selections remain stable while you work
+                  through the list.
                 </p>
                 {reviewers.length ? (
                   <div className="assignment-columns">
@@ -961,19 +1014,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                         >
                           <input
                             type="checkbox"
+                            name="submissionId"
+                            value={submission.id}
                             aria-label={`Select proposal for assignment: ${submission.title}`}
-                            checked={selectedSubmissions.includes(
-                              submission.id,
-                            )}
-                            onChange={(event) =>
-                              setSelectedSubmissions((current) =>
-                                event.target.checked
-                                  ? [...current, submission.id]
-                                  : current.filter(
-                                      (id) => id !== submission.id,
-                                    ),
-                              )
-                            }
                           />
                           <span>
                             <strong>{submission.title}</strong>
@@ -1007,15 +1050,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                         <label className="assignment-choice" key={reviewer.id}>
                           <input
                             type="checkbox"
+                            name="reviewerUserId"
+                            value={reviewer.id}
                             aria-label={`Select reviewer for assignment: ${reviewer.name}`}
-                            checked={selectedReviewers.includes(reviewer.id)}
-                            onChange={(event) =>
-                              setSelectedReviewers((current) =>
-                                event.target.checked
-                                  ? [...current, reviewer.id]
-                                  : current.filter((id) => id !== reviewer.id),
-                              )
-                            }
                           />
                           <span>
                             <strong>{reviewer.name}</strong>
@@ -1045,13 +1082,8 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 )}
                 <button
                   className="button"
-                  onClick={assign}
                   aria-describedby="assignment-selection-status"
-                  disabled={
-                    busy ||
-                    !selectedSubmissions.length ||
-                    !selectedReviewers.length
-                  }
+                  disabled={busy}
                 >
                   Assign reviewers
                 </button>
@@ -1072,7 +1104,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                       </button>
                     </div>
                   )}
-              </section>
+              </form>
               <section className="review-results-section">
                 <div>
                   <h3>Review progress and aggregate results</h3>
@@ -1120,7 +1152,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                         )}
                         <a
                           className="text-link"
-                          href={`/app/events/${eventId}/communications?category=reviewer_reminder&reviewer=${reviewer.id}`}
+                          href={`/app/events/${eventId}/communications?compose=1&category=reviewer_reminder&entity=${reviewer.id}`}
                         >
                           Send reviewer reminder
                         </a>
@@ -1252,7 +1284,12 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   </div>
                 )}
                 {aiAssessment && (
-                  <section className="ai-assessment-card" aria-live="polite">
+                  <section
+                    className="ai-assessment-card"
+                    id="advisory-ai-assessment"
+                    tabIndex={-1}
+                    aria-live="polite"
+                  >
                     <div>
                       <h4>Advisory AI assessment</h4>
                       <strong>{aiAssessment.effectiveScore}/100</strong>
@@ -1600,7 +1637,9 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
                   rows={5}
                   defaultValue={selected.comment ?? ""}
                 />
-                <small>No character limit. The complete comment is saved.</small>
+                <small>
+                  No character limit. The complete comment is saved.
+                </small>
               </label>
               <div className="review-actions">
                 <button

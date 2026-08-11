@@ -277,32 +277,35 @@ function SpeakerPortal({
     target?.scrollIntoView({ block: "center" });
     target?.focus({ preventScroll: true });
   }, [files, profile, resources, tasks]);
+  function profilePayload(form: HTMLFormElement) {
+    const data = new FormData(form);
+    return {
+      firstName: data.get("firstName"),
+      lastName: data.get("lastName"),
+      pronouns: data.get("pronouns") || null,
+      jobTitle: data.get("jobTitle") || null,
+      company: data.get("company") || null,
+      bio: data.get("bio") || null,
+      social: {
+        linkedin: data.get("linkedin") || "",
+        website: data.get("website") || "",
+        x: data.get("x") || "",
+      },
+      logistics: {
+        dietary: data.get("dietary") || "",
+        accessibility: data.get("accessibility") || "",
+        travelNotes: data.get("travelNotes") || "",
+      },
+    };
+  }
   async function saveProfile(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     if (!profile) return;
     setBusy(true);
-    const data = new FormData(formEvent.currentTarget);
     try {
       await api(`/api/speakers/events/${eventId}/profile`, {
         method: "PATCH",
-        body: JSON.stringify({
-          firstName: data.get("firstName"),
-          lastName: data.get("lastName"),
-          pronouns: data.get("pronouns") || null,
-          jobTitle: data.get("jobTitle") || null,
-          company: data.get("company") || null,
-          bio: data.get("bio") || null,
-          social: {
-            linkedin: data.get("linkedin") || "",
-            website: data.get("website") || "",
-            x: data.get("x") || "",
-          },
-          logistics: {
-            dietary: data.get("dietary") || "",
-            accessibility: data.get("accessibility") || "",
-            travelNotes: data.get("travelNotes") || "",
-          },
-        }),
+        body: JSON.stringify(profilePayload(formEvent.currentTarget)),
       });
       await load();
       setFeedback({
@@ -365,17 +368,29 @@ function SpeakerPortal({
       setBusy(false);
     }
   }
-  async function uploadHeadshot(file: File) {
+  async function uploadHeadshot(
+    file: File,
+    profileForm: HTMLFormElement | null,
+  ) {
     setBusy(true);
     const form = new FormData();
     form.set("file", file);
     try {
+      if (profileForm)
+        await api(`/api/speakers/events/${eventId}/profile`, {
+          method: "PATCH",
+          body: JSON.stringify(profilePayload(profileForm)),
+        });
       await api(`/api/speakers/events/${eventId}/headshot`, {
         method: "POST",
         body: form,
       });
       await load();
-      setFeedback({ kind: "success", message: "Headshot uploaded." });
+      setFeedback({
+        kind: "success",
+        message:
+          "Profile details and headshot saved. Organizers can now review the headshot in the Files library.",
+      });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -587,7 +602,8 @@ function SpeakerPortal({
                   accept="image/png,image/jpeg,image/webp"
                   onChange={(event) => {
                     const chosen = event.target.files?.[0];
-                    if (chosen) uploadHeadshot(chosen);
+                    if (chosen)
+                      uploadHeadshot(chosen, event.currentTarget.form);
                   }}
                 />
               </label>

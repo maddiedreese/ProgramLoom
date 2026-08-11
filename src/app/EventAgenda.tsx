@@ -263,17 +263,66 @@ export function EventAgenda({ user }: { user: User }) {
     form.reset();
   }
   async function addSession(session: Session) {
-    await act(
-      () =>
-        api(`/api/agenda/admin/events/${eventId}/items`, {
+    setBusy(true);
+    setFeedback(undefined);
+    try {
+      const result = await api<{ item: AgendaItem }>(
+        `/api/agenda/admin/events/${eventId}/items`,
+        {
           method: "POST",
           body: JSON.stringify({
             submissionId: session.id,
             itemType: "session",
             trackId: session.trackId,
           }),
-        }),
-      `${session.title} added to the agenda.`,
+        },
+      );
+      await load();
+      setFeedback({
+        kind: "success",
+        message: `${session.title} added. Choose its room and time in the highlighted placement form.`,
+      });
+      window.requestAnimationFrame(() => {
+        const target = document.getElementById(
+          `agenda-placement-${result.item.id}`,
+        );
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        target?.focus({ preventScroll: true });
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "The session could not be added to the agenda.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function addAllAcceptedSessions() {
+    if (!availableSessions.length) return;
+    await act(
+      () =>
+        Promise.all(
+          availableSessions.map((session) =>
+            api(`/api/agenda/admin/events/${eventId}/items`, {
+              method: "POST",
+              body: JSON.stringify({
+                submissionId: session.id,
+                itemType: "session",
+                trackId: session.trackId,
+              }),
+            }),
+          ),
+        ),
+      `${availableSessions.length} accepted ${availableSessions.length === 1 ? "session was" : "sessions were"} added to the agenda. Set each room and time below, or use assisted scheduling.`,
+    );
+    window.requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLElement>(".agenda-placement")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
     );
   }
   async function addBlock(formEvent: FormEvent<HTMLFormElement>) {
@@ -763,17 +812,30 @@ export function EventAgenda({ user }: { user: User }) {
             >
               <FileInput size={20} />
               <h2>Accepted sessions</h2>
+              {availableSessions.length > 1 && (
+                <button
+                  className="button button-small"
+                  type="button"
+                  onClick={addAllAcceptedSessions}
+                  disabled={busy}
+                >
+                  <Plus size={14} /> Add all accepted sessions to agenda
+                </button>
+              )}
               {availableSessions.map((session) => (
                 <button
                   className="session-add"
                   onClick={() => addSession(session)}
+                  aria-label={`Add accepted session to agenda: ${session.title}`}
                   key={session.id}
                 >
                   <span>
                     <strong>{session.title}</strong>
                     <small>{session.speakerNames.join(", ")}</small>
                   </span>
-                  <Plus size={14} />
+                  <span className="session-add-action">
+                    <Plus size={14} /> Add to agenda
+                  </span>
                 </button>
               ))}
               {!availableSessions.length && (

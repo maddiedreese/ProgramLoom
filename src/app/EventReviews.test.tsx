@@ -185,7 +185,9 @@ describe("reviewer workspace", () => {
     );
 
     expect(
-      await screen.findByRole("button", { name: "Save review window" }),
+      await screen.findByRole("button", {
+        name: "Save review round settings",
+      }),
     ).toBeVisible();
     expect(
       screen.getByText("Jan 10, 2027–Jan 20, 2027 · 0 criteria"),
@@ -205,7 +207,9 @@ describe("reviewer workspace", () => {
     const closes = screen.getAllByLabelText("Closes");
     fireEvent.change(opens[1], { target: { value: "2027-01-11T09:00" } });
     fireEvent.change(closes[1], { target: { value: "2027-01-21T17:00" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save review window" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save review round settings" }),
+    );
 
     await waitFor(() =>
       expect(
@@ -248,9 +252,6 @@ describe("reviewer workspace", () => {
       name: /Sam Reviewer/,
     });
     fireEvent.click(reviewerChoices[reviewerChoices.length - 1]);
-    expect(
-      screen.getByText(/1 proposal and 1 reviewer selected/),
-    ).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Assign reviewers" }));
     await waitFor(() =>
       expect(
@@ -268,7 +269,7 @@ describe("reviewer workspace", () => {
       await screen.findByText(/1 reviewer assignment created/),
     ).toBeVisible();
     expect(
-      screen.getByText(/Nothing selected yet/),
+      screen.getByText(/Selections remain stable while you work/),
     ).toBeVisible();
     expect(
       screen.getByRole("button", {

@@ -275,7 +275,7 @@ export function submissionEditingIsClosed(
   now = new Date().toISOString(),
 ) {
   return (
-    ["accepted", "declined", "withdrawn"].includes(status) ||
+    status === "withdrawn" ||
     Boolean(form.closesAt && now >= form.closesAt) ||
     Boolean(form.editClosesAt && now >= form.editClosesAt)
   );
@@ -671,7 +671,10 @@ router.post(
         );
       submissionId = existing.id;
       previousStatus = existing.status;
-      if (input.action === "draft" && !submissionCanBeSavedAsDraft(existing.status))
+      if (
+        input.action === "draft" &&
+        !submissionCanBeSavedAsDraft(existing.status)
+      )
         throw new HttpError(
           409,
           "already_submitted",
@@ -713,7 +716,10 @@ router.post(
       submissionId = existing.id;
       previousStatus = existing.status;
       rawEditToken = randomToken();
-      if (input.action === "draft" && !submissionCanBeSavedAsDraft(existing.status))
+      if (
+        input.action === "draft" &&
+        !submissionCanBeSavedAsDraft(existing.status)
+      )
         throw new HttpError(
           409,
           "already_submitted",
@@ -737,7 +743,12 @@ router.post(
       submissionId = crypto.randomUUID();
       rawEditToken = randomToken();
     }
-    const status = input.action === "submit" ? "pending" : "draft";
+    const status =
+      input.action === "draft"
+        ? "draft"
+        : previousStatus && ["accepted", "declined"].includes(previousStatus)
+          ? previousStatus
+          : "pending";
     const title = String(
       input.answers.session_title ?? input.answers.title ?? "",
     )

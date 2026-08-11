@@ -95,7 +95,7 @@ async function widgetData(db: D1Database, eventId: string) {
                 GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames
          FROM submissions s
          JOIN session_content_state cs ON cs.submission_id=s.id AND cs.status='approved'
-         LEFT JOIN agenda_items a ON a.submission_id=s.id AND a.cancelled_at IS NULL
+         JOIN agenda_items a ON a.submission_id=s.id AND a.cancelled_at IS NULL AND a.status='published'
          LEFT JOIN submission_tracks st ON st.submission_id=s.id
          LEFT JOIN session_speakers ss ON ss.submission_id=s.id
          LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id
