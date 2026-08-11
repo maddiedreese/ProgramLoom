@@ -8432,7 +8432,12 @@ input {
   background: var(--cream);
 }
 .developer-records > article.revoked {
-  opacity: 0.68;
+  border-color: #c9c7bd;
+  background: #f1eee5;
+}
+.developer-records > article.revoked > header > span {
+  background: #deddd6;
+  color: #4f554e;
 }
 .developer-records article > header {
   display: flex;
