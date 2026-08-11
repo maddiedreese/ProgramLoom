@@ -248,6 +248,17 @@ function SpeakerPortal({
     message: string;
   }>();
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!selectedFile) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setSelectedFile(undefined);
+      setFileDetail(undefined);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedFile]);
   async function load() {
     const result = await api<{
       profile: Profile;

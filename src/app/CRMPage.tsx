@@ -1135,6 +1135,21 @@ function DirectoryPanel({
         >
           <Save size={15} /> Save segment
         </button>
+        <button
+          className="button button-ghost"
+          onClick={() =>
+            setSelected(
+              contacts.every((contact) => selected.includes(contact.id))
+                ? []
+                : contacts.map((contact) => contact.id),
+            )
+          }
+          disabled={!contacts.length}
+        >
+          {contacts.every((contact) => selected.includes(contact.id))
+            ? "Clear shown contacts"
+            : `Select all ${contacts.length} shown contacts`}
+        </button>
       </div>
       {hasFilter && (
         <div className="filter-chips">
@@ -2619,6 +2634,7 @@ function ContactModal({
   const [tab, setTab] = useState<
     "profile" | "notes" | "connections" | "activity"
   >("profile");
+  const [confirmingMerge, setConfirmingMerge] = useState(false);
   const contactTabs = [
     { id: "profile", label: "Profile" },
     { id: "notes", label: "Internal notes", count: notes.length },
@@ -2666,18 +2682,37 @@ function ContactModal({
               record.
             </small>
           </span>
-          <button
-            onClick={() => {
-              if (
-                confirm(
-                  `Merge ${duplicates.length} duplicate record${duplicates.length === 1 ? "" : "s"} permanently into this primary contact? This cannot be undone.`,
-                )
-              )
-                merge(contact.id, duplicateContactIds(duplicates));
-            }}
-          >
-            Compare & merge
-          </button>
+          {!confirmingMerge ? (
+            <button onClick={() => setConfirmingMerge(true)}>
+              Compare & merge
+            </button>
+          ) : (
+            <div
+              className="duplicate-confirmation"
+              role="group"
+              aria-label="Confirm duplicate merge"
+            >
+              <strong>
+                Merge {duplicates.length} duplicate record
+                {duplicates.length === 1 ? "" : "s"} permanently?
+              </strong>
+              <small>
+                Notes, event connections, and history move into this primary
+                contact. Duplicate records are deleted. This cannot be undone.
+              </small>
+              <button
+                onClick={() =>
+                  merge(contact.id, duplicateContactIds(duplicates))
+                }
+              >
+                Confirm merge of {duplicates.length} duplicate
+                {duplicates.length === 1 ? "" : "s"}
+              </button>
+              <button onClick={() => setConfirmingMerge(false)}>
+                Cancel merge
+              </button>
+            </div>
+          )}
         </div>
       )}
       {tab === "profile" && (
