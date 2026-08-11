@@ -114,7 +114,7 @@ VALUES
 ('61000000-0000-4000-8001-000000000002',${q(ids.form)},'custom','text','key_takeaway','Key takeaway',1,NULL,5,1),
 ('61000000-0000-4000-8001-000000000003',${q(ids.form)},'custom','select','audience_level','Audience level',0,'["Beginner","Intermediate","Advanced"]',6,1),
 ('61000000-0000-4000-8001-000000000004',${q(ids.form)},'custom','textarea','workshop_prerequisites','Workshop prerequisites',0,NULL,7,0)
-ON CONFLICT(id) DO UPDATE SET label=excluded.label,required=excluded.required,options_json=excluded.options_json,position=excluded.position,searchable=excluded.searchable;
+ON CONFLICT(form_id,field_key) DO UPDATE SET label=excluded.label,required=excluded.required,options_json=excluded.options_json,position=excluded.position,searchable=excluded.searchable;
 
 INSERT OR IGNORE INTO event_members(event_id,user_id,role,invited_by)
 VALUES(${q(ids.event)},${q(ids.reviewer)},'reviewer',${q(ids.organizer)}),
