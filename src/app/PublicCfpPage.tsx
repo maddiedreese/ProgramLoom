@@ -15,7 +15,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 
 type PublicForm = {
   name: string;
@@ -103,8 +103,9 @@ function conditionMatches(
 
 export function PublicCfpPage() {
   const params = useParams();
+  const location = useLocation();
   const apiPath = `/api/public/cfp/${params.organizationSlug}/${params.eventSlug}/${params.formSlug}`;
-  const requestedSubmissionId = new URLSearchParams(window.location.search).get(
+  const requestedSubmissionId = new URLSearchParams(location.search).get(
     "submission",
   );
   const definitionPath = requestedSubmissionId
@@ -157,6 +158,13 @@ export function PublicCfpPage() {
   }, []);
 
   useEffect(() => {
+    setLoading(true);
+    setSubmissionId(undefined);
+    setEditToken(undefined);
+    setStatus(undefined);
+    setAnswers({});
+    setCoSubmitters([]);
+    setLocked(false);
     api<{
       form: PublicForm;
       fields: Field[];
@@ -227,7 +235,7 @@ export function PublicCfpPage() {
         setFeedback({ kind: "error", message: error.message }),
       )
       .finally(() => setLoading(false));
-  }, [apiPath, definitionPath]);
+  }, [apiPath, definitionPath, location.hash, location.search]);
 
   const requiresSecurityCheck = Boolean(siteKey && !signedIn);
 
