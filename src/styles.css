@@ -727,6 +727,17 @@ input {
   color: #676c64;
   font-size: 13px;
 }
+.integration-health-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+  margin-top: 0.55rem;
+  color: #315c45;
+  font-size: 12px;
+}
+.integration-health-summary span {
+  white-space: nowrap;
+}
 .integration-alert {
   grid-column: 1 / -1;
   display: flex;
@@ -1223,6 +1234,58 @@ input {
 .modal-card > form {
   display: grid;
   gap: 1rem;
+}
+
+.event-edit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+}
+
+.event-edit-modal > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.event-edit-modal > header h2,
+.event-edit-modal > header p,
+.event-edit-modal > p {
+  margin: 0;
+}
+
+.event-edit-modal > p {
+  margin: 0.75rem 0 1.25rem;
+  color: #676c64;
+  line-height: 1.55;
+}
+
+.event-edit-modal > form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.event-edit-modal .wide {
+  grid-column: 1 / -1;
+}
+
+.event-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+@media (max-width: 700px) {
+  .event-edit-modal > form {
+    grid-template-columns: 1fr;
+  }
+  .event-edit-modal .wide {
+    grid-column: auto;
+  }
+  .event-edit-actions .button {
+    flex: 1;
+  }
 }
 
 .template-domains.compact > div {

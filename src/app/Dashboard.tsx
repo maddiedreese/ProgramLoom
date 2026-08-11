@@ -5,12 +5,15 @@ import {
   CheckCircle2,
   FileInput,
   LoaderCircle,
+  Pencil,
   Plus,
   RefreshCw,
   TriangleAlert,
   UsersRound,
+  X,
 } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+import { isoToZonedLocal, zonedLocalToIso } from "../lib/zonedTime";
 import { SidebarUser } from "./SidebarUser";
 import {
   EventTemplateStudio,
@@ -35,6 +38,7 @@ type EventRecord = {
   startsAt: string;
   endsAt: string;
   venueName: string | null;
+  websiteUrl?: string | null;
   status: string;
   accessRole?: string;
 };
@@ -95,6 +99,8 @@ export function Dashboard({ user }: { user: User }) {
   const [submitting, setSubmitting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [airtableStatus, setAirtableStatus] = useState<AirtableStatus>();
+  const [editingEvent, setEditingEvent] = useState<EventRecord>();
+  const [savingEvent, setSavingEvent] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>();
   const selected = organizations.find(
     (organization) => organization.id === selectedId,
@@ -211,6 +217,53 @@ export function Dashboard({ user }: { user: User }) {
     }
   }
 
+  async function updateEvent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingEvent) return;
+    setSavingEvent(true);
+    setFeedback(undefined);
+    const form = new FormData(event.currentTarget);
+    const timezone = String(form.get("timezone"));
+    try {
+      const result = await api<{
+        event: EventRecord;
+        calendar: { updated: number; failed: number };
+      }>(`/api/events/${editingEvent.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: form.get("name"),
+          timezone,
+          startsAt: zonedLocalToIso(String(form.get("startsAt")), timezone),
+          endsAt: zonedLocalToIso(String(form.get("endsAt")), timezone),
+          venueName: form.get("venueName") || null,
+          websiteUrl: form.get("websiteUrl") || null,
+        }),
+      });
+      setEvents((current) =>
+        current.map((item) =>
+          item.id === result.event.id ? { ...item, ...result.event } : item,
+        ),
+      );
+      setEditingEvent(undefined);
+      setFeedback({
+        kind: result.calendar.failed ? "error" : "success",
+        message: result.calendar.failed
+          ? `Event details were saved, but ${result.calendar.failed} calendar update needs attention.`
+          : `Event details were saved${result.calendar.updated ? ` and ${result.calendar.updated} calendar invitation ${result.calendar.updated === 1 ? "was" : "were"} updated` : ""}. Next, open the Control Room to review readiness.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not update the event.",
+      });
+    } finally {
+      setSavingEvent(false);
+    }
+  }
+
   if (loading)
     return (
       <div className="workspace-loading" aria-busy="true">
@@ -290,7 +343,7 @@ export function Dashboard({ user }: { user: User }) {
                   ? "Airtable needs attention"
                   : airtableStatus?.pending
                     ? `${airtableStatus.pending} sync pending`
-                    : "Airtable source"
+                    : "Airtable healthy"
                 : "ProgramLoom storage"}
             </span>
           )}
@@ -302,95 +355,6 @@ export function Dashboard({ user }: { user: User }) {
           >
             {feedback.message}
           </div>
-        )}
-        {selected?.storageMode === "airtable" && airtableStatus && (
-          <section
-            className="integration-card"
-            aria-labelledby="airtable-sync-title"
-          >
-            <div>
-              <p className="kicker">Data integration</p>
-              <h2 id="airtable-sync-title">Airtable sync</h2>
-              <p>
-                {airtableStatus.configured
-                  ? airtableStatus.lastSyncedAt
-                    ? `Last synchronized ${new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(airtableStatus.lastSyncedAt))}.`
-                    : "Ready for its first synchronization."
-                  : "Airtable credentials are not configured."}
-              </p>
-            </div>
-            <button
-              className="button button-ghost button-small"
-              onClick={syncAirtable}
-              disabled={syncing || !airtableStatus.configured}
-            >
-              <RefreshCw className={syncing ? "spin" : ""} size={15} />
-              {syncing
-                ? "Recovering…"
-                : airtableStatus.failed || airtableStatus.conflicts.length
-                  ? "Recover integration"
-                  : "Sync now"}
-            </button>
-            {(airtableStatus.failed > 0 ||
-              airtableStatus.conflicts.length > 0) && (
-              <div className="integration-alert" role="alert">
-                <TriangleAlert size={18} />
-                <div>
-                  <strong>
-                    {airtableStatus.conflicts.length} unresolved sync{" "}
-                    {airtableStatus.conflicts.length === 1
-                      ? "conflict"
-                      : "conflicts"}
-                  </strong>
-                  <p>
-                    {airtableStatus.conflicts[0]?.reason ??
-                      "A queued record could not be synchronized."}
-                  </p>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-        {mySubmissions.length > 0 && (
-          <section aria-labelledby="my-proposals-title">
-            <div className="content-heading">
-              <div>
-                <p className="kicker">Speaker workspace</p>
-                <h2 id="my-proposals-title">My proposals</h2>
-                <p>Track every draft, submitted proposal, and decision.</p>
-              </div>
-            </div>
-            <div className="event-grid">
-              {mySubmissions.map((submission) => (
-                <article className="event-card" key={submission.id}>
-                  <div className="event-status">
-                    {submission.decisionState !== "none"
-                      ? submission.decisionState.replaceAll("_", " ")
-                      : submission.status}
-                  </div>
-                  <FileInput size={20} />
-                  <h3>{submission.title || "Untitled proposal"}</h3>
-                  <p>
-                    {submission.eventName} · {submission.formName}
-                  </p>
-                  <span>
-                    Updated{" "}
-                    {new Intl.DateTimeFormat("en-US", {
-                      dateStyle: "medium",
-                    }).format(new Date(submission.updatedAt))}
-                  </span>
-                  <a
-                    href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}`}
-                  >
-                    {submission.status === "draft"
-                      ? "Continue proposal"
-                      : "Open proposal"}{" "}
-                    <ArrowRight size={15} />
-                  </a>
-                </article>
-              ))}
-            </div>
-          </section>
         )}
         {!organizations.length ? (
           <section
@@ -486,10 +450,19 @@ export function Dashboard({ user }: { user: User }) {
                     <ArrowRight size={15} />
                   </a>
                   {selected && ["owner", "admin"].includes(selected.role) && (
-                    <SaveEventTemplateButton
-                      eventId={item.id}
-                      eventName={item.name}
-                    />
+                    <>
+                      <button
+                        className="text-button event-edit-button"
+                        type="button"
+                        onClick={() => setEditingEvent(item)}
+                      >
+                        <Pencil size={14} /> Edit event details
+                      </button>
+                      <SaveEventTemplateButton
+                        eventId={item.id}
+                        eventName={item.name}
+                      />
+                    </>
                   )}
                 </article>
               ))}
@@ -508,6 +481,107 @@ export function Dashboard({ user }: { user: User }) {
                 ? "Create the event shell now; CFP, speakers, agenda, and publishing stay connected to it."
                 : "Ask an organizer to invite you to the event where you will review or speak."}
             </p>
+          </section>
+        )}
+        {selected?.storageMode === "airtable" && airtableStatus && (
+          <section
+            className="integration-card"
+            aria-labelledby="airtable-sync-title"
+          >
+            <div>
+              <p className="kicker">Data integration</p>
+              <h2 id="airtable-sync-title">Airtable sync</h2>
+              <p>
+                {airtableStatus.configured
+                  ? airtableStatus.lastSyncedAt
+                    ? `Last synchronized ${new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(airtableStatus.lastSyncedAt))}.`
+                    : "Ready for its first synchronization."
+                  : "Airtable credentials are not configured."}
+              </p>
+              <div
+                className="integration-health-summary"
+                aria-label="Airtable sync health"
+              >
+                <span>{airtableStatus.pending} pending</span>
+                <span>{airtableStatus.failed} failed</span>
+                <span>{airtableStatus.conflicts.length} open conflicts</span>
+              </div>
+            </div>
+            <button
+              className="button button-ghost button-small"
+              onClick={syncAirtable}
+              disabled={syncing || !airtableStatus.configured}
+            >
+              <RefreshCw className={syncing ? "spin" : ""} size={15} />
+              {syncing
+                ? "Recovering…"
+                : airtableStatus.failed || airtableStatus.conflicts.length
+                  ? "Recover integration"
+                  : "Sync now"}
+            </button>
+            {(airtableStatus.failed > 0 ||
+              airtableStatus.conflicts.length > 0) && (
+              <div className="integration-alert" role="alert">
+                <TriangleAlert size={18} />
+                <div>
+                  <strong>
+                    {airtableStatus.conflicts.length} unresolved sync{" "}
+                    {airtableStatus.conflicts.length === 1
+                      ? "conflict"
+                      : "conflicts"}
+                  </strong>
+                  <p>
+                    {airtableStatus.conflicts[0]?.reason ??
+                      "A queued record could not be synchronized."}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+        {mySubmissions.length > 0 && (
+          <section aria-labelledby="my-proposals-title">
+            <div className="content-heading">
+              <div>
+                <p className="kicker">Your submissions</p>
+                <h2 id="my-proposals-title">Proposals you submitted</h2>
+                <p>
+                  {canOrganize
+                    ? "You also submitted these proposals. They are separate from the events you organize above."
+                    : "Track each draft, submitted proposal, and decision in one place."}
+                </p>
+              </div>
+            </div>
+            <div className="event-grid">
+              {mySubmissions.map((submission) => (
+                <article className="event-card" key={submission.id}>
+                  <div className="event-status">
+                    {submission.decisionState !== "none"
+                      ? submission.decisionState.replaceAll("_", " ")
+                      : submission.status}
+                  </div>
+                  <FileInput size={20} />
+                  <h3>{submission.title || "Untitled proposal"}</h3>
+                  <p>
+                    {submission.eventName} · {submission.formName}
+                  </p>
+                  <span>
+                    Updated{" "}
+                    {new Intl.DateTimeFormat("en-US", {
+                      dateStyle: "medium",
+                    }).format(new Date(submission.updatedAt))}
+                  </span>
+                  <a
+                    href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}`}
+                  >
+                    {submission.status === "draft"
+                      ? "Continue proposal"
+                      : "Open proposal"}{" "}
+                    <ArrowRight size={15} />
+                  </a>
+                </article>
+              ))}
+            </div>
           </section>
         )}
         {canOrganize && selected && (
@@ -547,6 +621,118 @@ export function Dashboard({ user }: { user: User }) {
               }}
             />
           </section>
+        )}
+        {editingEvent && (
+          <div
+            className="modal-backdrop"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setEditingEvent(undefined);
+            }}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget)
+                setEditingEvent(undefined);
+            }}
+          >
+            <section
+              className="modal-card event-edit-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-event-title"
+            >
+              <header>
+                <div>
+                  <p className="kicker">Event identity</p>
+                  <h2 id="edit-event-title">Edit event details</h2>
+                </div>
+                <button
+                  className="icon-button"
+                  type="button"
+                  aria-label="Close event details"
+                  autoFocus
+                  onClick={() => setEditingEvent(undefined)}
+                >
+                  <X size={20} />
+                </button>
+              </header>
+              <p>
+                These details appear across organizer, speaker, public agenda,
+                and calendar surfaces. Existing invitations are updated in place
+                when calendar delivery is enabled.
+              </p>
+              <form onSubmit={updateEvent}>
+                <label className="wide">
+                  Event name
+                  <input
+                    name="name"
+                    defaultValue={editingEvent.name}
+                    required
+                    minLength={2}
+                  />
+                </label>
+                <label>
+                  Timezone
+                  <input
+                    name="timezone"
+                    defaultValue={editingEvent.timezone}
+                    required
+                  />
+                </label>
+                <label>
+                  Venue
+                  <input
+                    name="venueName"
+                    defaultValue={editingEvent.venueName ?? ""}
+                    placeholder="Harbor Conference Center"
+                  />
+                </label>
+                <label>
+                  Starts
+                  <input
+                    type="datetime-local"
+                    name="startsAt"
+                    defaultValue={isoToZonedLocal(
+                      editingEvent.startsAt,
+                      editingEvent.timezone,
+                    )}
+                    required
+                  />
+                </label>
+                <label>
+                  Ends
+                  <input
+                    type="datetime-local"
+                    name="endsAt"
+                    defaultValue={isoToZonedLocal(
+                      editingEvent.endsAt,
+                      editingEvent.timezone,
+                    )}
+                    required
+                  />
+                </label>
+                <label className="wide">
+                  Event website <span className="muted">optional</span>
+                  <input
+                    type="url"
+                    name="websiteUrl"
+                    defaultValue={editingEvent.websiteUrl ?? ""}
+                    placeholder="https://example.com"
+                  />
+                </label>
+                <div className="event-edit-actions wide">
+                  <button
+                    className="button button-ghost"
+                    type="button"
+                    onClick={() => setEditingEvent(undefined)}
+                  >
+                    Cancel
+                  </button>
+                  <button className="button" disabled={savingEvent}>
+                    {savingEvent ? "Saving…" : "Save event details"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
         )}
       </main>
     </div>

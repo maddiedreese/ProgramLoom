@@ -7,7 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { zonedLocalToIso } from "../lib/zonedTime";
+import { isoToZonedLocal, zonedLocalToIso } from "../lib/zonedTime";
 import { EventTemplateStudio } from "./EventTemplateStudio";
 
 afterEach(() => {
@@ -23,6 +23,9 @@ describe("EventTemplateStudio", () => {
     expect(zonedLocalToIso("2033-01-10T09:00", "America/New_York")).toBe(
       "2033-01-10T14:00:00.000Z",
     );
+    expect(
+      isoToZonedLocal("2033-01-10T14:00:00.000Z", "America/New_York"),
+    ).toBe("2033-01-10T09:00");
     expect(() =>
       zonedLocalToIso("2033-03-13T02:30", "America/New_York"),
     ).toThrow(/daylight-saving/i);

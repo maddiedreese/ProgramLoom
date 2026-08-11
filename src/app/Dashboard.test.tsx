@@ -1,9 +1,18 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Dashboard } from "./Dashboard";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("organizer onboarding", () => {
   it("offers real workspace creation when the organizer has none", async () => {
@@ -164,12 +173,129 @@ describe("organizer onboarding", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "My proposals" }),
+      await screen.findByRole("heading", { name: "Proposals you submitted" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Reliable programs")).toBeInTheDocument();
     expect(screen.getByText("pending")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /open proposal/i }),
     ).toHaveAttribute("href", "/c/programs/assigned-program/community-cfp");
+  });
+
+  it("puts organizer events first and makes event identity visibly editable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path.includes("/my-submissions"))
+          return Promise.resolve(
+            Response.json({
+              submissions: [
+                {
+                  id: "submission-1",
+                  title: "A proposal I submitted",
+                  status: "pending",
+                  decisionState: "none",
+                  updatedAt: "2027-01-02T00:00:00.000Z",
+                  formName: "Community CFP",
+                  formSlug: "community-cfp",
+                  eventName: "Another Event",
+                  eventSlug: "another-event",
+                  organizationSlug: "programs",
+                },
+              ],
+            }),
+          );
+        if (path.includes("/integrations/"))
+          return Promise.resolve(
+            Response.json({
+              configured: true,
+              pending: 0,
+              failed: 0,
+              lastSyncedAt: "2027-01-02T00:00:00.000Z",
+              conflicts: [],
+              resources: [],
+            }),
+          );
+        if (path.includes("/event-templates/"))
+          return Promise.resolve(
+            Response.json({ templates: [], starters: [] }),
+          );
+        if (path.includes("/events"))
+          return Promise.resolve(
+            Response.json({
+              events: [
+                {
+                  id: "event-1",
+                  name: "DevFlow Summit",
+                  slug: "devflow-summit",
+                  eventType: "conference",
+                  timezone: "America/Los_Angeles",
+                  startsAt: "2027-09-14T16:00:00.000Z",
+                  endsAt: "2027-09-16T23:00:00.000Z",
+                  venueName: "Harbor Conference Center",
+                  websiteUrl: "https://example.com",
+                  status: "active",
+                },
+              ],
+            }),
+          );
+        return Promise.resolve(
+          Response.json({
+            organizations: [
+              {
+                id: "organization-1",
+                name: "Programs",
+                slug: "programs",
+                storageMode: "airtable",
+                role: "owner",
+                eventCount: 1,
+              },
+            ],
+          }),
+        );
+      }),
+    );
+
+    render(
+      <Dashboard
+        user={{
+          id: "organizer-1",
+          email: "organizer@example.com",
+          name: "Mina Organizer",
+        }}
+      />,
+    );
+
+    const eventHeading = await screen.findByRole("heading", {
+      name: "DevFlow Summit",
+    });
+    const proposalHeading = await screen.findByRole("heading", {
+      name: "Proposals you submitted",
+    });
+    expect(
+      eventHeading.compareDocumentPosition(proposalHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByText("0 pending")).toBeInTheDocument();
+    expect(screen.getByText("0 failed")).toBeInTheDocument();
+    expect(screen.getByText("0 open conflicts")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /edit event details/i }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: /edit event details/i,
+    });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Event name")).toHaveValue(
+      "DevFlow Summit",
+    );
+    expect(
+      screen.getByRole("button", { name: /close event details/i }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: /save event details/i }),
+    ).toBeEnabled();
   });
 });

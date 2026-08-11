@@ -14,13 +14,31 @@ import {
   enqueueCommunication,
   prepareCommunicationStatement,
 } from "../lib/communications";
+import { syncAgendaCalendarInvitations } from "../lib/calendarLifecycle";
 import { renderSimpleTransactionalEmail } from "../lib/email";
-import { domainEventStatement } from "../lib/operations";
+import {
+  domainEventStatement,
+  logOperationalEvent,
+  safeOperationalError,
+} from "../lib/operations";
 import { eventManagerNotificationStatement } from "../lib/notifications";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const organizerRoles = ["owner", "admin"] as const;
+
+const eventPatchSchema = z
+  .object({
+    name: z.string().trim().min(2).max(160).optional(),
+    timezone: z.string().trim().min(1).max(100).optional(),
+    startsAt: z.iso.datetime({ offset: true }).optional(),
+    endsAt: z.iso.datetime({ offset: true }).optional(),
+    venueName: z.string().trim().max(160).nullable().optional(),
+    websiteUrl: z.url().nullable().optional().or(z.literal("")),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "Choose at least one event detail to update.",
+  });
 
 export function acceptedSpeakerFileRequestStatement(
   db: D1Database,
@@ -261,6 +279,149 @@ router.get("/:eventId", async (context) => {
     .first();
   return context.json({ event, role: access.role });
 });
+
+router.patch(
+  "/:eventId",
+  zValidator("json", eventPatchSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const db = database(context.env);
+    const current = await db
+      .prepare(
+        `SELECT id,organization_id AS organizationId,name,slug,
+                event_type AS eventType,timezone,starts_at AS startsAt,
+                ends_at AS endsAt,venue_name AS venueName,
+                website_url AS websiteUrl,status
+         FROM events WHERE id=?`,
+      )
+      .bind(eventId)
+      .first<{
+        id: string;
+        organizationId: string;
+        name: string;
+        slug: string;
+        eventType: string;
+        timezone: string;
+        startsAt: string;
+        endsAt: string;
+        venueName: string | null;
+        websiteUrl: string | null;
+        status: string;
+      }>();
+    if (!current)
+      throw new HttpError(404, "event_not_found", "Event not found.");
+    const input = context.req.valid("json");
+    const updated = {
+      ...current,
+      ...input,
+      venueName:
+        input.venueName === undefined ? current.venueName : input.venueName,
+      websiteUrl:
+        input.websiteUrl === undefined
+          ? current.websiteUrl
+          : input.websiteUrl || null,
+    };
+    if (new Date(updated.endsAt) <= new Date(updated.startsAt))
+      throw new HttpError(
+        400,
+        "invalid_event_dates",
+        "The event end must be after its start.",
+      );
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: updated.timezone });
+    } catch {
+      throw new HttpError(
+        400,
+        "invalid_timezone",
+        "Choose a valid IANA timezone.",
+      );
+    }
+    await db.batch([
+      db
+        .prepare(
+          `UPDATE events
+           SET name=?,timezone=?,starts_at=?,ends_at=?,venue_name=?,website_url=?,
+               updated_at=CURRENT_TIMESTAMP
+           WHERE id=?`,
+        )
+        .bind(
+          updated.name,
+          updated.timezone,
+          updated.startsAt,
+          updated.endsAt,
+          updated.venueName,
+          updated.websiteUrl,
+          eventId,
+        ),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "event.updated",
+        entityType: "event",
+        entityId: eventId,
+        before: current,
+        after: updated,
+        requestId: context.get("requestId"),
+      }),
+      domainEventStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        eventType: "event.updated",
+        entityType: "event",
+        entityId: eventId,
+        payload: { changedFields: Object.keys(input) },
+        correlationId: context.get("requestId"),
+      }),
+    ]);
+
+    const calendarItems = await db
+      .prepare(
+        `SELECT DISTINCT a.id
+         FROM agenda_items a
+         JOIN calendar_records c ON c.agenda_item_id=a.id AND c.state='active'
+         WHERE a.event_id=? AND a.cancelled_at IS NULL
+         ORDER BY a.id LIMIT 250`,
+      )
+      .bind(eventId)
+      .all<{ id: string }>();
+    let calendarUpdated = 0;
+    let calendarFailures = 0;
+    for (const item of calendarItems.results) {
+      try {
+        const result = await syncAgendaCalendarInvitations(context.env, {
+          eventId,
+          agendaItemId: item.id,
+          actorUserId: access.user.id,
+          correlationId: context.get("requestId"),
+          action: "material_change",
+        });
+        calendarUpdated += result.updated;
+      } catch (error) {
+        calendarFailures += 1;
+        logOperationalEvent("error", {
+          operation: "calendar_event_identity_sync_failed",
+          requestId: context.get("requestId"),
+          eventId,
+          entityType: "agenda_item",
+          entityId: item.id,
+          message: safeOperationalError(error),
+        });
+      }
+    }
+    return context.json({
+      event: updated,
+      calendar: {
+        examined: calendarItems.results.length,
+        updated: calendarUpdated,
+        failed: calendarFailures,
+      },
+    });
+  },
+);
 
 router.get("/:eventId/tracks", async (context) => {
   const eventId = context.req.param("eventId");

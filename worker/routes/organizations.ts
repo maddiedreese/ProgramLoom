@@ -161,11 +161,15 @@ router.get("/:organizationId/events", async (context) => {
               e.starts_at AS startsAt, e.ends_at AS endsAt, e.venue_name AS venueName,
               e.website_url AS websiteUrl, e.status, em.role AS accessRole
            FROM events e JOIN event_members em ON em.event_id=e.id AND em.user_id=?
-           WHERE e.organization_id=? ORDER BY e.starts_at ASC`
+           WHERE e.organization_id=?
+           ORDER BY CASE e.status WHEN 'active' THEN 0 WHEN 'draft' THEN 1 ELSE 2 END,
+                    e.starts_at ASC`
         : `SELECT id, name, slug, event_type AS eventType, timezone, starts_at AS startsAt,
               ends_at AS endsAt, venue_name AS venueName, website_url AS websiteUrl,
               status, ? AS accessRole
-           FROM events WHERE organization_id=? ORDER BY starts_at ASC`,
+           FROM events WHERE organization_id=?
+           ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'draft' THEN 1 ELSE 2 END,
+                    starts_at ASC`,
     )
     .bind(restricted ? access.user.id : access.role, organizationId)
     .all();

@@ -52,3 +52,17 @@ export function zonedLocalToIso(localValue: string, timeZone: string) {
     );
   return new Date(result).toISOString();
 }
+
+export function isoToZonedLocal(isoValue: string, timeZone: string) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  })
+    .format(new Date(isoValue))
+    .replace(" ", "T");
+}

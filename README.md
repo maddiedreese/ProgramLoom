@@ -32,7 +32,7 @@ The Control Room stays connected to every stage, so resolved blockers disappear 
 
 This separation is deliberate. **Stage decision** records what the organizer intends to do and sends nothing. The organizer must then open the **Communications Center**, choose the recipients, inspect the rendered message, and select **Send decision**. This makes it safe to prepare a program before communicating it.
 
-For a concise, end-to-end tour, follow the [guided product walkthrough](docs/evaluator-guide.md). The [screen and role map](docs/evaluator-route-map.md) lists the exact routes for organizer, reviewer, speaker, and public experiences.
+For a concise, end-to-end tour, follow the [guided product walkthrough](docs/evaluator-guide.md). The [screen and role map](docs/evaluator-route-map.md) explains where organizers, reviewers, speakers, and attendees begin.
 
 ## How it works
 
@@ -51,7 +51,7 @@ npm run db:migrate:local
 npm run dev
 ```
 
-Never commit `.env.local`, `.dev.vars`, authentication state, private links, provider payloads, or evaluator inbox evidence.
+Never commit `.env.local`, `.dev.vars`, authentication state, private links, provider payloads, or controlled inbox evidence.
 
 ## Verification
 
@@ -63,7 +63,7 @@ npm run verify:evidence
 
 Authenticated production Playwright requires ignored values for `PROGRAMLOOM_E2E_URL`, `PROGRAMLOOM_E2E_STORAGE_STATE`, and `PROGRAMLOOM_E2E_EVENT_ID`; then run `npm run test:e2e`. CRM and content protocols are available as `npm run smoke:crm` and `npm run smoke:content`.
 
-The [parity and evidence map](docs/parity-map.md) links required capabilities to production routes and automated tests. The [production evidence index](docs/evidence/README.md) defines what may be claimed, where nonsensitive proof lives, and how the restricted final release manifest is verified without committing private evaluator state.
+The [product and evidence map](docs/parity-map.md) links capabilities to production routes and automated tests. The [production evidence index](docs/evidence/README.md) explains what has been verified, where nonsensitive proof lives, and how the restricted final release manifest is checked without committing private verification state.
 
 ## Deployment
 
@@ -77,7 +77,7 @@ The deploy script rejects a missing, abbreviated, uppercase, or malformed source
 
 ## Guided product walkthrough
 
-Follow one uninterrupted lifecycle in [the guided walkthrough](docs/evaluator-guide.md): template → CFP → proposal → saved view → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule and calendar → conflict resolution → five public views → search → integration health → cancellation → clear Control Room.
+Follow one uninterrupted lifecycle in [the guided walkthrough](docs/evaluator-guide.md): template → CFP → proposal → saved view → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule and calendar → conflict resolution → five public views → search → integration health → cancellation → a reconciled or intentionally explained Control Room.
 
 ## Honest limitations and waivers
 
