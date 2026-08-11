@@ -704,7 +704,7 @@ router.post(
     ]);
     const input = context.req.valid("json");
     const db = database(context.env);
-    await requireRound(db, eventId, input.roundId);
+    const round = await requireRound(db, eventId, input.roundId);
     const submissions = await db
       .prepare(
         `SELECT s.id, GROUP_CONCAT(LOWER(p.email), '|') AS speakerEmails FROM submissions s LEFT JOIN submission_people p ON p.submission_id = s.id WHERE s.event_id = ? AND s.id IN (${input.submissionIds.map(() => "?").join(",")}) GROUP BY s.id`,
@@ -872,6 +872,36 @@ router.post(
         created += 1;
       }
     if (statements.length) await db.batch(statements);
+    const now = new Date().toISOString();
+    let roundOpened = false;
+    if (
+      round.status === "draft" &&
+      (!round.opensAt || round.opensAt <= now) &&
+      (!round.closesAt || round.closesAt > now) &&
+      (created > 0 || alreadyAssigned > 0)
+    ) {
+      const opened = await db
+        .prepare(
+          `UPDATE review_rounds SET status='open'
+           WHERE id=? AND status='draft'
+             AND EXISTS (SELECT 1 FROM scorecard_fields WHERE round_id=review_rounds.id)`,
+        )
+        .bind(input.roundId)
+        .run();
+      roundOpened = Boolean(opened.meta.changes);
+      if (roundOpened)
+        await auditStatement(db, {
+          organizationId: access.organizationId,
+          eventId,
+          actorUserId: access.user.id,
+          action: "review_round.opened_after_assignment",
+          entityType: "review_round",
+          entityId: input.roundId,
+          before: { status: "draft" },
+          after: { status: "open", reason: "configured_open_time_arrived" },
+          requestId: context.get("requestId"),
+        }).run();
+    }
     await auditStatement(db, {
       organizationId: access.organizationId,
       eventId,
@@ -889,7 +919,7 @@ router.post(
       requestId: context.get("requestId"),
     }).run();
     return context.json(
-      { created, alreadyAssigned, capacitySkipped, conflicts },
+      { created, alreadyAssigned, capacitySkipped, conflicts, roundOpened },
       201,
     );
   },

@@ -574,6 +574,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
         alreadyAssigned: number;
         capacitySkipped: number;
         conflicts: { reason: string }[];
+        roundOpened: boolean;
       }>(`/api/reviews/events/${eventId}/assignments`, {
         method: "POST",
         body: JSON.stringify({
@@ -584,11 +585,11 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       });
       await load(selected.id);
       formElement.reset();
-      if (result.created || result.alreadyAssigned)
+      if ((result.created || result.alreadyAssigned) && !result.roundOpened)
         setLastAssignedRoundId(selected.id);
       setFeedback({
         kind: result.conflicts.length ? "error" : "success",
-        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.alreadyAssigned ? ` ${result.alreadyAssigned} already existed and were left unchanged.` : ""}${result.capacitySkipped ? ` ${result.capacitySkipped} exceeded configured reviewer capacity and were skipped.` : ""}${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
+        message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.alreadyAssigned ? ` ${result.alreadyAssigned} already existed and were left unchanged.` : ""}${result.capacitySkipped ? ` ${result.capacitySkipped} exceeded configured reviewer capacity and were skipped.` : ""}${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : result.roundOpened ? ` ${selected.name} is now open because its configured opening time has arrived; reviewers can begin scoring.` : " Open the round when reviewers should begin scoring."}`,
       });
     } catch (error) {
       setFeedback({
@@ -676,7 +677,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
               }
               disabled={busy}
             >
-              {selected.status === "open" ? "Close round" : "Open round"}
+              {selected.status === "open"
+                ? `Close ${selected.name}`
+                : `Open ${selected.name}`}
             </button>
           </div>
         )}
@@ -726,7 +729,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
               <input name="name" placeholder="Round 1: Program fit" required />
             </label>
             <label className="check-row">
-              <input name="isBlind" type="checkbox" defaultChecked />
+              <input name="isBlind" type="checkbox" />
               <span>
                 <strong>Blind review</strong>
                 <small>
@@ -1001,7 +1004,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 <p id="assignment-selection-status">
                   Select each proposal and reviewer exactly once, then choose
                   Assign reviewers. Selections remain stable while you work
-                  through the list.
+                  through the list. If this draft round's configured opening
+                  time has arrived, assigning reviewers opens it so their work
+                  is immediately visible.
                 </p>
                 {reviewers.length ? (
                   <div className="assignment-columns">
