@@ -699,6 +699,7 @@ export function EventAgenda({ user }: { user: User }) {
                   Room
                   <select
                     name="roomId"
+                    aria-label={`Room for ${item.title}`}
                     defaultValue={item.roomId ?? ""}
                     required
                   >
@@ -741,7 +742,11 @@ export function EventAgenda({ user }: { user: User }) {
                   )}
                 <label>
                   Track
-                  <select name="trackId" defaultValue={item.trackId ?? ""}>
+                  <select
+                    name="trackId"
+                    aria-label={`Track for ${item.title}`}
+                    defaultValue={item.trackId ?? ""}
+                  >
                     <option value="">No track</option>
                     {tracks.map((track) => (
                       <option value={track.id} key={track.id}>
@@ -754,6 +759,7 @@ export function EventAgenda({ user }: { user: User }) {
                   Starts
                   <input
                     name="startsAt"
+                    aria-label={`Start time for ${item.title}`}
                     type="datetime-local"
                     defaultValue={localInput(item.startsAt)}
                     required
@@ -763,12 +769,19 @@ export function EventAgenda({ user }: { user: User }) {
                   Ends
                   <input
                     name="endsAt"
+                    aria-label={`End time for ${item.title}`}
                     type="datetime-local"
                     defaultValue={localInput(item.endsAt)}
                     required
                   />
                 </label>
-                <button className="button button-small" disabled={busy}>
+                <button
+                  className="button button-small"
+                  aria-label={`${
+                    item.cancelledAt ? "Reschedule" : "Schedule session"
+                  }: ${item.title}`}
+                  disabled={busy}
+                >
                   {item.cancelledAt ? (
                     <>
                       <RotateCcw size={14} /> Reschedule

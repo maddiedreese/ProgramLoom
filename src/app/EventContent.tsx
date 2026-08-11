@@ -688,7 +688,10 @@ export function EventContent({ user }: { user: User }) {
                   </span>
                 </header>
                 {visibleAssignments.map((item) => (
-                  <article key={`${item.taskId}:${item.speakerId}`}>
+                  <article
+                    key={`${item.taskId}:${item.speakerId}`}
+                    aria-label={`${item.title} for ${item.speakerName}: ${item.status.replaceAll("_", " ")}`}
+                  >
                     <div>
                       <strong>{item.speakerName}</strong>
                       <small>{item.title}</small>

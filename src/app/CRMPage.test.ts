@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canSaveCrmSegment,
   defaultCrmSegmentType,
+  duplicateContactIds,
   reconcileCrmSelection,
   resolveCrmOrganization,
   resolveHandoffContacts,
@@ -47,5 +48,15 @@ describe("CRM segment availability", () => {
       "event-workspace",
     );
     expect(resolveCrmOrganization(organizations, "other", null)).toBe("other");
+  });
+
+  it("merges every detected duplicate in one confirmed operation", () => {
+    expect(
+      duplicateContactIds([
+        { id: "duplicate-1" },
+        { id: "duplicate-2" },
+        { id: "duplicate-1" },
+      ]),
+    ).toEqual(["duplicate-1", "duplicate-2"]);
   });
 });

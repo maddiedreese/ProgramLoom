@@ -204,6 +204,10 @@ export function defaultCrmSegmentType(selectedCount: number) {
   return selectedCount > 0 ? "curated" : "dynamic";
 }
 
+export function duplicateContactIds(duplicates: Array<{ id: string }>) {
+  return [...new Set(duplicates.map((duplicate) => duplicate.id))];
+}
+
 export function resolveCrmOrganization(
   organizations: Array<{ id: string }>,
   queryOrganization: string | null,
@@ -696,8 +700,10 @@ export function CRMPage({ user }: { user: User }) {
                   }),
                 "Reusable segment saved.",
               )
-            )
+            ) {
               setModal(undefined);
+              setActiveTab("segments");
+            }
           }}
         />
       )}
@@ -745,6 +751,7 @@ export function CRMPage({ user }: { user: User }) {
                 recipient_count: selected.length,
               });
               setModal(undefined);
+              setActiveTab("history");
             }
           }}
         />
@@ -839,18 +846,18 @@ export function CRMPage({ user }: { user: User }) {
             );
             if (ok) await openContact(contactId);
           }}
-          merge={async (primaryId, duplicateId) => {
+          merge={async (primaryId, duplicateIds) => {
             const ok = await mutate(
               () =>
                 api(`/api/crm/organizations/${organizationId}/merge`, {
                   method: "POST",
                   body: JSON.stringify({
                     primaryId,
-                    duplicateIds: [duplicateId],
+                    duplicateIds,
                     preferred: {},
                   }),
                 }),
-              "Duplicate merged permanently into the primary contact.",
+              `${duplicateIds.length} duplicate record${duplicateIds.length === 1 ? "" : "s"} merged permanently into the primary contact.`,
             );
             if (ok) await openContact(primaryId);
           }}
@@ -2576,7 +2583,7 @@ function ContactModal({
   close: () => void;
   save: (id: string, payload: Record<string, unknown>) => void;
   addNote: (id: string, body: string) => void;
-  merge: (primaryId: string, duplicateId: string) => void;
+  merge: (primaryId: string, duplicateIds: string[]) => void;
   handoff: (id: string, eventId: string) => void;
 }) {
   const contact = data.contact as Contact;
@@ -2629,14 +2636,21 @@ function ContactModal({
           <span>
             <strong>Possible duplicate found</strong>
             <small>
-              Same name, different email. Compare and merge into this primary
+              {duplicates.length} record
+              {duplicates.length === 1 ? " has" : "s have"} the same name with a
+              different email. Compare and merge{" "}
+              {duplicates.length === 1 ? "it" : "them"} into this primary
               record.
             </small>
           </span>
           <button
             onClick={() => {
-              if (confirm("Merge permanently? This cannot be undone."))
-                merge(contact.id, duplicates[0].id);
+              if (
+                confirm(
+                  `Merge ${duplicates.length} duplicate record${duplicates.length === 1 ? "" : "s"} permanently into this primary contact? This cannot be undone.`,
+                )
+              )
+                merge(contact.id, duplicateContactIds(duplicates));
             }}
           >
             Compare & merge

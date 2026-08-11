@@ -750,6 +750,9 @@ function SpeakerPortal({
                   {file.filename && (
                     <button
                       className="button button-ghost button-small"
+                      aria-label={`Open versions and comments for ${file.purpose}${
+                        file.sessionTitle ? ` — ${file.sessionTitle}` : ""
+                      }`}
                       onClick={() => openFile(file)}
                     >
                       <MessageSquare size={14} /> Versions & comments
@@ -761,6 +764,11 @@ function SpeakerPortal({
                     <input
                       className="sr-only"
                       type="file"
+                      aria-label={`${
+                        file.filename ? "Upload new version" : "Upload file"
+                      } for ${file.purpose}${
+                        file.sessionTitle ? ` — ${file.sessionTitle}` : ""
+                      }`}
                       accept=".pdf,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
                       onChange={(event) => {
                         const chosen = event.target.files?.[0];
