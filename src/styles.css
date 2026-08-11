@@ -4485,8 +4485,17 @@ input {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.configurable-row > button {
+.configurable-row > button,
+.configurable-row [role="cell"] > button {
+  width: 100%;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .configurable-row:not(.configurable-head):hover {
   background: #f7f4eb;

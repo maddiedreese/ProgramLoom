@@ -1150,21 +1150,30 @@ export function SubmissionWorkspaceGrid({
               />
             </span>
             {visibleColumns.map((column) => (
-              <button
-                role="cell"
-                key={column.id}
-                onClick={() => onOpen(row.id)}
-                title={String(cell(row, column.id))}
-              >
-                {cell(row, column.id)}
-              </button>
+              <span role="cell" key={column.id}>
+                <button
+                  onClick={() => onOpen(row.id)}
+                  aria-label={`${
+                    labels[column.id] ??
+                    meta?.fields.find(
+                      (field) => `field:${field.id}` === column.id,
+                    )?.label ??
+                    column.id
+                  }: ${String(cell(row, column.id) || "Not provided")}`}
+                  title={String(cell(row, column.id) || "Not provided")}
+                >
+                  {cell(row, column.id) || "—"}
+                </button>
+              </span>
             ))}
-            <button
-              aria-label={`Open submission: ${row.title}`}
-              onClick={() => onOpen(row.id)}
-            >
-              Open submission
-            </button>
+            <span role="cell">
+              <button
+                aria-label={`Open submission: ${row.title}`}
+                onClick={() => onOpen(row.id)}
+              >
+                Open submission
+              </button>
+            </span>
           </div>
         ))}
         {!loading && !rows.length && (
