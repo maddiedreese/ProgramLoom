@@ -16,7 +16,14 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { Fragment, type FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  type FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
@@ -80,6 +87,7 @@ type ReviewDetail = {
   roundId: string;
   submissionId: string;
   assignmentId: string;
+  reviewerUserId: string;
   reviewerName: string;
   reviewerEmail: string;
   answers: Record<string, unknown>;
@@ -265,6 +273,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     kind: "error" | "success";
     message: string;
   }>();
+  const feedbackRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [resultSort, setResultSort] = useState<"desc" | "asc">("desc");
   const [aiAssessment, setAiAssessment] = useState<{
@@ -285,6 +294,16 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       ),
     [reviewerPools, selectedRoundId],
   );
+  useEffect(() => {
+    if (!feedback) return;
+    window.requestAnimationFrame(() => {
+      feedbackRef.current?.scrollIntoView?.({
+        behavior: "smooth",
+        block: "center",
+      });
+      feedbackRef.current?.focus({ preventScroll: true });
+    });
+  }, [feedback]);
   async function load(preferred?: string) {
     const [config, intake] = await Promise.all([
       api<{
@@ -686,7 +705,12 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       </header>
       <EventPageGuide eventId={eventId} surface="reviews" />
       {feedback && (
-        <div className={`form-status form-status-${feedback.kind}`}>
+        <div
+          ref={feedbackRef}
+          className={`form-status form-status-${feedback.kind}`}
+          role={feedback.kind === "error" ? "alert" : "status"}
+          tabIndex={-1}
+        >
           {feedback.message}
         </div>
       )}
@@ -1051,26 +1075,46 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     </div>
                     <div>
                       <h4>Reviewers</h4>
-                      {assignableReviewers.map((reviewer) => (
-                        <label className="assignment-choice" key={reviewer.id}>
-                          <input
-                            type="checkbox"
-                            name="reviewerUserId"
-                            value={reviewer.id}
-                            aria-label={`Select reviewer for assignment: ${reviewer.name}`}
-                          />
-                          <span>
-                            <strong>{reviewer.name}</strong>
-                            <small>
-                              {reviewerCapacity.has(reviewer.id)
-                                ? `Capacity ${reviewerCapacity.get(reviewer.id)} · `
-                                : ""}
-                              {reviewer.completedCount}/
-                              {reviewer.assignmentCount} complete
-                            </small>
-                          </span>
-                        </label>
-                      ))}
+                      {assignableReviewers.map((reviewer) => {
+                        const progress = activePool.find(
+                          (entry) => entry.reviewerUserId === reviewer.id,
+                        );
+                        const roundAssignments = reviewDetails.filter(
+                          (detail) =>
+                            detail.roundId === selected.id &&
+                            detail.reviewerUserId === reviewer.id,
+                        );
+                        const assignmentCount =
+                          progress?.assignmentCount ?? roundAssignments.length;
+                        const completedCount =
+                          progress?.completedCount ??
+                          roundAssignments.filter(
+                            (detail) => detail.submittedAt,
+                          ).length;
+                        return (
+                          <label
+                            className="assignment-choice"
+                            key={reviewer.id}
+                          >
+                            <input
+                              type="checkbox"
+                              name="reviewerUserId"
+                              value={reviewer.id}
+                              aria-label={`Select reviewer for assignment: ${reviewer.name}`}
+                            />
+                            <span>
+                              <strong>{reviewer.name}</strong>
+                              <small>
+                                {reviewerCapacity.has(reviewer.id)
+                                  ? `Capacity ${reviewerCapacity.get(reviewer.id)} · `
+                                  : ""}
+                                {completedCount}/{assignmentCount} complete in{" "}
+                                {selected.name}
+                              </small>
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : (
@@ -1120,7 +1164,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 </div>
                 <div className="inline-actions">
                   <label>
-                    Sort aggregate score
+                    Sort weighted aggregate score
                     <select
                       value={resultSort}
                       onChange={(event) =>
@@ -1143,14 +1187,23 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     const progress = activePool.find(
                       (entry) => entry.reviewerUserId === reviewer.id,
                     );
+                    const roundAssignments = reviewDetails.filter(
+                      (detail) =>
+                        detail.roundId === selected.id &&
+                        detail.reviewerUserId === reviewer.id,
+                    );
+                    const assignmentCount =
+                      progress?.assignmentCount ?? roundAssignments.length;
+                    const completedCount =
+                      progress?.completedCount ??
+                      roundAssignments.filter((detail) => detail.submittedAt)
+                        .length;
                     return (
                       <article key={reviewer.id}>
                         <strong>{reviewer.name}</strong>
                         <span>
-                          {progress?.completedCount ?? reviewer.completedCount}/
-                          {progress?.assignmentCount ??
-                            reviewer.assignmentCount}{" "}
-                          complete
+                          {completedCount}/{assignmentCount} complete in{" "}
+                          {selected.name}
                         </span>
                         {progress && (
                           <small>Capacity {progress.capacity}</small>
@@ -1172,7 +1225,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                         <tr>
                           <th>Submission</th>
                           <th>Progress</th>
-                          <th>Aggregate score</th>
+                          <th>Weighted aggregate score</th>
                         </tr>
                       </thead>
                       <tbody>

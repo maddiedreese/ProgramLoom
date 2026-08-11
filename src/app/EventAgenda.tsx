@@ -16,7 +16,7 @@ import {
   Trash2,
   UsersRound,
 } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
@@ -175,6 +175,7 @@ export function EventAgenda({ user }: { user: User }) {
     kind: "error" | "success";
     message: string;
   }>();
+  const feedbackRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     const result = await api<{
@@ -205,6 +206,16 @@ export function EventAgenda({ user }: { user: User }) {
     target?.scrollIntoView({ block: "center" });
     target?.focus({ preventScroll: true });
   }, [items]);
+  useEffect(() => {
+    if (!feedback) return;
+    window.requestAnimationFrame(() => {
+      feedbackRef.current?.scrollIntoView?.({
+        behavior: "smooth",
+        block: "center",
+      });
+      feedbackRef.current?.focus({ preventScroll: true });
+    });
+  }, [feedback]);
 
   async function act(operation: () => Promise<unknown>, message: string) {
     setBusy(true);
@@ -531,7 +542,12 @@ export function EventAgenda({ user }: { user: User }) {
         </header>
         <EventPageGuide eventId={eventId} surface="agenda" />
         {feedback && (
-          <div className={`form-status form-status-${feedback.kind}`}>
+          <div
+            ref={feedbackRef}
+            className={`form-status form-status-${feedback.kind}`}
+            role={feedback.kind === "error" ? "alert" : "status"}
+            tabIndex={-1}
+          >
             {feedback.message}
           </div>
         )}

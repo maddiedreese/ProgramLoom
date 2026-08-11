@@ -255,7 +255,7 @@ router.get("/events/:eventId", async (context) => {
   const reviewDetails = await db
     .prepare(
       `SELECT ra.round_id AS roundId,ra.submission_id AS submissionId,ra.id AS assignmentId,
-              u.name AS reviewerName,u.email AS reviewerEmail,rv.answers_json AS answersJson,
+              u.id AS reviewerUserId,u.name AS reviewerName,u.email AS reviewerEmail,rv.answers_json AS answersJson,
               rv.weighted_score AS weightedScore,rv.recommendation,rv.comment,
               rv.submitted_at AS submittedAt
        FROM review_assignments ra

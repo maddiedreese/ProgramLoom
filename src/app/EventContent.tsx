@@ -21,7 +21,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
@@ -182,6 +182,7 @@ export function EventContent({ user }: { user: User }) {
     kind: "error" | "success";
     message: string;
   }>();
+  const feedbackRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     const access = await api<{ event: EventRecord; role: string }>(
@@ -212,6 +213,16 @@ export function EventContent({ user }: { user: User }) {
       )
       .finally(() => setLoading(false));
   }, [eventId]);
+  useEffect(() => {
+    if (!feedback || editingSession || editingSpeaker) return;
+    window.requestAnimationFrame(() => {
+      feedbackRef.current?.scrollIntoView?.({
+        behavior: "smooth",
+        block: "center",
+      });
+      feedbackRef.current?.focus({ preventScroll: true });
+    });
+  }, [editingSession, editingSpeaker, feedback, selectedFile]);
 
   const visibleAssignments = useMemo(
     () =>
@@ -233,13 +244,19 @@ export function EventContent({ user }: { user: User }) {
     ...new Map(assignments.map((item) => [item.taskId, item.title])).entries(),
   ];
 
-  async function run(action: () => Promise<void>, success: string) {
+  async function run<T>(
+    action: () => Promise<T>,
+    success: string | ((result: T) => string),
+  ) {
     setBusy(true);
     setFeedback(undefined);
     try {
-      await action();
+      const result = await action();
       await load();
-      setFeedback({ kind: "success", message: success });
+      setFeedback({
+        kind: "success",
+        message: typeof success === "function" ? success(result) : success,
+      });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -291,17 +308,15 @@ export function EventContent({ user }: { user: User }) {
     }, "File request assigned to all accepted speakers.");
   }
   async function sendReminders() {
-    await run(async () => {
-      const result = await api<{
-        queued: number;
-        prepared: number;
-        attempted: number;
-      }>(`/api/content/admin/events/${eventId}/reminders`, { method: "POST" });
-      setFeedback({
-        kind: "success",
-        message: `${result.queued} of ${result.attempted} reminders queued${result.prepared ? `; ${result.prepared} remain prepared for retry in Communications` : ""}.`,
-      });
-    }, "Reminders processed.");
+    await run(
+      () =>
+        api<{ queued: number; prepared: number; attempted: number }>(
+          `/api/content/admin/events/${eventId}/reminders`,
+          { method: "POST" },
+        ),
+      (result) =>
+        `${result.queued} of ${result.attempted} reminders queued${result.prepared ? `; ${result.prepared} remain prepared for retry in Communications` : ""}. Open Communications to monitor delivery.`,
+    );
   }
   async function openSession(session: Session) {
     setEditingSession(session);
@@ -465,17 +480,18 @@ export function EventContent({ user }: { user: User }) {
     }, "Reply added to the file thread.");
   }
   async function share(file: ContentFile) {
-    await run(async () => {
-      const result = await api<{ shareUrl: string; expiresAt: string }>(
-        `/api/content/admin/events/${eventId}/files/${file.id}/share`,
-        { method: "POST" },
-      );
-      await navigator.clipboard?.writeText(result.shareUrl);
-      setFeedback({
-        kind: "success",
-        message: `Secure link copied. It expires ${new Date(result.expiresAt).toLocaleDateString()}.`,
-      });
-    }, "Share link created.");
+    await run(
+      async () => {
+        const result = await api<{ shareUrl: string; expiresAt: string }>(
+          `/api/content/admin/events/${eventId}/files/${file.id}/share`,
+          { method: "POST" },
+        );
+        await navigator.clipboard?.writeText(result.shareUrl);
+        return result;
+      },
+      (result) =>
+        `Secure share link copied. It expires ${new Date(result.expiresAt).toLocaleDateString()}.`,
+    );
   }
   async function generateExport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -556,10 +572,12 @@ export function EventContent({ user }: { user: User }) {
           </label>
         </header>
         <EventPageGuide eventId={eventId} surface="content" />
-        {feedback && (
+        {feedback && !selectedFile && (
           <div
+            ref={feedbackRef}
             className={`form-status form-status-${feedback.kind}`}
             role={feedback.kind === "error" ? "alert" : "status"}
+            tabIndex={-1}
           >
             {feedback.message}
           </div>
@@ -1111,6 +1129,16 @@ export function EventContent({ user }: { user: User }) {
                 <X size={16} /> Close file details
               </button>
             </header>
+            {feedback && (
+              <div
+                ref={feedbackRef}
+                className={`form-status form-status-${feedback.kind}`}
+                role={feedback.kind === "error" ? "alert" : "status"}
+                tabIndex={-1}
+              >
+                {feedback.message}
+              </div>
+            )}
             <section className="revision-list">
               <h3>
                 <History size={17} /> File versions
@@ -1160,7 +1188,7 @@ export function EventContent({ user }: { user: User }) {
                   />
                 </label>
                 <button className="button button-small" disabled={busy}>
-                  Add reply
+                  {busy ? "Adding reply…" : "Add reply"}
                 </button>
               </form>
             </section>

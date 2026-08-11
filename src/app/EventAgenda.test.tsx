@@ -17,6 +17,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("agenda calendar lifecycle controls", () => {
   it("confirms cancellation and requires the explicit reschedule operation", async () => {
     const requests: Array<{ path: string; init?: RequestInit }> = [];
+    let rejectNextPlacement = false;
     vi.stubGlobal(
       "confirm",
       vi.fn(() => true),
@@ -26,6 +27,22 @@ describe("agenda calendar lifecycle controls", () => {
       vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input);
         requests.push({ path, init });
+        if (rejectNextPlacement && init?.method === "PATCH") {
+          rejectNextPlacement = false;
+          return Promise.resolve(
+            Response.json(
+              {
+                conflicts: [
+                  {
+                    message:
+                      "Room conflict: Main stage is already occupied at that time.",
+                  },
+                ],
+              },
+              { status: 409 },
+            ),
+          );
+        }
         if (path === `/api/agenda/admin/events/${eventId}`)
           return Promise.resolve(
             Response.json({
@@ -217,5 +234,15 @@ describe("agenda calendar lifecycle controls", () => {
         roomId: "20000000-0000-4000-8000-000000000001",
       });
     });
+
+    rejectNextPlacement = true;
+    const activeForm = document.getElementById(
+      "agenda-placement-30000000-0000-4000-8000-000000000001",
+    ) as HTMLFormElement;
+    fireEvent.submit(activeForm);
+
+    const conflict = await screen.findByRole("alert");
+    expect(conflict).toHaveTextContent("Room conflict");
+    await waitFor(() => expect(conflict).toHaveFocus());
   });
 });

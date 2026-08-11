@@ -193,7 +193,9 @@ describe("reviewer workspace", () => {
       screen.getByText("Jan 10, 2027–Jan 20, 2027 · 0 criteria"),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Create round" })).toBeEnabled();
-    expect(screen.getByLabelText("Sort aggregate score")).toBeVisible();
+    expect(
+      screen.getByLabelText("Sort weighted aggregate score"),
+    ).toBeVisible();
     expect(
       screen.getByRole("link", { name: "Export review results CSV" }),
     ).toHaveAttribute(
