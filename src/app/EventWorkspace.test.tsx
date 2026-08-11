@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EventWorkspace } from "./EventWorkspace";
+import { EventWorkspace, normalizeCfpDeadlines } from "./EventWorkspace";
 
 const eventId = "10000000-0000-4000-8000-000000000001";
 const event = {
@@ -21,6 +21,18 @@ const event = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("EventWorkspace", () => {
+  it("keeps proposal editing valid when an organizer reopens a CFP", () => {
+    expect(
+      normalizeCfpDeadlines(
+        "2027-04-30T23:59:00.000Z",
+        "2027-04-04T23:59:00.000Z",
+      ),
+    ).toEqual({
+      closesAt: "2027-04-30T23:59:00.000Z",
+      editClosesAt: "2027-04-30T23:59:00.000Z",
+    });
+  });
+
   it("keeps the form element across the async create request", async () => {
     let forms: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn(

@@ -124,6 +124,9 @@ describe("speaker workspace", () => {
     expect(
       screen.getByRole("button", { name: "Mark complete" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "View my submissions" }),
+    ).toHaveAttribute("href", "/app#my-proposals-title");
   });
 
   it("makes speaker import, status filtering, and durable status changes explicit", async () => {

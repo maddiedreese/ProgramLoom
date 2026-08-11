@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventCommunications } from "./EventCommunications";
@@ -70,7 +70,11 @@ describe("EventCommunications", () => {
   });
 
   it("makes recipient preview and decision delivery explicit", async () => {
-    window.history.replaceState({}, "", "/?category=decision");
+    window.history.replaceState(
+      {},
+      "",
+      "/?compose=1&category=decision_acceptance&entity=proposal-1",
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -95,7 +99,7 @@ describe("EventCommunications", () => {
           templates: [
             {
               id: "decision-template",
-              category: "decision",
+              category: "decision_acceptance",
               name: "Decision",
               subject: "Your {{event.name}} decision",
               bodyHtml: "<p>Hello {{recipient.name}}</p>",
@@ -125,13 +129,21 @@ describe("EventCommunications", () => {
         </Routes>
       </MemoryRouter>,
     );
-    fireEvent.click(await screen.findByRole("tab", { name: /compose/i }));
+    expect(
+      await screen.findByRole("tab", { name: /compose/i }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      await screen.findByRole("option", { name: "Acceptance decisions" }),
+    ).toBeVisible();
     expect(
       await screen.findByRole("button", { name: "Preview recipients" }),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Send decision" })).toBeVisible();
     expect(
       screen.getByRole("radio", { name: /send after confirmation/i }),
+    ).toBeChecked();
+    expect(
+      await screen.findByRole("checkbox", { name: /Priya Raman/i }),
     ).toBeChecked();
   });
 });

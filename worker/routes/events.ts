@@ -1418,7 +1418,7 @@ router.patch(
               severity: "warning",
               title: "A staged decision is awaiting communication",
               body: "Review the recipient and message before sending the decision.",
-              actionUrl: `/app/events/${eventId}/communications?category=decision`,
+              actionUrl: `/app/events/${eventId}/communications?compose=1&category=${state === "acceptance_staged" ? "decision_acceptance" : state === "waitlist_staged" ? "decision_waitlist" : "decision_rejection"}&entity=${submissionId}`,
               entityType: "submission",
               entityId: submissionId,
               coalesceKey: `decision-awaiting:${submissionId}`,

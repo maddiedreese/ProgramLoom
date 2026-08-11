@@ -90,6 +90,10 @@ const categoryLabels: Record<string, string> = {
   crm_outreach: "CRM outreach",
 };
 
+function isDecisionCategory(category: string) {
+  return category === "decision" || category.startsWith("decision_");
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -115,6 +119,7 @@ export function EventCommunications({ user }: { user: User }) {
     [],
   );
   const requestedMessageId = initialQuery.get("message") ?? "";
+  const requestedEntityId = initialQuery.get("entity") ?? "";
   const submissionBulk = useMemo(
     () =>
       new URLSearchParams(window.location.search).get("submissionBulk") ?? "",
@@ -220,7 +225,22 @@ export function EventCommunications({ user }: { user: User }) {
     )
       .then(async (result) => {
         if (!submissionBulk) {
-          if (!cancelled) setRecipients(result.recipients);
+          if (!cancelled) {
+            setRecipients(result.recipients);
+            const requested = requestedEntityId
+              ? result.recipients.find(
+                  (recipient) => recipient.entityId === requestedEntityId,
+                )
+              : undefined;
+            if (requested) {
+              setSelectedRecipients([requested.key]);
+              setTab("compose");
+              setFeedback({
+                kind: "success",
+                message: `Selected ${requested.name}. Preview the rendered decision before sending.`,
+              });
+            }
+          }
           return;
         }
         const handoff = await api<{
@@ -261,7 +281,7 @@ export function EventCommunications({ user }: { user: User }) {
     return () => {
       cancelled = true;
     };
-  }, [eventId, selectedTemplate?.category, submissionBulk]);
+  }, [eventId, requestedEntityId, selectedTemplate?.category, submissionBulk]);
 
   const selectedRecipient = recipients.find((recipient) =>
     selectedRecipients.includes(recipient.key),
@@ -876,7 +896,7 @@ export function EventCommunications({ user }: { user: User }) {
                     .filter((template) => template.enabled)
                     .map((template) => (
                       <option value={template.id} key={template.id}>
-                        {categoryLabels[template.category]} · {template.name}
+                        {categoryLabels[template.category]}
                       </option>
                     ))}
                 </select>
@@ -949,7 +969,9 @@ export function EventCommunications({ user }: { user: User }) {
                     type="radio"
                     name="delivery"
                     value="prepared"
-                    defaultChecked={selectedTemplate.category !== "decision"}
+                    defaultChecked={
+                      !isDecisionCategory(selectedTemplate.category)
+                    }
                   />{" "}
                   <span>
                     <strong>Prepare without sending</strong>
@@ -963,7 +985,9 @@ export function EventCommunications({ user }: { user: User }) {
                     type="radio"
                     name="delivery"
                     value="now"
-                    defaultChecked={selectedTemplate.category === "decision"}
+                    defaultChecked={isDecisionCategory(
+                      selectedTemplate.category,
+                    )}
                   />{" "}
                   <span>
                     <strong>Send after confirmation</strong>
@@ -1009,7 +1033,7 @@ export function EventCommunications({ user }: { user: User }) {
                   disabled={!selectedRecipients.length || busy}
                 >
                   <Send size={16} />{" "}
-                  {selectedTemplate.category === "decision"
+                  {isDecisionCategory(selectedTemplate.category)
                     ? "Send decision"
                     : "Review and confirm delivery"}
                 </button>

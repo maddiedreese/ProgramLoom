@@ -79,6 +79,14 @@ type AiAssessment = {
   overriddenByName: string | null;
 };
 
+function decisionCommunicationCategory(state: string) {
+  return state === "acceptance_staged"
+    ? "decision_acceptance"
+    : state === "waitlist_staged"
+      ? "decision_waitlist"
+      : "decision_rejection";
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -410,7 +418,7 @@ export function EventSubmissions({ user }: { user: User }) {
                 </span>
                 <a
                   className="button button-small"
-                  href={`/app/events/${eventId}/communications?category=decision`}
+                  href={`/app/events/${eventId}/communications?compose=1&category=${decisionCommunicationCategory(selected.decisionState)}&entity=${selected.id}`}
                 >
                   Preview recipients and send decision
                 </a>

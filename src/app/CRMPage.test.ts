@@ -3,6 +3,7 @@ import {
   canSaveCrmSegment,
   defaultCrmSegmentType,
   reconcileCrmSelection,
+  resolveCrmOrganization,
   resolveHandoffContacts,
 } from "./CRMPage";
 
@@ -38,5 +39,13 @@ describe("CRM segment availability", () => {
     expect(resolveHandoffContacts(contacts, ["contact-2"])).toEqual([
       { id: "contact-2" },
     ]);
+  });
+
+  it("uses the target event workspace for speaker handoff", () => {
+    const organizations = [{ id: "other" }, { id: "event-workspace" }];
+    expect(resolveCrmOrganization(organizations, null, "event-workspace")).toBe(
+      "event-workspace",
+    );
+    expect(resolveCrmOrganization(organizations, "other", null)).toBe("other");
   });
 });

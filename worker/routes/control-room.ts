@@ -57,7 +57,8 @@ export const issuesSql = `
     SELECT 1 FROM review_assignments ra WHERE ra.submission_id=s.id AND ra.completed_at IS NOT NULL)
   UNION ALL
   SELECT 'decisions_uncommunicated','submission',s.id,s.title,'Decision staged but not communicated','blocking',s.decision_state,
-    NULL,COALESCE(s.decision_staged_at,s.updated_at),'/app/events/'||s.event_id||'/communications?entity='||s.id,
+    NULL,COALESCE(s.decision_staged_at,s.updated_at),'/app/events/'||s.event_id||'/communications?compose=1&category='||
+      CASE s.decision_state WHEN 'acceptance_staged' THEN 'decision_acceptance' WHEN 'waitlist_staged' THEN 'decision_waitlist' ELSE 'decision_rejection' END||'&entity='||s.id,
     (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1)
   FROM submissions s LEFT JOIN communication_messages cm ON cm.id=s.decision_message_id
   WHERE s.event_id=?1 AND s.decision_state IN ('acceptance_staged','waitlist_staged','rejection_staged')

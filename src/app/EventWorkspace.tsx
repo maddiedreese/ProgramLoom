@@ -108,6 +108,19 @@ function toLocalInput(value: string | null) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
+export function normalizeCfpDeadlines(
+  closesAt: string | null,
+  editClosesAt: string | null,
+) {
+  return {
+    closesAt,
+    editClosesAt:
+      closesAt && (!editClosesAt || editClosesAt < closesAt)
+        ? closesAt
+        : editClosesAt,
+  };
+}
+
 export function EventWorkspace({ user }: { user: User }) {
   const { eventId = "" } = useParams();
   const requestedFormId = new URLSearchParams(window.location.search).get(
@@ -364,7 +377,7 @@ export function EventWorkspace({ user }: { user: User }) {
     const iso = (key: string) =>
       data.get(key) ? new Date(String(data.get(key))).toISOString() : null;
     const closesAt = iso("closesAt");
-    const editClosesAt = iso("editClosesAt");
+    const deadlines = normalizeCfpDeadlines(closesAt, iso("editClosesAt"));
     try {
       const result = await api<{ form: CfpForm }>(
         `/api/events/${eventId}/forms/${selectedId}`,
@@ -375,8 +388,8 @@ export function EventWorkspace({ user }: { user: User }) {
             slug: data.get("slug"),
             description: data.get("description"),
             opensAt: iso("opensAt"),
-            closesAt,
-            editClosesAt,
+            closesAt: deadlines.closesAt,
+            editClosesAt: deadlines.editClosesAt,
             allowDrafts: data.get("allowDrafts") === "on",
             submissionLimit: data.get("submissionLimit")
               ? Number(data.get("submissionLimit"))

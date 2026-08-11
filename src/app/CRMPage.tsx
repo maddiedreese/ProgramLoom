@@ -204,6 +204,18 @@ export function defaultCrmSegmentType(selectedCount: number) {
   return selectedCount > 0 ? "curated" : "dynamic";
 }
 
+export function resolveCrmOrganization(
+  organizations: Array<{ id: string }>,
+  queryOrganization: string | null,
+  eventOrganization: string | null,
+) {
+  return organizations.some((item) => item.id === eventOrganization)
+    ? eventOrganization!
+    : organizations.some((item) => item.id === queryOrganization)
+      ? queryOrganization!
+      : (organizations[0]?.id ?? "");
+}
+
 export function CRMPage({ user }: { user: User }) {
   const initialQuery = new URLSearchParams(window.location.search);
   const addSpeakerEventId = initialQuery.get("eventId") ?? "";
@@ -268,16 +280,25 @@ export function CRMPage({ user }: { user: User }) {
   );
 
   useEffect(() => {
-    api<{ organizations: Organization[] }>("/api/organizations")
-      .then(({ organizations: items }) => {
+    Promise.all([
+      api<{ organizations: Organization[] }>("/api/organizations"),
+      addSpeakerEventId
+        ? api<{ event: { organizationId: string } }>(
+            `/api/events/${addSpeakerEventId}`,
+          )
+        : Promise.resolve(undefined),
+    ])
+      .then(([{ organizations: items }, targetEvent]) => {
         setOrganizations(items);
         const queryOrganization = new URLSearchParams(
           window.location.search,
         ).get("organization");
         setOrganizationId(
-          items.some((item) => item.id === queryOrganization)
-            ? queryOrganization!
-            : (items[0]?.id ?? ""),
+          resolveCrmOrganization(
+            items,
+            queryOrganization,
+            targetEvent?.event.organizationId ?? null,
+          ),
         );
       })
       .catch((error: Error) =>

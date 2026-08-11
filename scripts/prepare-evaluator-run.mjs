@@ -128,6 +128,27 @@ try {
   const event = created.event;
   createdEvent = event;
 
+  const fixtureTracks = [
+    "AI Engineering",
+    "Platform & Infra",
+    "Developer Experience",
+  ];
+  let trackWorkspace = await api(`/api/events/${event.id}/tracks`);
+  for (const name of fixtureTracks) {
+    if (trackWorkspace.tracks.some((track) => track.name === name)) continue;
+    await api(`/api/events/${event.id}/tracks`, {
+      method: "POST",
+      body: { name, color: "#315c45" },
+    });
+  }
+  trackWorkspace = await api(`/api/events/${event.id}/tracks`);
+  if (
+    fixtureTracks.some(
+      (name) => !trackWorkspace.tracks.some((track) => track.name === name),
+    )
+  )
+    throw new Error("The isolated event is missing a fixture track.");
+
   const wrangler = resolve(workspace, "node_modules/.bin/wrangler");
   const membershipSql = `
 INSERT OR IGNORE INTO event_members(event_id,user_id,role,invited_by)
@@ -267,6 +288,25 @@ WHERE email=${quote(process.env.PROGRAMLOOM_REVIEWER_EMAIL)} COLLATE NOCASE;`;
   const { forms } = await api(`/api/events/${event.id}/forms`);
   if (forms.length !== 1)
     throw new Error(`Expected exactly one CFP form; found ${forms.length}.`);
+  const formDefinition = await api(
+    `/api/events/${event.id}/forms/${forms[0].id}`,
+  );
+  const formatField = formDefinition.fields.find(
+    (field) => field.fieldKey === "format",
+  );
+  if (!formatField)
+    throw new Error("The isolated CFP is missing its format field.");
+  const fixtureFormats = [
+    "Keynote (45 min)",
+    "Talk (30 min)",
+    "Lightning Talk (10 min)",
+    "Workshop (120 min)",
+    "Panel (45 min)",
+  ];
+  await api(
+    `/api/events/${event.id}/forms/${forms[0].id}/fields/${formatField.id}`,
+    { method: "PATCH", body: { options: fixtureFormats } },
+  );
   if (forms[0].publishedAt) {
     await api(`/api/events/${event.id}/forms/${forms[0].id}`, {
       method: "PATCH",
@@ -307,6 +347,8 @@ WHERE email=${quote(process.env.PROGRAMLOOM_REVIEWER_EMAIL)} COLLATE NOCASE;`;
       reviewRoundName: "CFP Review",
       reviewAssignments: 0,
       widgetConfigs: 5,
+      fixtureTracks,
+      fixtureFormats,
       startsAt: target.startsAt,
       endsAt: target.endsAt,
       timezone: target.timezone,

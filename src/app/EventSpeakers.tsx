@@ -484,6 +484,24 @@ function SpeakerPortal({
         <div className="portal-grid">
           <section className="portal-card">
             <div className="portal-card-title">
+              <FileInput size={20} />
+              <div>
+                <h2>Your proposals and decisions</h2>
+                <p>
+                  Track every draft, submitted proposal, and organizer decision.
+                </p>
+              </div>
+            </div>
+            <p>
+              Proposal editing follows each call for proposals deadline. Final
+              decisions appear here as soon as organizers communicate them.
+            </p>
+            <a className="button button-small" href="/app#my-proposals-title">
+              View my submissions
+            </a>
+          </section>
+          <section className="portal-card">
+            <div className="portal-card-title">
               <CheckCircle2 size={20} />
               <div>
                 <h2>Onboarding</h2>
