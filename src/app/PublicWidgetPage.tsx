@@ -138,6 +138,7 @@ export function PublicWidgetPage() {
   const [expandedSession, setExpandedSession] = useState<string>();
   const [expandedSpeaker, setExpandedSpeaker] = useState<string>();
   const [showPersonalSchedule, setShowPersonalSchedule] = useState(false);
+  const [exportFeedback, setExportFeedback] = useState("");
   const [saved, setSaved] = useState<string[]>(() => {
     try {
       return JSON.parse(
@@ -231,6 +232,9 @@ export function PublicWidgetPage() {
     link.download = `${data.event.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-itinerary.ics`;
     link.click();
     URL.revokeObjectURL(url);
+    setExportFeedback(
+      `ICS exported with ${items.length} ${items.length === 1 ? "session" : "sessions"}. Your saved itinerary is unchanged.`,
+    );
   }
   if (error)
     return (
@@ -597,6 +601,11 @@ export function PublicWidgetPage() {
               </button>
             </div>
           </div>
+          {exportFeedback && (
+            <p className="widget-export-feedback" role="status">
+              {exportFeedback}
+            </p>
+          )}
           <AgendaGrid
             items={
               showPersonalSchedule

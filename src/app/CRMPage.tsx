@@ -2558,6 +2558,20 @@ function ContactModal({
   const [tab, setTab] = useState<
     "profile" | "notes" | "connections" | "activity"
   >("profile");
+  const contactTabs = [
+    { id: "profile", label: "Profile" },
+    { id: "notes", label: "Internal notes", count: notes.length },
+    {
+      id: "connections",
+      label: "Events & sessions",
+      count: connections.length + sessions.length,
+    },
+    {
+      id: "activity",
+      label: "Activity & email",
+      count: activity.length + emails.length,
+    },
+  ] as const;
   return (
     <Modal
       title={`${contact.firstName} ${contact.lastName}`}
@@ -2566,13 +2580,15 @@ function ContactModal({
       wide
     >
       <div className="contact-profile-tabs">
-        {["profile", "notes", "connections", "activity"].map((item) => (
+        {contactTabs.map((item) => (
           <button
-            className={tab === item ? "active" : ""}
-            key={item}
-            onClick={() => setTab(item as typeof tab)}
+            type="button"
+            className={tab === item.id ? "active" : ""}
+            key={item.id}
+            onClick={() => setTab(item.id)}
           >
-            {item}
+            {item.label}
+            {"count" in item ? ` (${item.count})` : ""}
           </button>
         ))}
       </div>

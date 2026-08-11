@@ -6931,6 +6931,14 @@ input {
   justify-content: flex-end;
   gap: 7px;
 }
+.widget-export-feedback {
+  margin: -4px 0 13px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--widget-color);
+  background: color-mix(in srgb, var(--widget-color) 8%, transparent);
+  font-size: 10px;
+  line-height: 1.45;
+}
 .itinerary-heading button.active {
   background: color-mix(in srgb, var(--widget-color) 12%, transparent);
 }

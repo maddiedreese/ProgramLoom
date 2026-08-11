@@ -99,7 +99,10 @@ const payload = {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(URL, "createObjectURL");
+  Reflect.deleteProperty(URL, "revokeObjectURL");
   localStorage.clear();
 });
 
@@ -227,6 +230,17 @@ describe("public widgets", () => {
   });
 
   it("uses polished singular itinerary copy", async () => {
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:itinerary"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      () => undefined,
+    );
     localStorage.setItem(
       "programloom-itinerary:agenda-test",
       JSON.stringify(["agenda-1"]),
@@ -241,5 +255,9 @@ describe("public widgets", () => {
           ),
       ),
     ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Export my ICS" }));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "ICS exported with 1 session. Your saved itinerary is unchanged.",
+    );
   });
 });
