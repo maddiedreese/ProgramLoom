@@ -71,10 +71,14 @@ export const issuesSql = `
   FROM communication_messages cm WHERE cm.event_id=?1 AND cm.status IN ('prepared','queued','processing','failed','bounced')
   UNION ALL
   SELECT 'portal_access','speaker',sp.id,TRIM(sp.first_name||' '||sp.last_name),'Accepted speaker has no active portal access',
-    'blocking',sp.portal_status,NULL,sp.updated_at,'/app/events/'||s.event_id||'/speakers?speaker='||sp.id,
-    (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1)
-  FROM submissions s JOIN session_speakers ss ON ss.submission_id=s.id JOIN speaker_profiles sp ON sp.id=ss.speaker_id
-  WHERE s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted' AND (sp.user_id IS NULL OR sp.portal_status NOT IN ('active','complete'))
+    'blocking',sp.portal_status,NULL,sp.updated_at,'/app/events/'||?1||'/speakers?speaker='||sp.id,
+    (SELECT st.track_id FROM session_speakers ss2 JOIN submissions s2 ON s2.id=ss2.submission_id
+      JOIN submission_tracks st ON st.submission_id=s2.id
+      WHERE ss2.speaker_id=sp.id AND s2.event_id=?1 ORDER BY st.track_id LIMIT 1)
+  FROM speaker_profiles sp
+  WHERE (sp.user_id IS NULL OR sp.portal_status NOT IN ('active','complete')) AND EXISTS (
+    SELECT 1 FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id
+    WHERE ss.speaker_id=sp.id AND s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted')
   UNION ALL
   SELECT 'onboarding','speaker_task',ot.id||':'||sta.speaker_id,ot.title,
     TRIM(sp.first_name||' '||sp.last_name)||' · '||CASE WHEN ot.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'incomplete' END,
@@ -84,9 +88,10 @@ export const issuesSql = `
   WHERE ot.event_id=?1 AND sta.status!='complete'
   UNION ALL
   SELECT 'assets','speaker',sp.id,TRIM(sp.first_name||' '||sp.last_name),'Accepted speaker is missing a headshot','warning','missing',NULL,sp.updated_at,
-    '/app/events/'||s.event_id||'/content?speaker='||sp.id,NULL
-  FROM submissions s JOIN session_speakers ss ON ss.submission_id=s.id JOIN speaker_profiles sp ON sp.id=ss.speaker_id
-  WHERE s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted' AND sp.headshot_key IS NULL
+    '/app/events/'||?1||'/content?speaker='||sp.id,NULL
+  FROM speaker_profiles sp WHERE sp.headshot_key IS NULL AND EXISTS (
+    SELECT 1 FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id
+    WHERE ss.speaker_id=sp.id AND s.event_id=?1 AND s.status='accepted' AND s.decision_state='accepted')
   UNION ALL
   SELECT 'assets','file',f.id,COALESCE(f.purpose,'Requested file'),
     CASE WHEN f.status='needs_changes' THEN 'File was returned for changes' ELSE 'Requested file is missing or incomplete' END,

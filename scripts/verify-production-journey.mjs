@@ -154,6 +154,18 @@ try {
 
   const members = await api(`/api/organizations/${organization.id}/members`);
   const invite = async (email, role) => {
+    const member = members.members.find(
+      (item) => item.email.toLowerCase() === email.toLowerCase(),
+    );
+    const activeRole =
+      member &&
+      members.eventRoles.some(
+        (item) =>
+          item.userId === member.id &&
+          item.eventId === event.id &&
+          item.role === role,
+      );
+    if (activeRole) return "active_member";
     const active = members.invitations.some(
       (item) =>
         item.email.toLowerCase() === email.toLowerCase() &&
