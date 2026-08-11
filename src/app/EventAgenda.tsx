@@ -92,6 +92,37 @@ function localInput(value: string | null) {
     .slice(0, 16);
 }
 
+function dayKey(value: string, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function eventDays(event: EventRecord) {
+  const days: Array<{ key: string; value: string }> = [];
+  const start = new Date(event.startsAt);
+  const end = new Date(event.endsAt);
+  for (
+    let cursor = start;
+    cursor <= end && days.length < 31;
+    cursor = new Date(cursor.getTime() + 86_400_000)
+  ) {
+    const value = cursor.toISOString();
+    const key = dayKey(value, event.timezone);
+    if (!days.some((day) => day.key === key)) days.push({ key, value });
+  }
+  const endKey = dayKey(event.endsAt, event.timezone);
+  if (!days.some((day) => day.key === endKey))
+    days.push({ key: endKey, value: event.endsAt });
+  return days;
+}
+
 function EventChrome({
   event,
   eventId,
@@ -138,6 +169,7 @@ export function EventAgenda({ user }: { user: User }) {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [selectedDay, setSelectedDay] = useState("");
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
     message: string;
@@ -401,6 +433,15 @@ export function EventAgenda({ user }: { user: User }) {
   const availableSessions = sessions.filter(
     (session) => !items.some((item) => item.submissionId === session.id),
   );
+  const days = event ? eventDays(event) : [];
+  const activeDay = selectedDay || days[0]?.key || "";
+  const dayItems = scheduled.filter(
+    (item) => dayKey(item.startsAt!, event!.timezone) === activeDay,
+  );
+  const dayStarts = [...new Set(dayItems.map((item) => item.startsAt!))].sort();
+  const agendaColumns: Room[] = dayItems.some((item) => !item.roomId)
+    ? [...rooms, { id: "", name: "Room unassigned", capacity: null }]
+    : rooms;
   return (
     <EventChrome event={event} eventId={eventId} user={user}>
       <main id="main-content" className="event-main agenda-main">
@@ -445,59 +486,121 @@ export function EventAgenda({ user }: { user: User }) {
                 <strong>{rooms.length}</strong> rooms
               </span>
             </div>
-            <div className="agenda-list">
-              {scheduled.map((item) => (
-                <article
-                  id={`agenda-item-${item.id}`}
-                  tabIndex={-1}
-                  key={item.id}
-                >
-                  <time>
-                    {new Intl.DateTimeFormat("en-US", {
-                      weekday: "short",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    }).format(new Date(item.startsAt!))}
-                  </time>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <span>
-                      {item.roomName}{" "}
-                      {item.trackName ? `· ${item.trackName}` : ""}
-                    </span>
-                  </div>
-                  <em className={`submission-status status-${item.status}`}>
-                    {item.status}
-                  </em>
+            <section className="organizer-agenda" aria-label="Agenda timeline">
+              <div
+                className="agenda-day-tabs"
+                role="tablist"
+                aria-label="Event days"
+              >
+                {days.map((day) => (
                   <button
-                    className="button button-small button-ghost"
-                    onClick={() => clear(item)}
-                    aria-label={`Clear placement for ${item.title}`}
+                    key={day.key}
+                    role="tab"
+                    aria-selected={day.key === activeDay}
+                    onClick={() => setSelectedDay(day.key)}
                   >
-                    <Trash2 size={15} /> Clear placement
+                    {new Intl.DateTimeFormat("en-US", {
+                      timeZone: event!.timezone,
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                    }).format(new Date(day.value))}
                   </button>
-                  {item.itemType === "session" && (
-                    <button
-                      className="button button-small button-danger"
-                      onClick={() => cancel(item)}
-                      aria-label={`Cancel session: ${item.title}`}
-                      disabled={busy}
-                    >
-                      <CalendarX2 size={15} /> Cancel session
-                    </button>
-                  )}
-                  {item.itemType !== "session" && (
-                    <button
-                      className="button button-small button-ghost"
-                      onClick={() => removeBlock(item)}
-                      disabled={busy}
-                    >
-                      Remove block
-                    </button>
-                  )}
-                </article>
-              ))}
-            </div>
+                ))}
+              </div>
+              <div className="agenda-grid-scroll">
+                <table
+                  className="agenda-grid organizer-agenda-grid"
+                  aria-label="Organizer agenda grid"
+                >
+                  <thead>
+                    <tr>
+                      <th scope="col">Time</th>
+                      {agendaColumns.map((room) => (
+                        <th scope="col" key={room.id}>
+                          {room.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dayStarts.map((start) => (
+                      <tr key={start}>
+                        <th scope="row">
+                          {new Intl.DateTimeFormat("en-US", {
+                            timeZone: event!.timezone,
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }).format(new Date(start))}
+                        </th>
+                        {agendaColumns.map((room) => {
+                          const item = dayItems.find(
+                            (candidate) =>
+                              candidate.startsAt === start &&
+                              (candidate.roomId ?? "") === room.id,
+                          );
+                          return (
+                            <td key={room.id}>
+                              {item ? (
+                                <article
+                                  id={`agenda-item-${item.id}`}
+                                  tabIndex={-1}
+                                >
+                                  <strong>{item.title}</strong>
+                                  <span>{item.trackName || item.itemType}</span>
+                                  <a href={`#agenda-placement-${item.id}`}>
+                                    Edit placement
+                                  </a>
+                                  <button
+                                    className="button button-small button-ghost"
+                                    onClick={() => clear(item)}
+                                    aria-label={`Clear placement for ${item.title}`}
+                                    disabled={busy}
+                                  >
+                                    Clear placement
+                                  </button>
+                                  {item.itemType === "session" ? (
+                                    <button
+                                      className="button button-small button-danger"
+                                      onClick={() => cancel(item)}
+                                      aria-label={`Cancel session: ${item.title}`}
+                                      disabled={busy}
+                                    >
+                                      Cancel session
+                                    </button>
+                                  ) : (
+                                    <button
+                                      className="button button-small button-ghost"
+                                      onClick={() => removeBlock(item)}
+                                      disabled={busy}
+                                    >
+                                      Remove block
+                                    </button>
+                                  )}
+                                </article>
+                              ) : (
+                                <span
+                                  className="agenda-grid-empty"
+                                  aria-hidden="true"
+                                >
+                                  —
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!dayItems.length && (
+                <div className="empty-panel">
+                  <p>No sessions are scheduled for this day.</p>
+                  <a href="#accepted-sessions">Add an accepted session</a>
+                </div>
+              )}
+            </section>
             <h2>Place or move items</h2>
             {items.map((item) => (
               <form

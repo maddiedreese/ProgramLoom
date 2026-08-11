@@ -109,7 +109,7 @@ const definitions: Array<[CommunicationCategory, string, string, string]> = [
     "speaker_message",
     "Organizer message",
     "A message from the {{event.name}} team",
-    "{{organizer.message}}\n\nOpen your speaker portal: {{speaker.portal_link}}",
+    "Hi {{speaker.first_name}},\n\n{{organizer.message}}\n\nOpen your speaker portal: {{speaker.portal_link}}",
   ],
   [
     "crm_outreach",
@@ -149,6 +149,8 @@ export const supportedCommunicationMergeFields = [
   "review.incomplete_count",
   "review.queue_link",
   "speaker.portal_link",
+  "speaker.first_name",
+  "speaker.last_name",
   "speaker.company",
   "task.title",
   "task.due_at",

@@ -5965,6 +5965,52 @@ input {
   border-radius: 11px;
   background: var(--cream);
 }
+.organizer-agenda {
+  margin-bottom: 28px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: white;
+}
+.organizer-agenda-grid article {
+  min-width: 150px;
+  display: grid;
+  gap: 6px;
+}
+.organizer-agenda-grid article strong {
+  font-size: 11px;
+}
+.organizer-agenda-grid article span,
+.organizer-agenda-grid article a {
+  font-size: 9px;
+}
+.review-detail-row > td {
+  padding: 18px;
+  background: var(--cream);
+}
+.review-detail-row article {
+  margin-top: 10px;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+.review-detail-row dl {
+  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.review-detail-row dl div {
+  display: flex;
+  gap: 5px;
+}
+.organizer-agenda-grid article a {
+  color: var(--moss);
+  font-weight: 800;
+}
 .agenda-list > article {
   padding: 15px 17px;
   display: grid;

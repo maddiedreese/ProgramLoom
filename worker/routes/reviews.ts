@@ -252,6 +252,21 @@ router.get("/events/:eventId", async (context) => {
     )
     .bind(eventId)
     .all();
+  const reviewDetails = await db
+    .prepare(
+      `SELECT ra.round_id AS roundId,ra.submission_id AS submissionId,ra.id AS assignmentId,
+              u.name AS reviewerName,u.email AS reviewerEmail,rv.answers_json AS answersJson,
+              rv.weighted_score AS weightedScore,rv.recommendation,rv.comment,
+              rv.submitted_at AS submittedAt
+       FROM review_assignments ra
+       JOIN review_rounds rr ON rr.id=ra.round_id
+       JOIN users u ON u.id=ra.reviewer_user_id
+       LEFT JOIN reviews rv ON rv.assignment_id=ra.id
+       WHERE rr.event_id=? AND ra.recused_at IS NULL
+       ORDER BY rr.position,ra.submission_id,u.name COLLATE NOCASE`,
+    )
+    .bind(eventId)
+    .all();
   return context.json({
     rounds: rounds.results.map((round: Record<string, unknown>) => ({
       ...round,
@@ -268,6 +283,15 @@ router.get("/events/:eventId", async (context) => {
     reviewers: reviewers.results,
     reviewerPools: reviewerPools.results,
     results: results.results,
+    reviewDetails: reviewDetails.results.map(
+      (detail: Record<string, unknown>) => ({
+        ...detail,
+        answers: detail.answersJson
+          ? JSON.parse(String(detail.answersJson))
+          : {},
+        answersJson: undefined,
+      }),
+    ),
   });
 });
 

@@ -133,6 +133,8 @@ export function PublicWidgetPage() {
   const [data, setData] = useState<Payload>();
   const [search, setSearch] = useState("");
   const [track, setTrack] = useState("");
+  const [format, setFormat] = useState("");
+  const [location, setLocation] = useState("");
   const [expandedSession, setExpandedSession] = useState<string>();
   const [expandedSpeaker, setExpandedSpeaker] = useState<string>();
   const [showPersonalSchedule, setShowPersonalSchedule] = useState(false);
@@ -166,14 +168,20 @@ export function PublicWidgetPage() {
   }, [publicKey, saved]);
   const filteredSessions = useMemo(
     () =>
-      data?.sessions.filter(
-        (session) =>
+      data?.sessions.filter((session) => {
+        const placement = data.agenda.find(
+          (item) => item.submissionId === session.id,
+        );
+        return (
           (!track || session.trackId === track) &&
+          (!format || session.format === format) &&
+          (!location || (placement?.roomName ?? "Location TBA") === location) &&
           `${session.title} ${session.abstract} ${session.speakerNames.join(" ")}`
             .toLowerCase()
-            .includes(search.toLowerCase()),
-      ) ?? [],
-    [data, search, track],
+            .includes(search.toLowerCase())
+        );
+      }) ?? [],
+    [data, format, location, search, track],
   );
   const filteredAgenda = useMemo(
     () =>
@@ -238,6 +246,18 @@ export function PublicWidgetPage() {
       </main>
     );
   const { widget, event } = data;
+  const sessionFormats = [
+    ...new Set(data.sessions.map((session) => session.format).filter(Boolean)),
+  ] as string[];
+  const sessionLocations = [
+    ...new Set(
+      data.sessions.map(
+        (session) =>
+          data.agenda.find((item) => item.submissionId === session.id)
+            ?.roomName ?? "Location TBA",
+      ),
+    ),
+  ].sort();
   const show = (field: string) => widget.config.fields.includes(field);
   const placementFor = (submissionId: string) =>
     data.agenda.find((item) => item.submissionId === submissionId);
@@ -289,18 +309,48 @@ export function PublicWidgetPage() {
             </label>
           )}
           {widget.config.showFilters && (
-            <select
-              aria-label="Filter by track"
-              value={track}
-              onChange={(event) => setTrack(event.target.value)}
-            >
-              <option value="">All tracks</option>
-              {data.tracks.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+            <>
+              <select
+                aria-label="Filter by track"
+                value={track}
+                onChange={(event) => setTrack(event.target.value)}
+              >
+                <option value="">All tracks</option>
+                {data.tracks.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              {widget.widgetType === "sessions" && (
+                <>
+                  <select
+                    aria-label="Filter by format"
+                    value={format}
+                    onChange={(event) => setFormat(event.target.value)}
+                  >
+                    <option value="">All formats</option>
+                    {sessionFormats.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Filter by location"
+                    value={location}
+                    onChange={(event) => setLocation(event.target.value)}
+                  >
+                    <option value="">All locations</option>
+                    {sessionLocations.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </>
           )}
         </div>
       )}

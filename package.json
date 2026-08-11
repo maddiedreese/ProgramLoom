@@ -33,6 +33,7 @@
     "seed:submission-workspace": "wrangler d1 execute programloom-production --local --file scripts/seed-submission-workspace.sql",
     "seed:notifications": "wrangler d1 execute programloom-production --local --file scripts/seed-notifications.sql",
     "seed:buyer-program": "node scripts/seed-buyer-program.mjs",
+    "seed:evaluator-lifecycle": "node scripts/seed-evaluator-lifecycle.mjs",
     "airtable:provision": "node scripts/provision-airtable.mjs --apply",
     "airtable:webhook": "node scripts/configure-airtable-webhook.mjs"
   },

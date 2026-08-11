@@ -122,6 +122,13 @@ describe("agenda calendar lifecycle controls", () => {
       </MemoryRouter>,
     );
 
+    expect(await screen.findByRole("table")).toHaveAccessibleName(
+      "Organizer agenda grid",
+    );
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(
+      screen.getByRole("columnheader", { name: "Main stage" }),
+    ).toBeVisible();
     expect(await screen.findByRole("button", { name: "Apply" })).toBeDisabled();
 
     fireEvent.click(

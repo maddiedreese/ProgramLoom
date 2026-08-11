@@ -50,6 +50,10 @@ export function isAirtableDeletionAudit(action: string) {
   return action.includes("deleted") || action.endsWith(".assignment_removed");
 }
 
+export function airtableRecoveryAction(hasCurrentProjection: boolean) {
+  return hasCurrentProjection ? "upsert" : "delete";
+}
+
 function outboxRequestsDeletion(outbox: OutboxRecord) {
   if (outbox.action === "delete") return true;
   try {
@@ -300,9 +304,11 @@ async function upsertExternalEntity(env: Env, outbox: OutboxRecord) {
     outbox.entityId,
   );
   if (!projection) {
-    throw new Error(
-      `The ${outbox.entityType} record no longer exists; retry as a deletion.`,
-    );
+    // An upsert can legitimately reach the queue after its source record was
+    // removed. Treat the current durable state as authoritative so retries
+    // converge instead of leaving an unrecoverable conflict behind.
+    await deleteExternalEntity(env, outbox);
+    return;
   }
   const result = await airtableRequest<{ records: AirtableRecord[] }>(
     env,

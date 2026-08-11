@@ -566,17 +566,40 @@ export function CRMPage({ user }: { user: User }) {
           busy={busy}
           close={() => setModal(undefined)}
           save={async (payload) => {
-            if (
-              await mutate(
-                () =>
-                  api(`/api/crm/organizations/${organizationId}/contacts`, {
-                    method: "POST",
-                    body: JSON.stringify(payload),
-                  }),
-                "Contact added to the cross-event directory.",
-              )
-            )
-              setModal(undefined);
+            setBusy(true);
+            setFeedback(undefined);
+            try {
+              const result = await api<{
+                contact: Contact;
+                duplicates: Contact[];
+              }>(`/api/crm/organizations/${organizationId}/contacts`, {
+                method: "POST",
+                body: JSON.stringify(payload),
+              });
+              await loadAll();
+              if (result.duplicates.length) {
+                await openContact(result.contact.id);
+                setFeedback({
+                  kind: "success",
+                  message:
+                    "Contact added. A possible duplicate was found; compare and merge it from the open profile.",
+                });
+              } else {
+                setModal(undefined);
+                setFeedback({
+                  kind: "success",
+                  message: "Contact added to the cross-event directory.",
+                });
+              }
+            } catch (error) {
+              setFeedback({
+                kind: "error",
+                message:
+                  error instanceof Error ? error.message : "Request failed.",
+              });
+            } finally {
+              setBusy(false);
+            }
           }}
         />
       )}
@@ -1992,8 +2015,14 @@ function EnrollModal({
       >
         <label>
           Contact
-          <select name="contactId" required>
-            <option value="">Choose a directory contact</option>
+          <select
+            name="contactId"
+            required
+            defaultValue={contacts[0]?.id ?? ""}
+          >
+            <option value="" disabled>
+              Choose a directory contact
+            </option>
             {contacts.map((contact) => (
               <option key={contact.id} value={contact.id}>
                 {contact.firstName} {contact.lastName} · {contact.company}

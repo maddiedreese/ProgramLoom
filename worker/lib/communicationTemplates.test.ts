@@ -21,5 +21,11 @@ describe("communication template catalog", () => {
         ),
       ).toEqual([]);
     }
+    expect(supportedCommunicationMergeFields).toContain("speaker.first_name");
+    expect(
+      defaultCommunicationTemplates.find(
+        (template) => template.category === "speaker_message",
+      )?.bodyText,
+    ).toContain("{{speaker.first_name}}");
   });
 });
