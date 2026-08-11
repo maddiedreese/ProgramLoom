@@ -13,7 +13,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
@@ -128,6 +128,7 @@ export function EventSubmissions({ user }: { user: User }) {
   const [assessments, setAssessments] = useState<AiAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const openingSubmissionId = useRef<string | undefined>(undefined);
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
     message: string;
@@ -148,6 +149,13 @@ export function EventSubmissions({ user }: { user: User }) {
   }, [eventId]);
 
   async function openSubmission(id: string) {
+    if (openingSubmissionId.current === id) return;
+    openingSubmissionId.current = id;
+    // Make the record addressable immediately. Slow networks must not leave a
+    // person (or assistive automation) on the list URL wondering whether the
+    // Open submission action worked.
+    if (routeSubmissionId !== id)
+      navigate(submissionDetailPath(eventId, id, window.location.search));
     setBusy(true);
     setFeedback(undefined);
     try {
@@ -159,8 +167,6 @@ export function EventSubmissions({ user }: { user: User }) {
       setSelected(result.submission);
       setFields(result.fields);
       setPeople(result.people);
-      if (routeSubmissionId !== id)
-        navigate(submissionDetailPath(eventId, id, window.location.search));
       api<{ assessments: AiAssessment[] }>(
         `/api/reviews/events/${eventId}/submissions/${id}/ai-assessments`,
       )
@@ -175,6 +181,8 @@ export function EventSubmissions({ user }: { user: User }) {
             : "Could not open the submission.",
       });
     } finally {
+      if (openingSubmissionId.current === id)
+        openingSubmissionId.current = undefined;
       setBusy(false);
     }
   }
@@ -187,7 +195,11 @@ export function EventSubmissions({ user }: { user: User }) {
     const submissionId =
       routeSubmissionId ??
       new URLSearchParams(window.location.search).get("submission");
-    if (submissionId && submissionId !== selected?.id)
+    if (
+      submissionId &&
+      submissionId !== selected?.id &&
+      submissionId !== openingSubmissionId.current
+    )
       void openSubmission(submissionId);
   }, [loading, eventId, routeSubmissionId]);
   async function changeDecision(

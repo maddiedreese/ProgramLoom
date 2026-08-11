@@ -3217,6 +3217,13 @@ input {
 .event-heading .button-ghost:hover {
   background: var(--moss-dark);
 }
+.event-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .event-page-guide {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

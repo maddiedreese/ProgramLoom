@@ -944,11 +944,11 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   </p>
                 </div>
                 <p id="assignment-selection-status" role="status">
-                  {selectedSubmissions.length} proposal
-                  {selectedSubmissions.length === 1 ? "" : "s"} and{" "}
-                  {selectedReviewers.length} reviewer
-                  {selectedReviewers.length === 1 ? "" : "s"} selected. Choose
-                  at least one of each to create assignments.
+                  {selectedSubmissions.length === 0 &&
+                  selectedReviewers.length === 0
+                    ? "Nothing selected yet. Select each proposal and reviewer exactly once."
+                    : `${selectedSubmissions.length} proposal${selectedSubmissions.length === 1 ? "" : "s"} and ${selectedReviewers.length} reviewer${selectedReviewers.length === 1 ? "" : "s"} selected.`}{" "}
+                  Choose at least one of each to create assignments.
                 </p>
                 {reviewers.length ? (
                   <div className="assignment-columns">
@@ -961,6 +961,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                         >
                           <input
                             type="checkbox"
+                            aria-label={`Select proposal for assignment: ${submission.title}`}
                             checked={selectedSubmissions.includes(
                               submission.id,
                             )}
@@ -1006,6 +1007,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                         <label className="assignment-choice" key={reviewer.id}>
                           <input
                             type="checkbox"
+                            aria-label={`Select reviewer for assignment: ${reviewer.name}`}
                             checked={selectedReviewers.includes(reviewer.id)}
                             onChange={(event) =>
                               setSelectedReviewers((current) =>
@@ -1370,6 +1372,7 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
         reviewSubmittedAt: submit ? new Date().toISOString() : null,
       });
       await load();
+      if (submit) setSelected(undefined);
       setFeedback({
         kind: "success",
         message: submit
@@ -1597,6 +1600,7 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
                   rows={5}
                   defaultValue={selected.comment ?? ""}
                 />
+                <small>No character limit. The complete comment is saved.</small>
               </label>
               <div className="review-actions">
                 <button
@@ -1607,7 +1611,8 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
                   <Save size={15} /> Save draft
                 </button>
                 <button className="button" value="submit" disabled={busy}>
-                  <CheckCircle2 size={15} /> Complete review
+                  <CheckCircle2 size={15} />
+                  {busy ? "Completing review…" : "Complete review"}
                 </button>
               </div>
               <button type="button" className="recuse-link" onClick={recuse}>

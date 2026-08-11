@@ -456,6 +456,48 @@ export function EventWorkspace({ user }: { user: User }) {
     }
   }
 
+  async function closeSubmissionsNow() {
+    if (
+      !selectedId ||
+      !selected ||
+      !window.confirm(
+        "Close submissions now? The public CFP will remain visible as closed, new proposals will be blocked, and existing proposals will become read-only. You can reopen it by choosing a future submission deadline.",
+      )
+    )
+      return;
+    setBusy(true);
+    setFeedback(undefined);
+    try {
+      const result = await api<{ form: CfpForm }>(
+        `/api/events/${eventId}/forms/${selectedId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ closesAt: new Date().toISOString() }),
+        },
+      );
+      setForms((current) =>
+        current.map((item) =>
+          item.id === selectedId ? { ...item, ...result.form } : item,
+        ),
+      );
+      setFeedback({
+        kind: "success",
+        message:
+          "Submissions are closed now. The published CFP shows a closed state, new proposals are blocked, and existing proposals are read-only. Next: verify the public CFP or continue to reviews.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not close submissions.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addCondition(formEvent: FormEvent<HTMLFormElement>) {
     formEvent.preventDefault();
     if (!selectedId) return;
@@ -559,19 +601,34 @@ export function EventWorkspace({ user }: { user: User }) {
             </p>
           </div>
           {selected && canManage && (
-            <button
-              className={`button ${selected.publishedAt ? "button-ghost" : ""}`}
-              disabled={busy}
-              onClick={togglePublished}
-            >
-              {selected.publishedAt ? (
-                "Unpublish"
-              ) : (
-                <>
-                  <Send size={16} /> Publish CFP
-                </>
-              )}
-            </button>
+            <div className="event-heading-actions">
+              {selected.publishedAt &&
+                (!selected.opensAt ||
+                  selected.opensAt <= new Date().toISOString()) &&
+                (!selected.closesAt ||
+                  selected.closesAt > new Date().toISOString()) && (
+                  <button
+                    className="button"
+                    disabled={busy}
+                    onClick={closeSubmissionsNow}
+                  >
+                    <CalendarClock size={16} /> Close submissions now
+                  </button>
+                )}
+              <button
+                className={`button ${selected.publishedAt ? "button-ghost" : ""}`}
+                disabled={busy}
+                onClick={togglePublished}
+              >
+                {selected.publishedAt ? (
+                  "Unpublish"
+                ) : (
+                  <>
+                    <Send size={16} /> Publish CFP
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </header>
         <EventPageGuide eventId={eventId} surface="cfp" />

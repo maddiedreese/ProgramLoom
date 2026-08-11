@@ -268,7 +268,7 @@ describe("reviewer workspace", () => {
       await screen.findByText(/1 reviewer assignment created/),
     ).toBeVisible();
     expect(
-      screen.getByText(/0 proposals and 0 reviewers selected/),
+      screen.getByText(/Nothing selected yet/),
     ).toBeVisible();
     expect(
       screen.getByRole("button", {

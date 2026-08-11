@@ -524,6 +524,10 @@ export function App() {
           element={<AuthenticatedPage page="speakers" />}
         />
         <Route
+          path="/app/events/:eventId/speaker-portal"
+          element={<AuthenticatedPage page="speakers" />}
+        />
+        <Route
           path="/app/events/:eventId/content"
           element={<AuthenticatedPage page="content" />}
         />

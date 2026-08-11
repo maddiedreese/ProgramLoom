@@ -331,9 +331,14 @@ export function PublicCfpPage() {
       const typed = error as Error & { fields?: Record<string, string> };
       setFieldErrors(typed.fields ?? {});
       setFeedback({ kind: "error", message: typed.message });
-      document
-        .getElementById("cfp-feedback")
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.requestAnimationFrame(() => {
+        const firstInvalid = Object.keys(typed.fields ?? {})[0];
+        const target = firstInvalid
+          ? document.getElementById(firstInvalid)
+          : document.getElementById("cfp-feedback");
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        target?.focus();
+      });
     } finally {
       setBusy(false);
     }
@@ -461,6 +466,11 @@ export function PublicCfpPage() {
           ProgramLoom
         </a>
         <span>{form.organizationName}</span>
+        {signedIn && (
+          <a className="text-link" href="/app#my-proposals-title">
+            View all my submissions
+          </a>
+        )}
       </header>
       <main id="main-content" className="public-cfp-main">
         <section className="public-cfp-intro">
@@ -511,6 +521,7 @@ export function PublicCfpPage() {
         ) : (
           <form
             className="public-cfp-form"
+            noValidate
             onSubmit={(event) => save(event, "submit")}
           >
             <section>
