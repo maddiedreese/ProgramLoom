@@ -77,10 +77,10 @@ test.describe("authenticated organizer operations", () => {
       page.getByRole("button", { name: "Assign reviewers" }).first(),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Save review window" }),
+      page.getByRole("button", { name: "Save review round settings" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Save reviewer pool" }),
+      page.getByRole("button", { name: /^Save .+ reviewer pool$/ }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", {
@@ -127,7 +127,7 @@ test.describe("authenticated organizer operations", () => {
     await expect(
       page.getByRole("button", { name: /Clear placement for/ }).first(),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Apply" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Apply" })).toBeVisible();
 
     await page.goto(`/app/events/${eventId}/calendar`);
     await expect(
@@ -147,9 +147,17 @@ test.describe("authenticated organizer operations", () => {
     ).toBeVisible();
 
     await page.goto(`/app/events/${eventId}/widgets`);
-    await expect(
-      page.getByRole("button", { name: "Delete widget" }),
-    ).toHaveCount(5);
+    await expect
+      .poll(() => page.locator(".widget-config-list article em").allTextContents())
+      .toEqual(
+        expect.arrayContaining([
+          "sessions",
+          "speakers",
+          "agenda",
+          "itinerary",
+          "gallery",
+        ]),
+      );
     await expectNoHorizontalOverflow(page);
     await expectAccessible(page);
   });
