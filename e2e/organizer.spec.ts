@@ -71,6 +71,9 @@ test.describe("authenticated organizer operations", () => {
 
     await page.goto(`/app/events/${eventId}/reviews`);
     await expect(
+      page.getByRole("button", { name: "Go to reviewer assignment" }),
+    ).toBeVisible();
+    await expect(
       page.getByRole("button", { name: "Assign reviewers" }).first(),
     ).toBeVisible();
     await expect(
@@ -88,6 +91,9 @@ test.describe("authenticated organizer operations", () => {
     await page.goto(`/app/events/${eventId}/speakers`);
     await expect(
       page.getByRole("link", { name: "Invite speaker" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Add speaker", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Edit speaker profile" }).first(),
@@ -109,6 +115,9 @@ test.describe("authenticated organizer operations", () => {
     ).toBeVisible();
 
     await page.goto(`/app/events/${eventId}/agenda`);
+    await expect(
+      page.getByRole("button", { name: "Build schedule automatically" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Publish agenda" }),
     ).toBeVisible();
@@ -220,5 +229,14 @@ test.describe("authenticated organizer operations", () => {
       const response = await request.get(`/api/events/${unknownEvent}/${path}`);
       expect([403, 404]).toContain(response.status());
     }
+    const unknownSpeaker = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    const crossEventHeadshot = await request.get(
+      `/api/speakers/admin/events/${unknownEvent}/speakers/${unknownSpeaker}/headshot`,
+    );
+    expect([403, 404]).toContain(crossEventHeadshot.status());
+    const missingHeadshot = await request.get(
+      `/api/speakers/admin/events/${eventId}/speakers/${unknownSpeaker}/headshot`,
+    );
+    expect(missingHeadshot.status()).toBe(404);
   });
 });
