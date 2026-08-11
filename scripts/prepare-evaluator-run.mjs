@@ -299,7 +299,7 @@ WHERE email=${quote(process.env.PROGRAMLOOM_REVIEWER_EMAIL)} COLLATE NOCASE;`;
       editClosesAt: "2027-04-30T23:59:00.000-07:00",
     },
   });
-  const formDefinition = await api(
+  let formDefinition = await api(
     `/api/events/${event.id}/forms/${forms[0].id}`,
   );
   const formatField = formDefinition.fields.find(
@@ -318,6 +318,87 @@ WHERE email=${quote(process.env.PROGRAMLOOM_REVIEWER_EMAIL)} COLLATE NOCASE;`;
     `/api/events/${event.id}/forms/${forms[0].id}/fields/${formatField.id}`,
     { method: "PATCH", body: { options: fixtureFormats } },
   );
+  const evaluatorFields = [
+    {
+      section: "session",
+      fieldType: "select",
+      fieldKey: "track",
+      label: "Track",
+      required: true,
+      searchable: true,
+      options: fixtureTracks,
+    },
+    {
+      section: "speaker",
+      fieldType: "textarea",
+      fieldKey: "speaker_bio",
+      label: "Speaker bio",
+      required: true,
+      searchable: true,
+    },
+    {
+      section: "custom",
+      fieldType: "text",
+      fieldKey: "key_takeaway",
+      label: "Key takeaway",
+      required: true,
+      searchable: true,
+    },
+    {
+      section: "custom",
+      fieldType: "select",
+      fieldKey: "audience_level",
+      label: "Audience level",
+      required: false,
+      searchable: true,
+      options: ["Beginner", "Intermediate", "Advanced"],
+    },
+    {
+      section: "custom",
+      fieldType: "textarea",
+      fieldKey: "workshop_prerequisites",
+      label: "Workshop prerequisites",
+      required: false,
+      searchable: false,
+    },
+  ];
+  for (const field of evaluatorFields) {
+    if (formDefinition.fields.some((item) => item.fieldKey === field.fieldKey))
+      continue;
+    await api(`/api/events/${event.id}/forms/${forms[0].id}/fields`, {
+      method: "POST",
+      body: field,
+    });
+  }
+  formDefinition = await api(`/api/events/${event.id}/forms/${forms[0].id}`);
+  const preparedFormatField = formDefinition.fields.find(
+    (field) => field.fieldKey === "format",
+  );
+  const workshopField = formDefinition.fields.find(
+    (field) => field.fieldKey === "workshop_prerequisites",
+  );
+  const workshopCondition = formDefinition.conditions.some(
+    (condition) =>
+      condition.sourceFieldId === preparedFormatField?.id &&
+      condition.targetFieldId === workshopField?.id &&
+      condition.action === "show" &&
+      condition.operator === "equals" &&
+      condition.compareValue === "Workshop (120 min)",
+  );
+  if (!workshopCondition) {
+    if (!preparedFormatField || !workshopField)
+      throw new Error("The isolated CFP is missing conditional field inputs.");
+    await api(`/api/events/${event.id}/forms/${forms[0].id}/conditions`, {
+      method: "POST",
+      body: {
+        sourceFieldId: preparedFormatField.id,
+        operator: "equals",
+        compareValue: "Workshop (120 min)",
+        targetFieldId: workshopField.id,
+        action: "show",
+      },
+    });
+  }
   if (forms[0].publishedAt) {
     await api(`/api/events/${event.id}/forms/${forms[0].id}`, {
       method: "PATCH",
