@@ -281,6 +281,10 @@ export function submissionEditingIsClosed(
   );
 }
 
+export function submissionCanBeSavedAsDraft(status: string) {
+  return status === "draft";
+}
+
 router.get("/cfp", async (context) => {
   context.header("cache-control", "no-store");
   const db = database(context.env);
@@ -667,7 +671,7 @@ router.post(
         );
       submissionId = existing.id;
       previousStatus = existing.status;
-      if (input.action === "draft" && existing.status !== "draft")
+      if (input.action === "draft" && !submissionCanBeSavedAsDraft(existing.status))
         throw new HttpError(
           409,
           "already_submitted",
@@ -709,6 +713,12 @@ router.post(
       submissionId = existing.id;
       previousStatus = existing.status;
       rawEditToken = randomToken();
+      if (input.action === "draft" && !submissionCanBeSavedAsDraft(existing.status))
+        throw new HttpError(
+          409,
+          "already_submitted",
+          "Submitted proposals stay in the review queue. Use Update proposal to save changes.",
+        );
     } else {
       if (form.submissionLimit) {
         const count = await db

@@ -5,6 +5,7 @@ import {
   matches,
   submissionSchema,
   submissionEditingIsClosed,
+  submissionCanBeSavedAsDraft,
   validateAnswers,
 } from "./public";
 
@@ -20,6 +21,11 @@ describe("public CFP validation", () => {
     expect(
       submissionEditingIsClosed(form, "pending", "2027-02-01T00:00:00.000Z"),
     ).toBe(true);
+  });
+  it("never lets an already-submitted proposal fall back to draft", () => {
+    expect(submissionCanBeSavedAsDraft("draft")).toBe(true);
+    expect(submissionCanBeSavedAsDraft("pending")).toBe(false);
+    expect(submissionCanBeSavedAsDraft("accepted")).toBe(false);
   });
   it("evaluates scalar, list, checkbox, and numeric conditions", () => {
     expect(matches("equals", "Workshop", "Workshop")).toBe(true);

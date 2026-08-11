@@ -3902,6 +3902,22 @@ input {
   font-size: 12px;
   font-weight: 700;
 }
+.public-submission-next {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #cbd9ce;
+  border-radius: 12px;
+  background: #f2f7f2;
+}
+.public-submission-next > div {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 300px;
+}
 .deadline-row svg {
   color: var(--event-color);
 }

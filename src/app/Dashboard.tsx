@@ -356,6 +356,53 @@ export function Dashboard({ user }: { user: User }) {
             {feedback.message}
           </div>
         )}
+        {!canOrganize && mySubmissions.length > 0 && (
+          <section aria-labelledby="my-proposals-title">
+            <div className="content-heading">
+              <div>
+                <p className="kicker">Your submissions</p>
+                <h2 id="my-proposals-title" tabIndex={-1}>
+                  Proposals you submitted
+                </h2>
+                <p>
+                  {canOrganize
+                    ? "You also submitted these proposals. They are separate from the events you organize below."
+                    : "Track each draft, submitted proposal, and decision before choosing an event workspace."}
+                </p>
+              </div>
+            </div>
+            <div className="event-grid">
+              {mySubmissions.map((submission) => (
+                <article className="event-card" key={submission.id}>
+                  <div className="event-status">
+                    {submission.decisionState !== "none"
+                      ? submission.decisionState.replaceAll("_", " ")
+                      : submission.status}
+                  </div>
+                  <FileInput size={20} />
+                  <h3>{submission.title || "Untitled proposal"}</h3>
+                  <p>
+                    {submission.eventName} · {submission.formName}
+                  </p>
+                  <span>
+                    Updated{" "}
+                    {new Intl.DateTimeFormat("en-US", {
+                      dateStyle: "medium",
+                    }).format(new Date(submission.updatedAt))}
+                  </span>
+                  <a
+                    href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}?submission=${encodeURIComponent(submission.id)}`}
+                  >
+                    {submission.status === "draft"
+                      ? "Continue proposal"
+                      : "Open proposal"}{" "}
+                    <ArrowRight size={15} />
+                  </a>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
         {!organizations.length ? (
           <section
             className="onboarding-card"
@@ -539,16 +586,15 @@ export function Dashboard({ user }: { user: User }) {
             )}
           </section>
         )}
-        {mySubmissions.length > 0 && (
+        {canOrganize && mySubmissions.length > 0 && (
           <section aria-labelledby="my-proposals-title">
             <div className="content-heading">
               <div>
                 <p className="kicker">Your submissions</p>
                 <h2 id="my-proposals-title">Proposals you submitted</h2>
                 <p>
-                  {canOrganize
-                    ? "You also submitted these proposals. They are separate from the events you organize above."
-                    : "Track each draft, submitted proposal, and decision in one place."}
+                  You also submitted these proposals. They are separate from
+                  the events you organize above.
                 </p>
               </div>
             </div>

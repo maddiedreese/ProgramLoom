@@ -283,6 +283,23 @@ export function PublicCfpPage() {
     });
   }
 
+  function startAnotherProposal() {
+    setSubmissionId(undefined);
+    setEditToken(undefined);
+    setStatus(undefined);
+    setAnswers({});
+    setCoSubmitters([]);
+    window.history.replaceState(null, "", window.location.pathname);
+    setFeedback({
+      kind: "success",
+      message:
+        "New proposal started. Your earlier proposal remains submitted and unchanged.",
+    });
+    window.requestAnimationFrame(() =>
+      document.getElementById("main-content")?.scrollIntoView(),
+    );
+  }
+
   async function save(event: FormEvent, action: "draft" | "submit") {
     event.preventDefault();
     setBusy(true);
@@ -496,6 +513,27 @@ export function PublicCfpPage() {
           >
             {feedback.message}
           </div>
+        )}
+        {status === "pending" && !locked && (
+          <section className="public-submission-next" aria-label="Proposal saved">
+            <div>
+              <strong>This proposal is submitted.</strong>
+              <span>
+                Update it below, or begin a separate proposal without changing
+                this one.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={startAnotherProposal}
+            >
+              Start another proposal
+            </button>
+            <a className="button" href="/app#my-proposals-title">
+              View all my submissions
+            </a>
+          </section>
         )}
         {locked ? (
           <section className="public-locked">
@@ -756,23 +794,7 @@ export function PublicCfpPage() {
                 <button
                   type="button"
                   className="button button-ghost button-large"
-                  onClick={() => {
-                    setSubmissionId(undefined);
-                    setEditToken(undefined);
-                    setStatus(undefined);
-                    setAnswers({});
-                    setCoSubmitters([]);
-                    window.history.replaceState(
-                      null,
-                      "",
-                      window.location.pathname,
-                    );
-                    setFeedback({
-                      kind: "success",
-                      message:
-                        "New proposal started. Your earlier proposal remains saved.",
-                    });
-                  }}
+                  onClick={startAnotherProposal}
                 >
                   Start another proposal
                 </button>
