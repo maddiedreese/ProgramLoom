@@ -22,6 +22,7 @@ import {
 import { type FormEvent, useEffect, useState } from "react";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 import { useParams } from "react-router-dom";
 
 type User = { id: string; email: string; name: string };
@@ -530,10 +531,10 @@ export function EventWorkspace({ user }: { user: User }) {
         <header className="event-heading">
           <div>
             <p className="kicker">Call for proposals</p>
-            <h1>Collect the right ideas.</h1>
+            <h1>Build and publish your proposal form.</h1>
             <p>
-              Create focused forms with deadlines, reusable questions, and
-              conditional paths.
+              Ask for the information reviewers need, set a deadline, and open
+              the call when it is ready for submitters.
             </p>
           </div>
           {selected && canManage && (
@@ -552,6 +553,7 @@ export function EventWorkspace({ user }: { user: User }) {
             </button>
           )}
         </header>
+        <EventPageGuide eventId={eventId} surface="cfp" />
         {feedback && (
           <div
             className={`form-status form-status-${feedback.kind}`}
@@ -596,12 +598,8 @@ export function EventWorkspace({ user }: { user: User }) {
                     placeholder="Main call for proposals"
                     required
                   />
-                  <button
-                    className="icon-button"
-                    title="Create form"
-                    disabled={busy}
-                  >
-                    <Plus size={18} />
+                  <button className="button button-small" disabled={busy}>
+                    <Plus size={16} /> Create form
                   </button>
                 </div>
               </form>
@@ -640,19 +638,19 @@ export function EventWorkspace({ user }: { user: User }) {
                       className={panel === "fields" ? "active" : ""}
                       onClick={() => setPanel("fields")}
                     >
-                      <Layers3 size={15} /> Fields
+                      <Layers3 size={15} /> Questions
                     </button>
                     <button
                       className={panel === "logic" ? "active" : ""}
                       onClick={() => setPanel("logic")}
                     >
-                      <GitBranch size={15} /> Logic
+                      <GitBranch size={15} /> Conditional logic
                     </button>
                     <button
                       className={panel === "settings" ? "active" : ""}
                       onClick={() => setPanel("settings")}
                     >
-                      <Settings2 size={15} /> Settings
+                      <Settings2 size={15} /> Form settings
                     </button>
                   </div>
                 </div>
@@ -664,10 +662,11 @@ export function EventWorkspace({ user }: { user: User }) {
                           <p className="kicker">Event taxonomy</p>
                           <h2>Tracks</h2>
                           <p>
-                            Create the event tracks here, then add a Single
-                            select field named Track with the same options. Add
-                            session formats such as “Talk (30 min)” as options
-                            on a Single select field named Format.
+                            Tracks help attendees and reviewers group related
+                            proposals. Create the choices here, then add a
+                            single-choice question named “Track” using the same
+                            choices. Add formats such as “Talk (30 min)” in the
+                            same way with a question named “Format.”
                           </p>
                         </div>
                         <div
@@ -776,6 +775,10 @@ export function EventWorkspace({ user }: { user: User }) {
                               name="fieldKey"
                               placeholder="session_title"
                             />
+                            <small>
+                              A stable internal name used for exports and saved
+                              views. Leave blank to generate it from the label.
+                            </small>
                           </label>
                           <label>
                             Section

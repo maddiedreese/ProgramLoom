@@ -18,6 +18,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 import { captureProductEvent } from "../lib/telemetry";
 
 type User = { id: string; email: string; name: string };
@@ -191,14 +192,15 @@ export function EventWidgets({ user }: { user: User }) {
       <main className="event-main widgets-main">
         <header className="event-heading">
           <div>
-            <p className="kicker">Embed studio</p>
-            <h1>Publish everywhere.</h1>
+            <p className="kicker">Public attendee views</p>
+            <h1>Publish a complete attendee experience.</h1>
             <p>
-              Five live views, one source of truth, with durable feeds and
-              personal calendars.
+              Configure five anonymous, live views for the agenda, sessions,
+              speakers, gallery, and each attendee's personal itinerary.
             </p>
           </div>
         </header>
+        <EventPageGuide eventId={eventId} surface="widgets" />
         {feedback && (
           <div
             className={`form-status ${feedback.error ? "form-status-error" : "form-status-success"}`}

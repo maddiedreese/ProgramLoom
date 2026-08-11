@@ -104,6 +104,68 @@ const resolvable = new Set([
   "integration_failures",
 ]);
 
+const technicalIssueLabels: Record<string, string> = {
+  communication_send: "Email delivery job",
+  airtable_sync: "Airtable synchronization",
+  notification_fanout: "In-app notification delivery",
+  calendar_delivery: "Calendar invitation delivery",
+};
+
+function issueTitle(issue: Issue) {
+  return (
+    technicalIssueLabels[issue.title] ??
+    technicalIssueLabels[issue.entityType] ??
+    issue.title
+  );
+}
+
+const statusLabels: Record<string, string> = {
+  draft: "Draft",
+  pending: "Waiting",
+  failed: "Failed",
+  exhausted: "Retries exhausted",
+  not_invited: "Not invited",
+  unplaced: "Not scheduled",
+  open: "Open",
+  todo: "Not started",
+  in_progress: "In progress",
+  needs_changes: "Changes requested",
+  prepared: "Prepared — not sent",
+  queued: "Queued",
+  processing: "Sending",
+  sent: "Sent — provider accepted",
+  delivered: "Delivered",
+  bounced: "Bounced",
+  cancelled: "Cancelled",
+  submitted: "Submitted for review",
+  complete: "Complete",
+};
+
+const issueActionLabels: Record<string, string> = {
+  submissions_new: "Open proposal",
+  reviewer_assignment: "Assign reviewers",
+  reviews_incomplete: "Open review round",
+  review_conflicts: "Resolve reviewer conflict",
+  decisions_pending: "Stage decision",
+  decisions_uncommunicated: "Send decision",
+  deliveries: "Review delivery",
+  portal_access: "Invite speaker",
+  onboarding: "Open speaker tasks",
+  assets: "Review files",
+  content_review: "Approve content",
+  public_exclusions: "Review content",
+  agenda_missing: "Schedule session",
+  schedule_conflicts: "Resolve conflict",
+  agenda_unpublished: "Publish agenda",
+  queue_failures: "Retry delivery",
+  airtable_sync: "Recover integration",
+  integration_failures: "Recover integration",
+};
+
+function issueStatus(status: string) {
+  return statusLabels[status] ?? status.replaceAll("_", " ");
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -269,28 +331,30 @@ export function EventControlRoom({ user }: { user: User }) {
           </div>
           <ol>
             <li>
-              <a href={`/app/events/${eventId}/submissions`}>1. Proposals</a>
+              <a href={`/app/events/${eventId}/submissions`}>
+                1. Collect proposals
+              </a>
             </li>
             <li>
-              <a href={`/app/events/${eventId}/reviews`}>2. Reviews</a>
+              <a href={`/app/events/${eventId}/reviews`}>
+                2. Evaluate proposals
+              </a>
             </li>
             <li>
               <a href={`/app/events/${eventId}/communications`}>
-                3. Decisions & delivery
+                3. Decide & communicate
               </a>
             </li>
             <li>
               <a href={`/app/events/${eventId}/speakers`}>
-                4. Speakers & onboarding
+                4. Prepare speakers
               </a>
             </li>
             <li>
-              <a href={`/app/events/${eventId}/content`}>5. Content approval</a>
+              <a href={`/app/events/${eventId}/agenda`}>5. Schedule</a>
             </li>
             <li>
-              <a href={`/app/events/${eventId}/agenda`}>
-                6. Schedule & publish
-              </a>
+              <a href={`/app/events/${eventId}/widgets`}>6. Publish</a>
             </li>
           </ol>
           <div className="control-next-action">
@@ -299,12 +363,13 @@ export function EventControlRoom({ user }: { user: User }) {
             </strong>
             <span>
               {nextIssue
-                ? `${nextIssue.title} · ${nextIssue.detail}`
+                ? `${issueTitle(nextIssue)} · ${nextIssue.detail}`
                 : "No open work matches the current filters."}
             </span>
             {nextIssue && (
               <a className="button button-small" href={nextIssue.actionUrl}>
-                Resolve this blocker
+                Next:{" "}
+                {issueActionLabels[nextIssue.category] ?? "Resolve blocker"}
               </a>
             )}
           </div>
@@ -482,10 +547,10 @@ export function EventControlRoom({ user }: { user: User }) {
                         ([key]) => key === issue.category,
                       )?.[1] ?? issue.category}
                     </span>
-                    <a href={issue.actionUrl}>{issue.title}</a>
+                    <a href={issue.actionUrl}>{issueTitle(issue)}</a>
                     <p>{issue.detail}</p>
                     <small>
-                      {issue.status} ·{" "}
+                      {issueStatus(issue.status)} ·{" "}
                       {issue.deadline
                         ? `Due ${formatDate(issue.deadline)}`
                         : `Open since ${formatDate(issue.occurredAt)}`}
@@ -493,9 +558,11 @@ export function EventControlRoom({ user }: { user: User }) {
                   </div>
                   <div className="control-issue-actions">
                     <label>
-                      <span className="sr-only">Owner for {issue.title}</span>
+                      <span className="sr-only">
+                        Owner for {issueTitle(issue)}
+                      </span>
                       <select
-                        aria-label={`Owner for ${issue.title}`}
+                        aria-label={`Owner for ${issueTitle(issue)}`}
                         value={issue.ownerUserId ?? ""}
                         onChange={(event) =>
                           void assignOwner(issue, event.target.value)
@@ -513,7 +580,7 @@ export function EventControlRoom({ user }: { user: User }) {
                       className="button button-small button-ghost"
                       href={issue.actionUrl}
                     >
-                      Open
+                      {issueActionLabels[issue.category] ?? "Open details"}
                     </a>
                     {resolvable.has(issue.category) &&
                       !(

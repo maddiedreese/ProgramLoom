@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 import { SubmissionWorkspaceGrid } from "./SubmissionWorkspaceGrid";
 
 type User = { id: string; email: string; name: string };
@@ -301,14 +302,15 @@ export function EventSubmissions({ user }: { user: User }) {
       <main id="main-content" className="event-main submissions-main">
         <header className="event-heading">
           <div>
-            <p className="kicker">Program intake</p>
-            <h1>Submissions</h1>
+            <p className="kicker">Proposals</p>
+            <h1>Find and move proposals forward.</h1>
             <p>
-              Review the pipeline, open every answer, and prepare decisions
-              without losing context.
+              Search and filter every proposal, assign the next owner, and
+              prepare decisions without contacting submitters yet.
             </p>
           </div>
         </header>
+        <EventPageGuide eventId={eventId} surface="submissions" />
         {feedback && (
           <div
             className={`form-status form-status-${feedback.kind}`}

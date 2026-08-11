@@ -20,12 +20,12 @@ describe("EventLifecycleNav", () => {
       "Call for proposals",
       "Submissions",
       "Reviews",
+      "Communications Center",
       "Speakers",
-      "Content",
+      "Content & files",
       "Agenda",
+      "Calendar invitations",
       "Public widgets",
-      "Communications",
-      "Calendar lifecycle",
     ]) {
       expect(screen.getByRole("link", { name: label })).toBeVisible();
     }
@@ -52,7 +52,7 @@ describe("EventLifecycleNav", () => {
       <EventLifecycleNav eventId="event-1" active="speakers" role="speaker" />,
     );
     expect(screen.getByRole("link", { name: "Speakers" })).toBeVisible();
-    expect(screen.queryByRole("link", { name: "Content" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Content & files" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Agenda" })).toBeNull();
   });
 });

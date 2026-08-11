@@ -20,6 +20,7 @@ import { Fragment, type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -580,11 +581,11 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     <>
       <header className="event-heading">
         <div>
-          <p className="kicker">Evaluation workspace</p>
-          <h1>Review rounds</h1>
+          <p className="kicker">Proposal evaluation</p>
+          <h1>Assign reviewers and complete evaluations.</h1>
           <p>
-            Shape scorecards, isolate reviewer access, and track every assigned
-            evaluation.
+            Set the questions reviewers answer, assign proposals, and see which
+            evaluations are ready for an organizer decision.
           </p>
         </div>
         {selected && (
@@ -612,6 +613,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           </div>
         )}
       </header>
+      <EventPageGuide eventId={eventId} surface="reviews" />
       {feedback && (
         <div className={`form-status form-status-${feedback.kind}`}>
           {feedback.message}
@@ -674,7 +676,9 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
               <Star size={34} />
               <h2>Create a review round</h2>
               <p>
-                Rounds keep scorecards, assignments, and deadlines independent.
+                A round is one evaluation phase with its own questions,
+                reviewers, and deadline—for example, initial screening or final
+                selection.
               </p>
             </div>
           ) : (

@@ -57,7 +57,7 @@ describe("EventCommunications", () => {
     );
     expect(
       await screen.findByRole("heading", {
-        name: /every message, one accountable outbox/i,
+        name: /preview every recipient. send with confidence/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -130,6 +130,8 @@ describe("EventCommunications", () => {
       await screen.findByRole("button", { name: "Preview recipients" }),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: "Send decision" })).toBeVisible();
-    expect(screen.getByRole("radio", { name: "Queue now" })).toBeChecked();
+    expect(
+      screen.getByRole("radio", { name: /send after confirmation/i }),
+    ).toBeChecked();
   });
 });

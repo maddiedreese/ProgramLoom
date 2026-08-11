@@ -2309,6 +2309,15 @@ input {
   align-items: center;
   gap: 8px;
 }
+.radio-row > span {
+  display: grid;
+  gap: 2px;
+}
+.radio-row > span small {
+  color: #70756d;
+  font-size: 10px;
+  font-weight: 500;
+}
 .compose-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2736,8 +2745,20 @@ input {
 }
 .event-nav {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   margin-top: 22px;
+}
+.event-nav-item {
+  display: grid;
+}
+.event-nav .event-nav-stage {
+  margin: 11px 12px 2px;
+  padding: 0;
+  color: #858d83;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .event-nav a,
 .event-nav span {
@@ -3133,6 +3154,44 @@ input {
 .event-heading .button-ghost:hover {
   background: var(--moss-dark);
 }
+.event-page-guide {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 14px;
+  margin: -10px 0 24px;
+  padding: 14px 16px;
+  border: 1px solid #d9ded4;
+  border-radius: 10px;
+  background: #f7f8f3;
+  color: var(--green);
+}
+.event-page-guide strong {
+  font-size: 12px;
+}
+.event-page-guide p {
+  margin: 3px 0 0;
+  color: #5f665d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.event-page-guide a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+@media (max-width: 720px) {
+  .event-page-guide {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .event-page-guide a {
+    grid-column: 2;
+  }
+}
 .cfp-layout {
   display: grid;
   grid-template-columns: 270px minmax(0, 1fr);
@@ -3218,7 +3277,7 @@ input {
 }
 .quick-create > div {
   display: grid;
-  grid-template-columns: 1fr 38px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px;
 }
 .quick-create input {

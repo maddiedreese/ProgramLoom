@@ -25,6 +25,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -522,11 +523,11 @@ export function EventContent({ user }: { user: User }) {
       <main id="main-content" className="event-main content-main">
         <header className="event-heading">
           <div>
-            <p className="kicker">Content management</p>
-            <h1>Deliverables & publishing</h1>
+            <p className="kicker">Speaker content and files</p>
+            <h1>Review what speakers submit.</h1>
             <p>
-              Collect, review, version, approve, and distribute every final
-              asset.
+              Request files, compare revisions, and approve only the content
+              that is ready to enter the public program.
             </p>
           </div>
           <label className="upload-setting">
@@ -554,6 +555,7 @@ export function EventContent({ user }: { user: User }) {
             </span>
           </label>
         </header>
+        <EventPageGuide eventId={eventId} surface="content" />
         {feedback && (
           <div
             className={`form-status form-status-${feedback.kind}`}

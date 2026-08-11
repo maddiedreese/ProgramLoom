@@ -67,15 +67,15 @@ describe("EventControlRoom", () => {
       "/app/events/event-1/reviews?submission=submission-1",
     );
     expect(
-      screen.getByRole("link", { name: "Resolve this blocker" }),
+      screen.getByRole("link", { name: "Next: Assign reviewers" }),
     ).toHaveAttribute(
       "href",
       "/app/events/event-1/reviews?submission=submission-1",
     );
-    expect(screen.getByRole("link", { name: "1. Proposals" })).toBeVisible();
     expect(
-      screen.getByRole("link", { name: "6. Schedule & publish" }),
+      screen.getByRole("link", { name: "1. Collect proposals" }),
     ).toBeVisible();
+    expect(screen.getByRole("link", { name: "6. Publish" })).toBeVisible();
     expect(screen.getByLabelText("Owner for Reliable systems")).toBeEnabled();
   });
 
