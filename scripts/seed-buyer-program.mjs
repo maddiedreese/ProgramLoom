@@ -12,6 +12,7 @@ const ids = {
   owner: "30000000-0000-4000-8000-000000000001",
   communityTrack: "16305db4-83f6-4ad3-8d06-6f4f435032fa",
   mainTrack: "9a9439b2-7d0e-4cfb-b9b4-5876a8491627",
+  aiTrack: "61000000-0000-4000-8000-000000000001",
   breakoutRoom: "134abe0e-2046-4bd4-88fc-087f0e0a4e1d",
   mainRoom: "b2971145-0696-4b82-9822-1f40d58fd519",
   priya: "90b57c7a-6864-4ada-b270-f279e50ee9ef",
@@ -266,7 +267,19 @@ async function api(path, options = {}) {
 }
 
 const agendaPath = `/api/agenda/admin/events/${ids.event}`;
-for (const proposal of proposals.filter(({ placement }) => placement)) {
+const agendaPlacements = [
+  ...proposals.filter(({ placement }) => placement),
+  {
+    id: "61000000-0000-4000-8000-000000000103",
+    track: ids.aiTrack,
+    placement: {
+      roomId: ids.breakoutRoom,
+      startsAt: "2027-09-17T17:00:00.000Z",
+      endsAt: "2027-09-17T17:10:00.000Z",
+    },
+  },
+];
+for (const proposal of agendaPlacements) {
   let agenda = await api(agendaPath);
   let item = agenda.items.find(
     ({ submissionId }) => submissionId === proposal.id,
