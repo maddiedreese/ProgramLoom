@@ -1087,7 +1087,7 @@ export function SubmissionWorkspaceGrid({
           role="row"
           style={{ gridTemplateColumns: grid }}
         >
-          <span>
+          <span role="columnheader">
             <input
               type="checkbox"
               aria-label="Select this page"
@@ -1124,7 +1124,7 @@ export function SubmissionWorkspaceGrid({
                 : ""}
             </button>
           ))}
-          <span />
+          <span role="columnheader">Actions</span>
         </div>
         {rows.map((row) => (
           <div
@@ -1133,7 +1133,7 @@ export function SubmissionWorkspaceGrid({
             style={{ gridTemplateColumns: grid }}
             key={row.id}
           >
-            <span>
+            <span role="cell">
               <input
                 type="checkbox"
                 aria-label={`Select ${row.title}`}
@@ -1168,12 +1168,14 @@ export function SubmissionWorkspaceGrid({
           </div>
         ))}
         {!loading && !rows.length && (
-          <div className="workspace-empty">
-            <strong>No matching proposals</strong>
-            <span>
-              Clear filters or wait for new submissions. This view updates from
-              persisted records.
-            </span>
+          <div role="row">
+            <div className="workspace-empty" role="cell">
+              <strong>No matching proposals</strong>
+              <span>
+                Clear filters or wait for new submissions. This view updates
+                from persisted records.
+              </span>
+            </div>
           </div>
         )}
       </div>
