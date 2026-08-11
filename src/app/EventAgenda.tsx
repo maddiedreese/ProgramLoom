@@ -20,6 +20,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -448,10 +449,10 @@ export function EventAgenda({ user }: { user: User }) {
         <header className="event-heading">
           <div>
             <p className="kicker">Program schedule</p>
-            <h1>Build the agenda.</h1>
+            <h1>Schedule sessions without conflicts.</h1>
             <p>
-              Place accepted content across rooms and tracks with collision
-              checks on every move.
+              Place approved sessions into rooms and times. ProgramLoom checks
+              speaker and room collisions before you publish.
             </p>
           </div>
           <button
@@ -468,6 +469,7 @@ export function EventAgenda({ user }: { user: User }) {
             Calendar lifecycle
           </a>
         </header>
+        <EventPageGuide eventId={eventId} surface="agenda" />
         {feedback && (
           <div className={`form-status form-status-${feedback.kind}`}>
             {feedback.message}

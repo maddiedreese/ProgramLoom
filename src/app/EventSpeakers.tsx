@@ -22,6 +22,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 import { sanitizeResourceHtml } from "../lib/sanitizeResource";
 
 type User = { id: string; email: string; name: string };
@@ -1097,11 +1098,11 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
     <>
       <header className="event-heading">
         <div>
-          <p className="kicker">Speaker operations</p>
-          <h1>Speaker readiness</h1>
+          <p className="kicker">Accepted speakers</p>
+          <h1>Get every speaker ready.</h1>
           <p>
-            Profiles, tasks, resources, logistics, and content requests in one
-            progress view.
+            Invite speakers to their portal and track profiles, tasks, files,
+            logistics, and content from one readiness view.
           </p>
         </div>
         <div className="submission-total">
@@ -1129,6 +1130,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
           </a>
         </div>
       </header>
+      <EventPageGuide eventId={eventId} surface="speakers" />
       {feedback && (
         <div className={`form-status form-status-${feedback.kind}`}>
           {feedback.message}

@@ -1,36 +1,44 @@
 # ProgramLoom
 
+ProgramLoom is a complete program-operations workspace for conferences, meetups, workshops, and community calls for proposals.
+
 ProgramLoom shows organizers exactly what is blocking their program, gives them the tools to resolve it, and carries every accepted proposal safely through communication, onboarding, scheduling, publication, and follow-up.
+
+Use it when a program starts with an open call for ideas and ends with a published agenda. Instead of stitching together forms, spreadsheets, email threads, file requests, and calendar tools, an organizing team can see the whole journey—and the work that still needs attention—in one place.
 
 - Marketing: [programloom.com](https://programloom.com)
 - Application: [app.programloom.com](https://app.programloom.com)
 - Public CFP directory: [app.programloom.com/cfp](https://app.programloom.com/cfp)
 - Source: [github.com/maddiedreese/SaaS](https://github.com/maddiedreese/SaaS)
 
-**Decision staging is not delivery.** Staging records the organizer's intended outcome and sends nothing. Communication begins only after an organizer opens the Communications Center, previews the real recipients and rendered message, and chooses **Send decision**.
-
 ![ProgramLoom Organizer Control Room showing a clear, live operational program](public/programloom-control-room.jpg)
 
-Start with the [uninterrupted evaluator walkthrough](docs/evaluator-guide.md) and its [exact production route/persona map](docs/evaluator-route-map.md), which follow one proposal through review, decision delivery, onboarding, content, scheduling, publication, search, integration recovery, and cancellation.
+## How the product fits together
 
-The Control Room is the operational center. Its live, prioritized records connect directly to submissions, review assignments, decisions, delivery failures, speaker access, onboarding, content approval, agenda placement, scheduling conflicts, Queue work, and Airtable recovery.
+The **Control Room** is the organizer's starting point. It answers one practical question: “What is keeping this program from being ready?” Each live issue links directly to the person, proposal, message, file, or schedule item that needs attention.
 
-## Complete lifecycle
+ProgramLoom then guides the team through six understandable stages:
 
-1. Create an event from a maintained starter or organization template.
-2. Customize and publish a conditional CFP; contributors can save, submit, and update real persisted proposals.
-3. Find proposals in configurable, saved submission views; assign reviewers and complete multi-round scorecards.
-4. Stage a decision without sending it, preview its real recipients, then deliver it through the Communications Center.
-5. Continue automatically with speaker access, onboarding tasks, files, content review, notifications, audit history, and communication history.
-6. Approve and schedule sessions, resolve room/speaker conflicts, and maintain stable-UID calendar requests, updates, cancellations, and explicit reschedules.
-7. Publish the agenda to five anonymous, responsive attendee widgets and use organizer-wide search to find every linked record.
-8. Monitor the remaining work in the Control Room until the program is clear.
+1. **Collect proposals.** Create an event from a reusable template, customize its call for proposals (CFP), publish the form, and manage incoming ideas.
+2. **Evaluate proposals.** Assign reviewers, collect structured scorecards, and see when a proposal has enough evidence for a decision.
+3. **Decide and communicate.** Record an intended outcome, preview the exact recipients and message, and send it from a durable, auditable outbox.
+4. **Prepare speakers.** Give accepted speakers portal access, collect profiles and files, track onboarding, and review session content.
+5. **Schedule.** Place approved sessions into rooms and times, resolve conflicts, and send calendar invitations that update in place.
+6. **Publish.** Release the agenda to five live attendee views, including a searchable schedule, speaker directory, and personal itinerary.
 
-## Architecture
+The Control Room stays connected to every stage, so resolved blockers disappear and new delivery, onboarding, content, schedule, or integration problems become visible.
 
-The React application and Hono API run together on a Cloudflare Worker. D1 stores tenant identity, authorization, workflow, audit, communication, calendar, notification, and integration state. R2 stores immutable private file versions and generated exports. Queue provides durable, idempotent delivery and Airtable synchronization. Resend supplies transactional delivery, Airtable can be the authoritative business-record store, and PostHog receives only explicit privacy-bounded product events. Operational errors remain in structured Cloudflare logs and Workers Observability; Sentry is intentionally not used.
+### Staging a decision does not send it
 
-See [architecture](docs/architecture.md), [data model](docs/data-model.md), [Airtable design](docs/airtable.md), and the [operator runbook](docs/runbook.md).
+This separation is deliberate. **Stage decision** records what the organizer intends to do and sends nothing. The organizer must then open the **Communications Center**, choose the recipients, inspect the rendered message, and select **Send decision**. This makes it safe to prepare a program before communicating it.
+
+For a concise, end-to-end tour, follow the [guided product walkthrough](docs/evaluator-guide.md). The [screen and role map](docs/evaluator-route-map.md) lists the exact routes for organizer, reviewer, speaker, and public experiences.
+
+## How it works
+
+The user interface and API run together on a Cloudflare Worker. D1 stores account access and durable workflow state; R2 stores private file versions and generated exports; Cloudflare Queues handles retry-safe email and Airtable synchronization. Resend delivers transactional email, Airtable can remain the authoritative business-record store, and PostHog receives only intentionally limited product events. Structured Cloudflare logs and Workers Observability provide operational diagnosis.
+
+Technical readers can continue with the [architecture](docs/architecture.md), [data model](docs/data-model.md), [Airtable design](docs/airtable.md), and [operator runbook](docs/runbook.md).
 
 ## Local setup
 
@@ -67,15 +75,15 @@ RELEASE_COMMIT="$(git rev-parse HEAD)" npm run deploy
 
 The deploy script rejects a missing, abbreviated, uppercase, or malformed source commit and binds the validated SHA directly to Wrangler. Record the returned Worker version, verify `/api/health`, run the production Playwright gate, and require Airtable to settle at zero pending work, zero failures, and zero open conflicts. Full recovery and secret-handling procedures are in the [runbook](docs/runbook.md).
 
-## Evaluator walkthrough
+## Guided product walkthrough
 
-Follow the uninterrupted lifecycle in [evaluator-guide.md](docs/evaluator-guide.md): template → CFP → proposal → saved view → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule/calendar → conflict resolution → publish all five widgets → Command+K search → Airtable health → disposable cancellation → clear Control Room.
+Follow one uninterrupted lifecycle in [the guided walkthrough](docs/evaluator-guide.md): template → CFP → proposal → saved view → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule and calendar → conflict resolution → five public views → search → integration health → cancellation → clear Control Room.
 
 ## Honest limitations and waivers
 
 - Outlook calendar behavior is explicitly waived and untested because no account is available. Gmail and Apple Calendar are the only calendar clients eligible for final claims.
 - No Sentry integration is present; Cloudflare structured observability is the operational source.
-- AI/evaluator usage is constrained by the account owner's approved OpenRouter ceiling. No paid plan or resource may be enabled without approval.
+- Optional AI-assisted operations use OpenRouter only when configured. No paid plan or resource should be enabled without the account owner's approval.
 
 ## License
 

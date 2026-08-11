@@ -86,7 +86,7 @@ describe("EventWorkspace", () => {
 
     const input = await screen.findByLabelText("New form");
     fireEvent.change(input, { target: { value: "Main call for proposals" } });
-    fireEvent.click(screen.getByTitle("Create form"));
+    fireEvent.click(screen.getByRole("button", { name: "Create form" }));
 
     expect(
       await screen.findByText(/CFP created. Add the questions/i),

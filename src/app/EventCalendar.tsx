@@ -14,6 +14,7 @@ import { useParams } from "react-router-dom";
 import { captureProductEvent } from "../lib/telemetry";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 
 type User = { id: string; email: string; name: string };
 type Settings = {
@@ -261,11 +262,11 @@ export function EventCalendar({ user }: { user: User }) {
       <main id="main-content" className="event-main calendar-main">
         <header className="event-heading">
           <div>
-            <p className="kicker">Participant calendar lifecycle</p>
-            <h1>One event, updated in place.</h1>
+            <p className="kicker">Participant calendar invitations</p>
+            <h1>Send invitations that update instead of duplicate.</h1>
             <p>
-              Stable UIDs, increasing sequences, delivery evidence, and explicit
-              cancellation or rescheduling.
+              When a session changes, participants receive an update to the same
+              calendar event. Cancellation and rescheduling stay explicit.
             </p>
           </div>
           <button
@@ -276,6 +277,7 @@ export function EventCalendar({ user }: { user: User }) {
             <RefreshCw size={16} /> Refresh
           </button>
         </header>
+        <EventPageGuide eventId={eventId} surface="calendar" />
         {feedback && (
           <div
             role="status"

@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import { captureProductEvent } from "../lib/telemetry";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import { EventPageGuide } from "./EventPageGuide";
 
 type User = { id: string; email: string; name: string };
 type Template = {
@@ -518,11 +519,11 @@ export function EventCommunications({ user }: { user: User }) {
       <main id="main-content" className="event-main communications-main">
         <header className="event-heading communications-heading">
           <div>
-            <p className="kicker">Unified communications</p>
-            <h1>Every message, one accountable outbox.</h1>
+            <p className="kicker">Communications Center</p>
+            <h1>Preview every recipient. Send with confidence.</h1>
             <p>
-              Configure, preview, schedule, deliver, and audit program
-              communications.
+              Prepare, preview, send, and track program messages from one
+              durable outbox. Preparing a message never sends it.
             </p>
           </div>
           <button
@@ -533,6 +534,7 @@ export function EventCommunications({ user }: { user: User }) {
             <RefreshCw size={16} /> Refresh
           </button>
         </header>
+        <EventPageGuide eventId={eventId} surface="communications" />
         {feedback && (
           <div
             className={`form-status form-status-${feedback.kind}`}
@@ -949,7 +951,12 @@ export function EventCommunications({ user }: { user: User }) {
                     value="prepared"
                     defaultChecked={selectedTemplate.category !== "decision"}
                   />{" "}
-                  Prepare only
+                  <span>
+                    <strong>Prepare without sending</strong>
+                    <small>
+                      Save it in the outbox for a later review or send.
+                    </small>
+                  </span>
                 </label>
                 <label className="radio-row">
                   <input
@@ -958,10 +965,15 @@ export function EventCommunications({ user }: { user: User }) {
                     value="now"
                     defaultChecked={selectedTemplate.category === "decision"}
                   />{" "}
-                  Queue now
+                  <span>
+                    <strong>Send after confirmation</strong>
+                    <small>
+                      Queue delivery only after the confirmation step.
+                    </small>
+                  </span>
                 </label>
                 <label>
-                  Or schedule for
+                  Schedule instead (optional)
                   <input name="scheduledFor" type="datetime-local" />
                 </label>
               </fieldset>

@@ -130,10 +130,11 @@ function MarketingPage() {
           </div>
           <h1>See what is blocking your program—and resolve it.</h1>
           <p className="hero-copy">
-            ProgramLoom shows organizers exactly what is blocking their program,
-            gives them the tools to resolve it, and carries every accepted
-            proposal safely through communication, onboarding, scheduling,
-            publication, and follow-up.
+            Built for conferences, meetups, workshops, and community calls for
+            proposals. ProgramLoom shows organizers exactly what is blocking
+            their program, gives them the tools to resolve it, and carries every
+            accepted proposal safely through communication, onboarding,
+            scheduling, publication, and follow-up.
           </p>
           <div className="hero-actions">
             <a
