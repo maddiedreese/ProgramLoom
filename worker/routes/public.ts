@@ -270,6 +270,7 @@ function availability(form: Pick<FormRecord, "opensAt" | "closesAt">) {
 }
 
 router.get("/cfp", async (context) => {
+  context.header("cache-control", "no-store");
   const db = database(context.env);
   const result = await db
     .prepare(
@@ -471,6 +472,7 @@ export function deriveProgramMetadata(
 }
 
 router.get(`${route}`, async (context) => {
+  context.header("cache-control", "no-store");
   const db = database(context.env);
   const form = await publicForm(
     db,

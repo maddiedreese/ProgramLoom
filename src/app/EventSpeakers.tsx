@@ -733,6 +733,9 @@ function SpeakerPortal({
                       }}
                     />
                   </label>
+                  <small>
+                    PDF, PowerPoint, ZIP, PNG, JPEG, or WebP · 25 MB max
+                  </small>
                 </div>
               </article>
             ))

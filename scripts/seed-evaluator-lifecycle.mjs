@@ -198,7 +198,9 @@ VALUES
 ('airtable-61000000-0000-4000-8004-000000000001',${q(ids.organization)},${q(ids.event)},'airtable','upsert','event',${q(ids.event)},'{"action":"evaluator.lifecycle_seeded"}','airtable:evaluator:event:v1'),
 ('airtable-61000000-0000-4000-8004-000000000002',${q(ids.organization)},${q(ids.event)},'airtable','upsert','submission',${q(ids.aiPair)},'{"action":"submission.seeded"}','airtable:evaluator:ai-pair:v1'),
 ('airtable-61000000-0000-4000-8004-000000000003',${q(ids.organization)},${q(ids.event)},'airtable','upsert','submission',${q(ids.docs)},'{"action":"submission.seeded"}','airtable:evaluator:docs:v1'),
-('airtable-61000000-0000-4000-8004-000000000004',${q(ids.organization)},${q(ids.event)},'airtable','upsert','submission',${q(ids.lightning)},'{"action":"submission.seeded"}','airtable:evaluator:lightning:v1');
+('airtable-61000000-0000-4000-8004-000000000004',${q(ids.organization)},${q(ids.event)},'airtable','upsert','submission',${q(ids.lightning)},'{"action":"submission.seeded"}','airtable:evaluator:lightning:v1'),
+('airtable-61000000-0000-4000-8004-000000000005',${q(ids.organization)},${q(ids.archivedEvent)},'airtable','upsert','event',${q(ids.archivedEvent)},'{"action":"evaluator.scratchpad_archived"}','airtable:evaluator:archived-event:v2'),
+('airtable-61000000-0000-4000-8004-000000000006',${q(ids.organization)},${q(ids.event)},'airtable','upsert','cfp_form',${q(ids.form)},'{"action":"evaluator.cfp_aligned"}','airtable:evaluator:cfp:v2');
 `;
 
 const wrangler = resolve(workspace, "node_modules/.bin/wrangler");
