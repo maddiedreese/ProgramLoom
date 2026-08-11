@@ -352,7 +352,12 @@ export function EventSubmissions({ user }: { user: User }) {
                   <div>
                     <strong>{person.name}</strong>
                     <small>
-                      {person.email}
+                      {person.role === "primary"
+                        ? "Primary submitter"
+                        : person.role === "coauthor"
+                          ? "Co-author"
+                          : person.role}
+                      {` · ${person.email}`}
                       {person.organization ? ` · ${person.organization}` : ""}
                     </small>
                   </div>

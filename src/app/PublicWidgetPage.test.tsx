@@ -103,14 +103,14 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function renderWidget(widgetType: string) {
+function renderWidget(widgetType: string, data = payload) {
   vi.stubGlobal(
     "fetch",
     vi.fn(() =>
       Promise.resolve(
         Response.json({
-          ...payload,
-          widget: { ...payload.widget, widgetType },
+          ...data,
+          widget: { ...data.widget, widgetType },
         }),
       ),
     ),
@@ -178,6 +178,52 @@ describe("public widgets", () => {
     expect(
       within(sessionCard!).getByRole("button", { name: "View details" }),
     ).toBeVisible();
+  });
+
+  it("facets the session catalog by track, format, and location", async () => {
+    renderWidget("sessions", {
+      ...payload,
+      sessions: [
+        ...payload.sessions,
+        {
+          ...payload.sessions[0],
+          id: "submission-2",
+          title: "Hands-on reliability",
+          format: "Workshop",
+          trackId: "track-1",
+        },
+      ],
+      agenda: [
+        ...payload.agenda,
+        {
+          ...payload.agenda[0],
+          id: "agenda-3",
+          submissionId: "submission-2",
+          title: "Hands-on reliability",
+          roomName: "Workshop lab",
+          trackId: "track-1",
+          trackName: "Main",
+        },
+      ],
+    });
+    expect(await screen.findByText("2 sessions")).toBeVisible();
+    expect(screen.getByLabelText("Filter by track")).toBeVisible();
+    expect(screen.getByLabelText("Filter by format")).toBeVisible();
+    expect(screen.getByLabelText("Filter by location")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Filter by format"), {
+      target: { value: "Workshop" },
+    });
+    expect(screen.getByText("1 session")).toBeVisible();
+    expect(screen.getByText("Hands-on reliability")).toBeVisible();
+    expect(screen.queryByText("Reliable programs")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Filter by format"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByLabelText("Filter by location"), {
+      target: { value: "Main stage" },
+    });
+    expect(screen.getByText("Reliable programs")).toBeVisible();
+    expect(screen.queryByText("Hands-on reliability")).not.toBeInTheDocument();
   });
 
   it("uses polished singular itinerary copy", async () => {

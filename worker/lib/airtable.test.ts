@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../env";
 import {
+  airtableRecoveryAction,
   isAirtableDeletionAudit,
   resolvedConflictCompactionSql,
   speakerTaskAssignmentSql,
@@ -27,6 +28,11 @@ describe("Airtable conflict recovery", () => {
     expect(resolvedConflictCompactionSql).toContain("organization_id=?");
     expect(resolvedConflictCompactionSql).toContain("entity_type=?");
     expect(resolvedConflictCompactionSql).toContain("entity_id=?");
+  });
+
+  it("converges stale queued upserts by deleting missing projections", () => {
+    expect(airtableRecoveryAction(false)).toBe("delete");
+    expect(airtableRecoveryAction(true)).toBe("upsert");
   });
 });
 

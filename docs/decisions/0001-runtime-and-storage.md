@@ -9,7 +9,7 @@ ProgramLoom runs on Cloudflare Workers with D1, R2, Queues, Workers AI, and Turn
 
 ## Rationale
 
-The runtime stays inside Cloudflare's free tier for the intended competition and early-product load. The explicit storage mode makes Airtable a real source of truth rather than a cosmetic export, without forcing every public registrant to provide Airtable credentials.
+The runtime stays inside Cloudflare's free tier for the initial production load. The explicit storage mode makes Airtable a real source of truth rather than a cosmetic export, without forcing every public registrant to provide Airtable credentials.
 
 ## Consequences
 

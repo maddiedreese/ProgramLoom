@@ -210,4 +210,111 @@ describe("reviewer workspace", () => {
       ).toBe(true),
     );
   });
+
+  it("exposes individual reviewer scores and comments from aggregate results", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path === `/api/events/${eventId}`)
+          return Promise.resolve(
+            Response.json({
+              role: "owner",
+              event: {
+                id: eventId,
+                organizationName: "Programs",
+                name: "Assigned Program",
+                status: "active",
+              },
+            }),
+          );
+        if (path === `/api/reviews/events/${eventId}`)
+          return Promise.resolve(
+            Response.json({
+              rounds: [
+                {
+                  id: "round-1",
+                  name: "Initial Review",
+                  position: 1,
+                  isBlind: false,
+                  opensAt: null,
+                  closesAt: null,
+                  status: "open",
+                  assignmentCount: 1,
+                  completedCount: 1,
+                  reviewerCount: 1,
+                  averageScore: 4,
+                },
+              ],
+              scorecards: [
+                {
+                  id: "quality",
+                  roundId: "round-1",
+                  label: "Quality",
+                  fieldType: "numeric",
+                  weight: 2,
+                  required: true,
+                },
+              ],
+              reviewers: [],
+              reviewerPools: [],
+              results: [
+                {
+                  roundId: "round-1",
+                  submissionId: "submission-1",
+                  title: "Reliable programs",
+                  aggregateScore: 4,
+                  assignmentCount: 1,
+                  completedCount: 1,
+                },
+              ],
+              reviewDetails: [
+                {
+                  roundId: "round-1",
+                  submissionId: "submission-1",
+                  assignmentId: "assignment-1",
+                  reviewerName: "Sam Reviewer",
+                  reviewerEmail: "reviewer@example.test",
+                  answers: { quality: 4 },
+                  weightedScore: 4,
+                  recommendation: "approve",
+                  comment: "Clear, useful, and ready for the program.",
+                  submittedAt: "2027-01-12T12:00:00.000Z",
+                },
+              ],
+            }),
+          );
+        if (path.includes("/submissions?status=pending"))
+          return Promise.resolve(Response.json({ submissions: [] }));
+        return Promise.resolve(Response.json({ ok: true }));
+      }),
+    );
+    render(
+      <MemoryRouter initialEntries={[`/app/events/${eventId}/reviews`]}>
+        <Routes>
+          <Route
+            path="/app/events/:eventId/reviews"
+            element={
+              <EventReviews
+                user={{
+                  id: "owner-1",
+                  name: "Owner",
+                  email: "owner@example.test",
+                }}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "View review details" }),
+    );
+    expect(screen.getByText("Sam Reviewer")).toBeVisible();
+    expect(
+      screen.getByText("Comment: Clear, useful, and ready for the program."),
+    ).toBeVisible();
+    expect(screen.getAllByText("Quality")).toHaveLength(2);
+    expect(screen.getAllByText("4").length).toBeGreaterThan(0);
+  });
 });

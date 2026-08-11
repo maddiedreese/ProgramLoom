@@ -16,7 +16,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { Fragment, type FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
@@ -74,6 +74,18 @@ type ReviewResult = {
   aggregateScore: number | null;
   assignmentCount: number;
   completedCount: number;
+};
+type ReviewDetail = {
+  roundId: string;
+  submissionId: string;
+  assignmentId: string;
+  reviewerName: string;
+  reviewerEmail: string;
+  answers: Record<string, unknown>;
+  weightedScore: number | null;
+  recommendation: string | null;
+  comment: string | null;
+  submittedAt: string | null;
 };
 type Submission = {
   id: string;
@@ -232,6 +244,8 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
   const [reviewers, setReviewers] = useState<Reviewer[]>([]);
   const [reviewerPools, setReviewerPools] = useState<ReviewerPool[]>([]);
   const [results, setResults] = useState<ReviewResult[]>([]);
+  const [reviewDetails, setReviewDetails] = useState<ReviewDetail[]>([]);
+  const [expandedResult, setExpandedResult] = useState<string>();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selectedRoundId, setSelectedRoundId] = useState<string>();
   const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
@@ -259,6 +273,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
         reviewers: Reviewer[];
         reviewerPools: ReviewerPool[];
         results: ReviewResult[];
+        reviewDetails: ReviewDetail[];
       }>(`/api/reviews/events/${eventId}`),
       api<{ submissions: Submission[] }>(
         `/api/events/${eventId}/submissions?status=pending`,
@@ -269,6 +284,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
     setReviewers(config.reviewers);
     setReviewerPools(config.reviewerPools ?? []);
     setResults(config.results ?? []);
+    setReviewDetails(config.reviewDetails ?? []);
     setSubmissions(intake.submissions);
     setSelectedRoundId(preferred ?? selectedRoundId ?? config.rounds[0]?.id);
   }
@@ -1028,24 +1044,98 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                               : leftScore - rightScore;
                           })
                           .map((result) => (
-                            <tr key={result.submissionId}>
-                              <td>{result.title}</td>
-                              <td>
-                                {result.completedCount}/{result.assignmentCount}
-                              </td>
-                              <td>
-                                {result.aggregateScore ?? "Pending"}
-                                <button
-                                  className="text-button"
-                                  onClick={() =>
-                                    runAiAssessment(result.submissionId)
-                                  }
-                                  disabled={busy}
+                            <Fragment key={result.submissionId}>
+                              <tr>
+                                <td>{result.title}</td>
+                                <td>
+                                  {result.completedCount}/
+                                  {result.assignmentCount}
+                                </td>
+                                <td>
+                                  {result.aggregateScore ?? "Pending"}
+                                  <button
+                                    className="text-button"
+                                    onClick={() =>
+                                      setExpandedResult((current) =>
+                                        current === result.submissionId
+                                          ? undefined
+                                          : result.submissionId,
+                                      )
+                                    }
+                                    aria-expanded={
+                                      expandedResult === result.submissionId
+                                    }
+                                  >
+                                    {expandedResult === result.submissionId
+                                      ? "Close review details"
+                                      : "View review details"}
+                                  </button>
+                                  <button
+                                    className="text-button"
+                                    onClick={() =>
+                                      runAiAssessment(result.submissionId)
+                                    }
+                                    disabled={busy}
+                                  >
+                                    Run AI assessment
+                                  </button>
+                                </td>
+                              </tr>
+                              {expandedResult === result.submissionId && (
+                                <tr
+                                  className="review-detail-row"
+                                  key={`${result.submissionId}:details`}
                                 >
-                                  Run AI assessment
-                                </button>
-                              </td>
-                            </tr>
+                                  <td colSpan={3}>
+                                    <h4>Individual review details</h4>
+                                    {reviewDetails
+                                      .filter(
+                                        (detail) =>
+                                          detail.roundId === selected.id &&
+                                          detail.submissionId ===
+                                            result.submissionId,
+                                      )
+                                      .map((detail) => (
+                                        <article key={detail.assignmentId}>
+                                          <strong>{detail.reviewerName}</strong>
+                                          <span>
+                                            {detail.submittedAt
+                                              ? `Completed · score ${detail.weightedScore ?? "not scored"}`
+                                              : "Awaiting review"}
+                                          </span>
+                                          {detail.recommendation && (
+                                            <p>
+                                              Recommendation:{" "}
+                                              {detail.recommendation}
+                                            </p>
+                                          )}
+                                          {detail.comment && (
+                                            <p>Comment: {detail.comment}</p>
+                                          )}
+                                          {Object.keys(detail.answers).length >
+                                            0 && (
+                                            <dl>
+                                              {Object.entries(
+                                                detail.answers,
+                                              ).map(([fieldId, value]) => (
+                                                <div key={fieldId}>
+                                                  <dt>
+                                                    {scorecards.find(
+                                                      (field) =>
+                                                        field.id === fieldId,
+                                                    )?.label ?? "Criterion"}
+                                                  </dt>
+                                                  <dd>{String(value)}</dd>
+                                                </div>
+                                              ))}
+                                            </dl>
+                                          )}
+                                        </article>
+                                      ))}
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
                           ))}
                       </tbody>
                     </table>
