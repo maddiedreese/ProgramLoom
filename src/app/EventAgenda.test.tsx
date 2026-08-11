@@ -152,7 +152,9 @@ describe("agenda calendar lifecycle controls", () => {
     expect(
       screen.getByRole("columnheader", { name: "Main stage" }),
     ).toBeVisible();
-    expect(await screen.findByRole("button", { name: "Apply" })).toBeDisabled();
+    expect(
+      await screen.findByRole("button", { name: "Apply suggested schedule" }),
+    ).toBeDisabled();
 
     fireEvent.click(
       await screen.findByRole("button", {

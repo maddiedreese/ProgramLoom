@@ -1019,6 +1019,86 @@ router.post(
     ]);
     const input = context.req.valid("json");
     const db = database(context.env);
+    const existing = await db
+      .prepare(
+        `SELECT id,position FROM onboarding_tasks
+         WHERE event_id=? AND task_type=? AND title=? COLLATE NOCASE
+         ORDER BY position,id LIMIT 1`,
+      )
+      .bind(eventId, input.taskType, input.title)
+      .first<{ id: string; position: number }>();
+    if (existing) {
+      const fileTargets =
+        input.assignAll && input.taskType === "file_request"
+          ? await assignAllFileTargets(db, eventId)
+          : { results: [] };
+      const statements: D1PreparedStatement[] = [
+        db
+          .prepare(
+            `UPDATE onboarding_tasks SET description=?,due_at=?
+             WHERE id=? AND event_id=?`,
+          )
+          .bind(
+            input.description ?? null,
+            input.dueAt ?? null,
+            existing.id,
+            eventId,
+          ),
+        auditStatement(db, {
+          organizationId: access.organizationId,
+          eventId,
+          actorUserId: access.user.id,
+          action: "speaker_task.reused",
+          entityType: "speaker_task",
+          entityId: existing.id,
+          after: { ...input, duplicatePrevented: true },
+          requestId: context.get("requestId"),
+        }),
+      ];
+      if (input.assignAll)
+        statements.push(
+          db
+            .prepare(
+              `INSERT INTO speaker_task_assignments (task_id,speaker_id)
+               SELECT ?,sp.id FROM speaker_profiles sp
+               JOIN session_speakers ss ON ss.speaker_id=sp.id
+               JOIN submissions s ON s.id=ss.submission_id
+               WHERE s.event_id=? GROUP BY sp.id
+               ON CONFLICT (task_id,speaker_id) DO NOTHING`,
+            )
+            .bind(existing.id, eventId),
+        );
+      for (const target of fileTargets.results)
+        statements.push(
+          db
+            .prepare(
+              `INSERT INTO files
+               (id,organization_id,event_id,submission_id,speaker_id,task_id,purpose)
+               SELECT ?,?,?,?,?,?,?
+               WHERE NOT EXISTS (
+                 SELECT 1 FROM files
+                 WHERE event_id=? AND speaker_id=? AND task_id=?
+               )`,
+            )
+            .bind(
+              crypto.randomUUID(),
+              access.organizationId,
+              eventId,
+              target.submissionId,
+              target.speakerId,
+              existing.id,
+              input.title,
+              eventId,
+              target.speakerId,
+              existing.id,
+            ),
+        );
+      await db.batch(statements);
+      return context.json({
+        task: { id: existing.id, ...input, position: existing.position },
+        reused: true,
+      });
+    }
     const id = crypto.randomUUID();
     const position = Number(
       (

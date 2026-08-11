@@ -291,21 +291,31 @@ export function EventContent({ user }: { user: User }) {
     event.preventDefault();
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    await run(async () => {
-      await api(`/api/speakers/admin/events/${eventId}/tasks`, {
-        method: "POST",
-        body: JSON.stringify({
-          title: form.get("title"),
-          description: form.get("description"),
-          taskType: "file_request",
-          dueAt: form.get("dueAt")
-            ? new Date(String(form.get("dueAt"))).toISOString()
-            : null,
-          assignAll: true,
-        }),
-      });
-      formElement.reset();
-    }, "File request assigned to all accepted speakers.");
+    await run(
+      async () => {
+        const result = await api<{ reused?: boolean }>(
+          `/api/speakers/admin/events/${eventId}/tasks`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              title: form.get("title"),
+              description: form.get("description"),
+              taskType: "file_request",
+              dueAt: form.get("dueAt")
+                ? new Date(String(form.get("dueAt"))).toISOString()
+                : null,
+              assignAll: true,
+            }),
+          },
+        );
+        formElement.reset();
+        return result;
+      },
+      (result) =>
+        result.reused
+          ? "The existing file request was updated and assigned to every accepted speaker; no duplicate was created."
+          : "File request assigned to all accepted speakers.",
+    );
   }
   async function sendReminders() {
     await run(
@@ -629,6 +639,7 @@ export function EventContent({ user }: { user: User }) {
               </label>
               <button
                 className="button button-ghost"
+                aria-label="Send bulk reminders to outstanding speakers"
                 onClick={sendReminders}
                 disabled={
                   busy ||
@@ -637,7 +648,7 @@ export function EventContent({ user }: { user: User }) {
                   )
                 }
               >
-                <Send size={15} /> Remind outstanding speakers
+                <Send size={15} /> Send bulk reminders
               </button>
             </div>
             <div className="deliverables-layout">

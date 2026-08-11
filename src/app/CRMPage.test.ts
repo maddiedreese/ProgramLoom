@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canSaveCrmSegment,
   defaultCrmSegmentType,
+  defaultOutreachEventId,
   duplicateContactIds,
   reconcileCrmSelection,
   resolveCrmOrganization,
@@ -58,5 +59,12 @@ describe("CRM segment availability", () => {
         { id: "duplicate-1" },
       ]),
     ).toEqual(["duplicate-1", "duplicate-2"]);
+  });
+
+  it("defaults outreach to the first available event", () => {
+    expect(defaultOutreachEventId([{ id: "event-1" }, { id: "event-2" }])).toBe(
+      "event-1",
+    );
+    expect(defaultOutreachEventId([])).toBe("");
   });
 });

@@ -171,6 +171,7 @@ export function EventAgenda({ user }: { user: User }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [selectedDay, setSelectedDay] = useState("");
+  const [assistPreviewCount, setAssistPreviewCount] = useState<number>();
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
     message: string;
@@ -464,6 +465,7 @@ export function EventAgenda({ user }: { user: User }) {
           throw new Error(
             "No conflict-free placements fit inside that window.",
           );
+        setAssistPreviewCount(apply ? undefined : result.placements.length);
       },
       apply
         ? "Conflict-free suggestions applied."
@@ -941,7 +943,7 @@ export function EventAgenda({ user }: { user: User }) {
                   value="false"
                   disabled={busy}
                 >
-                  Preview
+                  Preview conflict-free schedule
                 </button>
                 <button
                   className="button"
@@ -949,9 +951,17 @@ export function EventAgenda({ user }: { user: User }) {
                   value="true"
                   disabled={busy || !unscheduled.length}
                 >
-                  Apply
+                  Apply suggested schedule
                 </button>
               </div>
+              {assistPreviewCount !== undefined && (
+                <p className="field-hint" role="status">
+                  {assistPreviewCount} conflict-free placement
+                  {assistPreviewCount === 1 ? "" : "s"} ready. Choose Apply
+                  suggested schedule to persist{" "}
+                  {assistPreviewCount === 1 ? "it" : "them"}.
+                </p>
+              )}
             </form>
           </aside>
         </div>

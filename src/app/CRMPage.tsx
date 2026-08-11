@@ -208,6 +208,10 @@ export function duplicateContactIds(duplicates: Array<{ id: string }>) {
   return [...new Set(duplicates.map((duplicate) => duplicate.id))];
 }
 
+export function defaultOutreachEventId(events: Array<{ id: string }>) {
+  return events[0]?.id ?? "";
+}
+
 export function resolveCrmOrganization(
   organizations: Array<{ id: string }>,
   queryOrganization: string | null,
@@ -419,6 +423,12 @@ export function CRMPage({ user }: { user: User }) {
     setModal(undefined);
     setDetail(undefined);
   }
+  function closeModal() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("action");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+    setModal(undefined);
+  }
 
   useEffect(() => {
     if (
@@ -610,7 +620,7 @@ export function CRMPage({ user }: { user: User }) {
       {modal === "add-contact" && (
         <AddContactModal
           busy={busy}
-          close={() => setModal(undefined)}
+          close={closeModal}
           save={async (payload) => {
             setBusy(true);
             setFeedback(undefined);
@@ -666,7 +676,7 @@ export function CRMPage({ user }: { user: User }) {
         <ImportModal
           organizationId={organizationId}
           eventId={importsSpeakers ? addSpeakerEventId : undefined}
-          close={() => setModal(undefined)}
+          close={closeModal}
           complete={async () => {
             await loadAll();
             if (importsSpeakers) {
@@ -689,7 +699,7 @@ export function CRMPage({ user }: { user: User }) {
           filter={filter}
           selected={selected}
           busy={busy}
-          close={() => setModal(undefined)}
+          close={closeModal}
           save={async (payload) => {
             if (
               await mutate(
@@ -711,7 +721,7 @@ export function CRMPage({ user }: { user: User }) {
         <EnrollModal
           contacts={allContacts.filter((contact) => !contact.pipelineCardId)}
           busy={busy}
-          close={() => setModal(undefined)}
+          close={closeModal}
           save={async (payload) => {
             if (
               await mutate(
@@ -734,7 +744,7 @@ export function CRMPage({ user }: { user: User }) {
           )}
           events={events}
           busy={busy}
-          close={() => setModal(undefined)}
+          close={closeModal}
           send={async (payload) => {
             if (
               await mutate(
@@ -762,7 +772,7 @@ export function CRMPage({ user }: { user: User }) {
           events={events}
           defaultEventId={addSpeakerEventId}
           busy={busy}
-          close={() => setModal(undefined)}
+          close={closeModal}
           handoff={async (contactId, eventId) => {
             if (
               await mutate(
@@ -781,7 +791,7 @@ export function CRMPage({ user }: { user: User }) {
       {modal === "field" && (
         <FieldModal
           busy={busy}
-          close={() => setModal(undefined)}
+          close={closeModal}
           save={async (payload) => {
             if (
               await mutate(
@@ -801,7 +811,7 @@ export function CRMPage({ user }: { user: User }) {
         <InterestModal
           events={events}
           busy={busy}
-          close={() => setModal(undefined)}
+          close={closeModal}
           save={async (payload) => {
             if (
               await mutate(
@@ -1651,6 +1661,15 @@ function Modal({
   children: React.ReactNode;
   wide?: boolean;
 }) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      close();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [close]);
   return (
     <div
       className="crm-modal-backdrop"
@@ -2206,7 +2225,11 @@ function OutreachModal({
           </div>
           <label>
             Associated event
-            <select name="eventId" required defaultValue="">
+            <select
+              name="eventId"
+              required
+              defaultValue={defaultOutreachEventId(events)}
+            >
               <option value="" disabled>
                 Choose an event
               </option>
