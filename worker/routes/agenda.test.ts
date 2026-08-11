@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  directPlacementSchema,
   eventActivationStatement,
   publishedAgendaItemAuditStatements,
   requiresExplicitReschedule,
@@ -7,6 +8,17 @@ import {
 } from "./agenda";
 
 describe("agenda publication audits", () => {
+  it("validates a bounded atomic direct placement payload", () => {
+    expect(
+      directPlacementSchema.parse({
+        submissionId: "00000000-0000-4000-8000-000000000001",
+        roomId: "00000000-0000-4000-8000-000000000002",
+        trackId: null,
+        startsAt: "2026-11-02T09:00:00-08:00",
+        endsAt: "2026-11-02T09:45:00-08:00",
+      }),
+    ).toMatchObject({ trackId: null });
+  });
   it("activates a draft event when its conflict-free agenda is published", () => {
     const prepared: Array<{ sql: string; bindings: unknown[] }> = [];
     const db = {

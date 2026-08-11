@@ -9,6 +9,7 @@ export interface Env {
   RESEND_API_KEY?: string;
   RESEND_WEBHOOK_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;
+  DEVELOPER_SECRET_KEY?: string;
   AIRTABLE_ACCESS_TOKEN?: string;
   AIRTABLE_BASE_ID?: string;
   AIRTABLE_WEBHOOK_ID?: string;

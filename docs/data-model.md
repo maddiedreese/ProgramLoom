@@ -49,3 +49,15 @@ File-request onboarding tasks require durable `speaker_files` rows, including fo
 `review_round_reviewers` stores the explicitly authorized reviewer pool and bounded assignment capacity for one review round. Assignment creation validates event reviewer membership, rejects reviewers outside a configured pool, applies capacity without unbounded reads, and retains the existing speaker-conflict checks. Aggregate scores and progress continue to derive from submitted `reviews`; the pool is routing configuration, not a duplicate score source.
 
 `event_speakers.status` stores the event-specific roster state independently from organization-wide profile and portal-access state. CSV/XLSX event import deduplicates through CRM email identity, links or creates the organization speaker profile, and adds the event relationship without replacing private logistics or historical records. Migration `0021_evaluator_workflow_depth.sql` adds both structures and their bounded lookup indexes.
+
+# Category-based reviewer routing
+
+Migration `0022_review_routing.sql` adds `review_routing_rules`, ordered condition groups and conditions, reviewer exclusions, rule-applied tags, routing runs and per-submission outcomes. Conditions reference event-owned forms, tracks, tags, and custom CFP fields; foreign keys and route validation prevent cross-event references. `submission_routing_state` records the winning rule, outcome, and reason without becoming a second source of proposal truth. Assignments continue to live in `review_assignments`, so reruns can detect existing work and remain idempotent. The Airtable business projection uses stable routing-rule external IDs; execution history and audits stay operational in D1.
+
+# Public developer platform
+
+Migrations `0023_developer_platform.sql` and `0024_oauth_refresh_tokens.sql` add hash-only API tokens, scope and event restriction joins, idempotency claims, token rate windows, privacy-limited usage records, webhook subscriptions and delivery attempts, short-lived download grants, OAuth clients, authorization codes, and rotating refresh tokens. Webhook signing secrets are encrypted with the Worker-bound developer secret key; plaintext is returned only when created or rotated. API soft deletion is represented on sessions and contacts without erasing business history. No API credential, OAuth secret, webhook secret, file grant, or provider attempt is projected into Airtable.
+
+# Resource embed domains
+
+Migration `0025_resource_embed_domains.sql` stores organization-owned exact hostnames for safe resource embeds. The allowlist contains no credentials or markup. Resource bodies keep only the server-sanitized HTML; preview results and rejected-markup explanations are transient responses. Default reference providers are code configuration, while organization additions carry creator and timestamp audit context.

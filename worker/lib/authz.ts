@@ -11,7 +11,7 @@ type AppContext = Context<{ Bindings: Env; Variables: { requestId: string } }>;
 
 export class HttpError extends Error {
   constructor(
-    public readonly status: 400 | 401 | 403 | 404 | 409 | 410 | 503,
+    public readonly status: 400 | 401 | 403 | 404 | 409 | 410 | 412 | 428 | 503,
     public readonly code: string,
     message: string,
   ) {

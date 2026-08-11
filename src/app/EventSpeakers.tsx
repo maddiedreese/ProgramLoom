@@ -135,8 +135,17 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return result;
 }
 
-function SanitizedResource({ html }: { html: string }) {
-  const safe = useMemo(() => sanitizeResourceHtml(html), [html]);
+function SanitizedResource({
+  html,
+  allowedDomains,
+}: {
+  html: string;
+  allowedDomains?: string[];
+}) {
+  const safe = useMemo(
+    () => sanitizeResourceHtml(html, allowedDomains),
+    [allowedDomains, html],
+  );
   return (
     <div className="resource-body" dangerouslySetInnerHTML={{ __html: safe }} />
   );
@@ -237,6 +246,7 @@ function SpeakerPortal({
   >([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [embedDomains, setEmbedDomains] = useState<string[]>([]);
   const [files, setFiles] = useState<SpeakerFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<SpeakerFile>();
   const [fileDetail, setFileDetail] = useState<SpeakerFileDetail>();
@@ -265,12 +275,14 @@ function SpeakerPortal({
       sessions: { id: string; title: string; abstract: string }[];
       tasks: Task[];
       resources: Resource[];
+      embedDomains?: string[];
       files: SpeakerFile[];
     }>(`/api/speakers/events/${eventId}`);
     setProfile(result.profile);
     setSessions(result.sessions);
     setTasks(result.tasks);
     setResources(result.resources);
+    setEmbedDomains(result.embedDomains ?? []);
     setFiles(result.files);
   }
   useEffect(() => {
@@ -726,7 +738,10 @@ function SpeakerPortal({
                 key={resource.id}
               >
                 <h2>{resource.title}</h2>
-                <SanitizedResource html={resource.bodyHtml} />
+                <SanitizedResource
+                  html={resource.bodyHtml}
+                  allowedDomains={embedDomains}
+                />
               </article>
             ))
           ) : (
@@ -885,6 +900,13 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskAssignments, setTaskAssignments] = useState<TaskAssignment[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [embedDomains, setEmbedDomains] = useState<string[]>([]);
+  const [resourceDraft, setResourceDraft] = useState("");
+  const [resourcePreview, setResourcePreview] = useState<{
+    source: string;
+    html: string;
+    removals: string[];
+  }>();
   const [files, setFiles] = useState<SpeakerFile[]>([]);
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
@@ -899,12 +921,14 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       tasks: Task[];
       taskAssignments: TaskAssignment[];
       resources: Resource[];
+      embedDomains?: string[];
       files: SpeakerFile[];
     }>(`/api/speakers/admin/events/${eventId}`);
     setSpeakers(result.speakers);
     setTasks(result.tasks);
     setTaskAssignments(result.taskAssignments);
     setResources(result.resources);
+    setEmbedDomains(result.embedDomains ?? []);
     setFiles(result.files);
   }
   useEffect(() => {
@@ -961,6 +985,15 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
     const formElement = event.currentTarget;
     setBusy(true);
     const data = new FormData(formElement);
+    if (!resourcePreview || resourcePreview.source !== resourceDraft) {
+      setFeedback({
+        kind: "error",
+        message:
+          "Preview the current HTML before saving so you can verify exactly what speakers will see.",
+      });
+      setBusy(false);
+      return;
+    }
     try {
       await api(`/api/speakers/admin/events/${eventId}/resources`, {
         method: "POST",
@@ -971,6 +1004,8 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
         }),
       });
       formElement.reset();
+      setResourceDraft("");
+      setResourcePreview(undefined);
       await load();
       setFeedback({ kind: "success", message: "Speaker resource saved." });
     } catch (error) {
@@ -978,6 +1013,63 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
         kind: "error",
         message:
           error instanceof Error ? error.message : "Could not create resource.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function previewResource() {
+    if (!resourceDraft.trim()) {
+      setFeedback({ kind: "error", message: "Add HTML content to preview." });
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await api<{ html: string; removals: string[] }>(
+        `/api/speakers/admin/events/${eventId}/resources/preview`,
+        { method: "POST", body: JSON.stringify({ bodyHtml: resourceDraft }) },
+      );
+      setResourcePreview({ source: resourceDraft, ...result });
+      setFeedback({
+        kind: "success",
+        message: result.removals.length
+          ? "Preview ready. Review the safety changes before saving."
+          : "Preview ready. No unsafe or unsupported markup was found.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Preview failed.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function updateEmbedDomains(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const domains = String(data.get("domains") ?? "")
+      .split(/[\n,]/)
+      .map((domain) => domain.trim().toLowerCase())
+      .filter(Boolean);
+    setBusy(true);
+    try {
+      const result = await api<{ domains: string[] }>(
+        `/api/speakers/admin/events/${eventId}/embed-domains`,
+        { method: "PUT", body: JSON.stringify({ domains }) },
+      );
+      setEmbedDomains(result.domains);
+      setResourcePreview(undefined);
+      setFeedback({
+        kind: "success",
+        message:
+          "Approved embed domains updated for the organization. Preview resource HTML again before saving.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Embed domains not saved.",
       });
     } finally {
       setBusy(false);
@@ -1404,6 +1496,10 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
         <form className="operations-card" onSubmit={createResource}>
           <BookOpen size={22} />
           <h2>Publish resource</h2>
+          <p className="card-explainer">
+            Share guides or embedded references in every speaker portal. A
+            safety preview shows exactly what will be published.
+          </p>
           <label>
             Title
             <input name="title" placeholder="Speaker guide" required />
@@ -1414,9 +1510,43 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
               name="bodyHtml"
               rows={6}
               placeholder="Use headings, links, lists, or approved video/slides iframe embeds."
+              value={resourceDraft}
+              onChange={(event) => {
+                setResourceDraft(event.target.value);
+                setResourcePreview(undefined);
+              }}
               required
             />
           </label>
+          <button
+            className="button button-secondary"
+            type="button"
+            disabled={busy || !resourceDraft.trim()}
+            onClick={previewResource}
+          >
+            Preview sanitized resource
+          </button>
+          {resourcePreview && (
+            <section className="resource-preview" aria-live="polite">
+              <h3>Speaker-facing preview</h3>
+              <SanitizedResource
+                html={resourcePreview.html}
+                allowedDomains={embedDomains}
+              />
+              {resourcePreview.removals.length ? (
+                <div className="resource-safety-notice">
+                  <strong>Markup changed for safety</strong>
+                  <ul>
+                    {resourcePreview.removals.map((removal) => (
+                      <li key={removal}>{removal}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <small>No unsafe or unsupported markup was removed.</small>
+              )}
+            </section>
+          )}
           <label className="check-row">
             <input name="published" type="checkbox" defaultChecked />
             <span>
@@ -1424,10 +1554,42 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
               <small>Visible immediately in speaker portals.</small>
             </span>
           </label>
-          <button className="button" disabled={busy}>
+          <button
+            className="button"
+            disabled={
+              busy ||
+              !resourcePreview ||
+              resourcePreview.source !== resourceDraft
+            }
+          >
             <Plus size={15} /> Save resource
           </button>
           <small>{resources.length} resources configured</small>
+        </form>
+        <form className="operations-card" onSubmit={updateEmbedDomains}>
+          <BookOpen size={22} />
+          <h2>Approved embed domains</h2>
+          <p className="card-explainer">
+            Add trusted HTTPS providers for this organization. Scripts, forms,
+            popups, event handlers, and top-level navigation remain blocked.
+          </p>
+          <label>
+            Domains, one per line
+            <textarea
+              name="domains"
+              rows={6}
+              defaultValue={embedDomains.join("\n")}
+              key={embedDomains.join("|")}
+              placeholder="docs.google.com"
+            />
+          </label>
+          <button className="button button-secondary" disabled={busy}>
+            Save approved domains
+          </button>
+          <small>
+            YouTube, Vimeo, and Google Docs are approved by default. Exact
+            domains only; subdomains must be listed separately.
+          </small>
         </form>
         <form className="operations-card" onSubmit={createFileRequest}>
           <FileInput size={22} />

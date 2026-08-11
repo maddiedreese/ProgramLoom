@@ -8,7 +8,9 @@ describe("Control Room accepted-session categories", () => {
       .filter((query) => query.includes("decision_state='accepted'"));
     expect(acceptedCategories.length).toBeGreaterThan(0);
     expect(
-      acceptedCategories.every((query) => query.includes("s.status='accepted'")),
+      acceptedCategories.every((query) =>
+        query.includes("s.status='accepted'"),
+      ),
     ).toBe(true);
   });
 
@@ -29,5 +31,14 @@ describe("Control Room accepted-session categories", () => {
           !query.includes("FROM submissions s JOIN session_speakers"),
       ),
     ).toBe(true);
+  });
+
+  it("surfaces submitted proposals that have no matching reviewer route", () => {
+    const routingQuery = issuesSql
+      .split(/\n\s*UNION ALL\n/)
+      .find((query) => query.includes("'routing_unmatched'"));
+    expect(routingQuery).toContain("review_routing_rules");
+    expect(routingQuery).toContain("submission_routing_state");
+    expect(routingQuery).toContain("s.status='pending'");
   });
 });

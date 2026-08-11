@@ -31,6 +31,10 @@ import { SubmissionEditActionPage } from "./app/SubmissionEditActionPage";
 import { EventSpeakers } from "./app/EventSpeakers";
 import { PublicInterestPage } from "./app/PublicInterestPage";
 import { LegalPage } from "./app/LegalPage";
+import { DeveloperSettings } from "./app/DeveloperSettings";
+import { DeveloperDocs } from "./app/DeveloperDocs";
+import { OAuthAuthorize } from "./app/OAuthAuthorize";
+import { ProductGuide } from "./app/ProductGuide";
 
 function LoadingRoute({ label }: { label: string }) {
   return (
@@ -108,6 +112,7 @@ function MarketingPage() {
         <nav aria-label="Primary navigation">
           <a href="#product">Product</a>
           <a href="#principles">Why ProgramLoom</a>
+          <Link to="/guide">Product guide</Link>
           <a href={applicationHref("/cfp")}>Browse CFPs</a>
           <a
             className="button button-small button-ghost"
@@ -236,6 +241,7 @@ function MarketingPage() {
         <nav aria-label="Legal">
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
+          <Link to="/guide">Product guide</Link>
           <a href="https://github.com/maddiedreese/SaaS">Source</a>
         </nav>
       </footer>
@@ -255,6 +261,7 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
   }>();
   const [submitting, setSubmitting] = useState(false);
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
+  const returnTo = new URLSearchParams(window.location.search).get("returnTo");
 
   useEffect(() => {
     fetch("/api/auth/session", { credentials: "same-origin" })
@@ -267,7 +274,17 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
 
   if (sessionState === "loading")
     return <LoadingRoute label="Checking your session…" />;
-  if (sessionState === "authenticated") return <Navigate to="/app" replace />;
+  if (sessionState === "authenticated")
+    return (
+      <Navigate
+        to={
+          returnTo?.startsWith("/") && !returnTo.startsWith("//")
+            ? returnTo
+            : "/app"
+        }
+        replace
+      />
+    );
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -284,6 +301,10 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
           name: registering ? data.get("name") : undefined,
           mode,
           turnstileToken,
+          returnTo:
+            returnTo?.startsWith("/") && !returnTo.startsWith("//")
+              ? returnTo
+              : undefined,
         }),
       });
       const result = (await response.json()) as {
@@ -410,6 +431,7 @@ function AuthenticatedPage({
     | "communications"
     | "calendar"
     | "control-room"
+    | "developer-settings"
     | "crm";
 }) {
   const [session, setSession] = useState<{
@@ -447,6 +469,8 @@ function AuthenticatedPage({
   else if (page === "control-room")
     content = <EventControlRoom user={session.user} />;
   else if (page === "crm") content = <CRMPage user={session.user} />;
+  else if (page === "developer-settings")
+    content = <DeveloperSettings user={session.user} />;
   else content = <Dashboard user={session.user} />;
   return (
     <>
@@ -480,6 +504,9 @@ export function App() {
         />
         <Route path="/privacy" element={<LegalPage kind="privacy" />} />
         <Route path="/terms" element={<LegalPage kind="terms" />} />
+        <Route path="/developers" element={<DeveloperDocs />} />
+        <Route path="/guide" element={<ProductGuide />} />
+        <Route path="/oauth/authorize" element={<OAuthAuthorize />} />
         <Route
           path="/c/:organizationSlug/:eventSlug/:formSlug"
           element={<PublicCfpPage />}
@@ -499,6 +526,10 @@ export function App() {
         <Route path="/organizer" element={<Navigate to="/app" replace />} />
         <Route path="/app/team" element={<AuthenticatedPage page="team" />} />
         <Route path="/app/crm" element={<AuthenticatedPage page="crm" />} />
+        <Route
+          path="/app/settings"
+          element={<AuthenticatedPage page="developer-settings" />}
+        />
         <Route
           path="/app/events/:eventId"
           element={<AuthenticatedPage page="event" />}

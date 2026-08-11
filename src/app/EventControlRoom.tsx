@@ -59,6 +59,11 @@ const categories = [
     "Reviewer assignment",
     "Proposals without active reviewers",
   ],
+  [
+    "routing_unmatched",
+    "Routing unmatched",
+    "Proposals that do not match an active reviewer-routing rule",
+  ],
   ["reviews_incomplete", "Incomplete reviews", "Open review work by round"],
   ["review_conflicts", "Recusals & conflicts", "Unresolved reviewer conflicts"],
   [
@@ -94,6 +99,11 @@ const categories = [
     "integration_failures",
     "Integrations",
     "External or scheduled-job incidents",
+  ],
+  [
+    "webhook_failures",
+    "Developer webhooks",
+    "Exhausted signed webhook deliveries requiring a retry",
   ],
 ] as const;
 
@@ -144,6 +154,7 @@ const statusLabels: Record<string, string> = {
 const issueActionLabels: Record<string, string> = {
   submissions_new: "Open proposal",
   reviewer_assignment: "Assign reviewers",
+  routing_unmatched: "Configure routing",
   reviews_incomplete: "Open review round",
   review_conflicts: "Resolve reviewer conflict",
   decisions_pending: "Stage decision",
@@ -160,6 +171,7 @@ const issueActionLabels: Record<string, string> = {
   queue_failures: "Retry delivery",
   airtable_sync: "Recover integration",
   integration_failures: "Recover integration",
+  webhook_failures: "Retry webhook delivery",
 };
 
 function issueStatus(status: string) {

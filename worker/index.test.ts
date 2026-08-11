@@ -181,6 +181,45 @@ describe("ProgramLoom Worker", () => {
     });
   });
 
+  it("protects reviewer routing before database access", async () => {
+    const response = await app.request(
+      "/api/review-routing/events/00000000-0000-4000-8000-000000000003",
+      {},
+      env,
+    );
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "authentication_required" },
+    });
+  });
+
+  it("protects developer settings and the versioned API before database access", async () => {
+    const admin = await app.request(
+      "/api/developer/organizations/00000000-0000-4000-8000-000000000003",
+      {},
+      env,
+    );
+    expect(admin.status).toBe(401);
+
+    const api = await app.request("/api/v1/events", {}, env);
+    expect(api.status).toBe(401);
+    await expect(api.json()).resolves.toMatchObject({
+      error: { code: "authentication_required" },
+    });
+  });
+
+  it("publishes developer documentation without requiring product access", async () => {
+    const openapi = await app.request("/api/v1/openapi.json", {}, env);
+    expect(openapi.status).toBe(200);
+    await expect(openapi.json()).resolves.toMatchObject({
+      openapi: "3.1.0",
+      info: { title: "ProgramLoom Developer API" },
+    });
+
+    const docs = await app.request("/api/v1/docs", {}, env);
+    expect(docs.status).toBe(200);
+  });
+
   it("protects reusable event templates before database access", async () => {
     const response = await app.request(
       "/api/event-templates/organizations/00000000-0000-4000-8000-000000000003",

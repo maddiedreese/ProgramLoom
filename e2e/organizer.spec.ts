@@ -87,6 +87,18 @@ test.describe("authenticated organizer operations", () => {
         name: "Review progress and aggregate results",
       }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Reviewer routing" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Create routing rule" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Run routing" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Current proposal impact" }),
+    ).toBeVisible();
 
     await page.goto(`/app/events/${eventId}/speakers`);
     await expect(
@@ -103,6 +115,12 @@ test.describe("authenticated organizer operations", () => {
     ).toBeVisible();
     await expect(page.getByLabel("Filter speaker status")).toBeVisible();
     await expect(page.getByLabel("Program status").first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Preview sanitized resource" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Save approved domains" }),
+    ).toBeVisible();
 
     await page.goto(`/app/events/${eventId}/content`);
     await page.getByRole("button", { name: "Session content" }).click();
@@ -120,6 +138,19 @@ test.describe("authenticated organizer operations", () => {
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Publish agenda" }),
+    ).toBeVisible();
+    for (const view of ["List", "Day", "Week", "Track", "Room"])
+      await expect(
+        page.getByRole("button", { name: view, exact: true }),
+      ).toBeVisible();
+    await page.getByRole("button", { name: "Track", exact: true }).click();
+    await expect(page).toHaveURL(/view=track/);
+    await page.getByRole("button", { name: "Day", exact: true }).click();
+    await expect(page).toHaveURL(/view=day/);
+    await expect(
+      page
+        .getByRole("button", { name: /^Drag .+ (to another|into the)/ })
+        .first(),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Cancel session:/ }).first(),
@@ -168,6 +199,18 @@ test.describe("authenticated organizer operations", () => {
           "gallery",
         ]),
       );
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page);
+
+    await page.goto("/app/settings?tab=tokens");
+    await expect(
+      page.getByRole("heading", { name: "Developer platform" }),
+    ).toBeVisible();
+    for (const tab of ["API tokens", "Webhooks", "OAuth clients"])
+      await expect(page.getByRole("button", { name: tab })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Read API guide" }),
+    ).toHaveAttribute("href", "/developers");
     await expectNoHorizontalOverflow(page);
     await expectAccessible(page);
   });

@@ -17,7 +17,20 @@ type Configuration = {
   source: { name: string; startsAt: string; endsAt: string; timezone: string };
   event: Row;
   cfp: { forms: Row[]; fields: Row[]; conditions: Row[] };
-  review: { rounds: Row[]; scorecards: Row[]; routing: unknown };
+  review: {
+    rounds: Row[];
+    scorecards: Row[];
+    reviewers: Row[];
+    tags: Row[];
+    routing: {
+      legacy: unknown;
+      rules: Row[];
+      groups: Row[];
+      conditions: Row[];
+      excludedReviewers: Row[];
+      ruleTags: Row[];
+    };
+  };
   onboarding: Row[];
   resources: Row[];
   communications: { templates: Row[]; reminderRules: unknown[] };
@@ -564,6 +577,13 @@ async function snapshotEvent(
     conditions,
     rounds,
     scorecards,
+    reviewPool,
+    reviewTags,
+    routingRules,
+    routingGroups,
+    routingConditions,
+    routingExcludedReviewers,
+    routingRuleTags,
     onboarding,
     resources,
     communications,
@@ -587,6 +607,37 @@ async function snapshotEvent(
     ),
     all(
       "SELECT sf.id,sf.round_id roundId,sf.label,sf.field_type fieldType,sf.options_json optionsJson,sf.min_value minValue,sf.max_value maxValue,sf.weight,sf.required,sf.position FROM scorecard_fields sf JOIN review_rounds rr ON rr.id=sf.round_id WHERE rr.event_id=? ORDER BY sf.position",
+    ),
+    all(
+      "SELECT rrr.round_id roundId,rrr.reviewer_user_id reviewerUserId,rrr.capacity FROM review_round_reviewers rrr JOIN review_rounds rr ON rr.id=rrr.round_id WHERE rr.event_id=? ORDER BY rr.position,rrr.reviewer_user_id",
+    ),
+    all(
+      "SELECT id,name,color FROM submission_tags WHERE event_id=? ORDER BY name,id",
+    ),
+    all(
+      `SELECT id,name,description,priority,enabled,group_operator groupOperator,round_id roundId,
+       reviewers_per_submission reviewersPerSubmission,owner_user_id ownerUserId
+       FROM review_routing_rules WHERE event_id=? ORDER BY priority,id`,
+    ),
+    all(
+      `SELECT g.id,g.rule_id ruleId,g.position,g.condition_operator conditionOperator
+       FROM review_routing_condition_groups g JOIN review_routing_rules r ON r.id=g.rule_id
+       WHERE r.event_id=? ORDER BY r.priority,g.position,g.id`,
+    ),
+    all(
+      `SELECT c.id,c.group_id groupId,c.source,c.field_id fieldId,c.operator,c.value_json valueJson,c.position
+       FROM review_routing_conditions c JOIN review_routing_condition_groups g ON g.id=c.group_id
+       JOIN review_routing_rules r ON r.id=g.rule_id WHERE r.event_id=?
+       ORDER BY r.priority,g.position,c.position,c.id`,
+    ),
+    all(
+      `SELECT x.rule_id ruleId,x.reviewer_user_id reviewerUserId
+       FROM review_routing_excluded_reviewers x JOIN review_routing_rules r ON r.id=x.rule_id
+       WHERE r.event_id=? ORDER BY x.rule_id,x.reviewer_user_id`,
+    ),
+    all(
+      `SELECT x.rule_id ruleId,x.tag_id tagId FROM review_routing_rule_tags x
+       JOIN review_routing_rules r ON r.id=x.rule_id WHERE r.event_id=? ORDER BY x.rule_id,x.tag_id`,
     ),
     all(
       "SELECT id,title,description,task_type taskType,due_at dueAt,position FROM onboarding_tasks WHERE event_id=? ORDER BY position",
@@ -626,7 +677,16 @@ async function snapshotEvent(
     review: {
       rounds,
       scorecards,
-      routing: parseJson(String(settingsRow.reviewerRoutingJson ?? "{}"), {}),
+      reviewers: reviewPool,
+      tags: reviewTags,
+      routing: {
+        legacy: parseJson(String(settingsRow.reviewerRoutingJson ?? "{}"), {}),
+        rules: routingRules,
+        groups: routingGroups,
+        conditions: routingConditions,
+        excludedReviewers: routingExcludedReviewers,
+        ruleTags: routingRuleTags,
+      },
     },
     onboarding,
     resources,
@@ -753,7 +813,12 @@ function domainCount(configuration: Configuration, domain: CopyDomain) {
     return (
       configuration.review.rounds.length +
       configuration.review.scorecards.length +
-      (objectSize(configuration.review.routing) ? 1 : 0)
+      configuration.review.reviewers.length +
+      configuration.review.tags.length +
+      configuration.review.routing.rules.length +
+      configuration.review.routing.groups.length +
+      configuration.review.routing.conditions.length +
+      (objectSize(configuration.review.routing.legacy) ? 1 : 0)
     );
   if (domain === "communications")
     return (
@@ -835,9 +900,21 @@ async function materialize(
   const formMap = new Map<string, string>();
   const fieldMap = new Map<string, string>();
   const roundMap = new Map<string, string>();
+  const trackMap = new Map<string, string>();
+  const tagMap = new Map<string, string>();
+  const routingRuleMap = new Map<string, string>();
+  const routingGroupMap = new Map<string, string>();
+  if (domains.includes("roomsTracksLocations"))
+    for (const row of configuration.roomsTracksLocations.tracks)
+      trackMap.set(String(row.id), crypto.randomUUID());
   const statements: D1PreparedStatement[] = [];
   const syncEntities: Array<{
-    type: "cfp_form" | "form_field" | "event_program_settings" | "crm_field";
+    type:
+      | "cfp_form"
+      | "form_field"
+      | "event_program_settings"
+      | "crm_field"
+      | "review_routing_rule";
     id: string;
   }> = [];
   if (domains.includes("cfp")) {
@@ -960,6 +1037,149 @@ async function materialize(
           ),
       );
     }
+    for (const row of configuration.review.reviewers) {
+      const roundId = roundMap.get(String(row.roundId));
+      if (!roundId || !row.reviewerUserId) continue;
+      statements.push(
+        db
+          .prepare(
+            "INSERT OR IGNORE INTO event_members(event_id,user_id,role) VALUES(?,?,'reviewer')",
+          )
+          .bind(eventId, row.reviewerUserId),
+        db
+          .prepare(
+            "INSERT INTO review_round_reviewers(round_id,reviewer_user_id,capacity) VALUES(?,?,?)",
+          )
+          .bind(
+            roundId,
+            row.reviewerUserId,
+            Math.max(1, Number(row.capacity ?? 25)),
+          ),
+      );
+    }
+    for (const row of configuration.review.tags) {
+      const id = crypto.randomUUID();
+      tagMap.set(String(row.id), id);
+      statements.push(
+        db
+          .prepare(
+            "INSERT INTO submission_tags(id,organization_id,event_id,name,color,created_by) VALUES(?,?,?,?,?,?)",
+          )
+          .bind(
+            id,
+            organizationId,
+            eventId,
+            row.name,
+            row.color ?? "#64748b",
+            userId,
+          ),
+      );
+    }
+    for (const row of configuration.review.routing.rules) {
+      const roundId = roundMap.get(String(row.roundId));
+      if (!roundId) continue;
+      const id = crypto.randomUUID();
+      routingRuleMap.set(String(row.id), id);
+      syncEntities.push({ type: "review_routing_rule", id });
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO review_routing_rules
+             (id,organization_id,event_id,name,description,priority,enabled,group_operator,round_id,
+              reviewers_per_submission,owner_user_id,created_by,updated_by)
+             VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          )
+          .bind(
+            id,
+            organizationId,
+            eventId,
+            row.name,
+            row.description ?? null,
+            Number(row.priority ?? 100),
+            Number(row.enabled ?? 1),
+            row.groupOperator ?? "and",
+            roundId,
+            Number(row.reviewersPerSubmission ?? 2),
+            row.ownerUserId ?? null,
+            userId,
+            userId,
+          ),
+      );
+    }
+    for (const row of configuration.review.routing.groups) {
+      const ruleId = routingRuleMap.get(String(row.ruleId));
+      if (!ruleId) continue;
+      const id = crypto.randomUUID();
+      routingGroupMap.set(String(row.id), id);
+      statements.push(
+        db
+          .prepare(
+            "INSERT INTO review_routing_condition_groups(id,rule_id,position,condition_operator) VALUES(?,?,?,?)",
+          )
+          .bind(
+            id,
+            ruleId,
+            Number(row.position ?? 0),
+            row.conditionOperator ?? "and",
+          ),
+      );
+    }
+    for (const row of configuration.review.routing.conditions) {
+      const groupId = routingGroupMap.get(String(row.groupId));
+      if (!groupId) continue;
+      const source = String(row.source);
+      const valueMap =
+        source === "form"
+          ? formMap
+          : source === "track"
+            ? trackMap
+            : source === "tag"
+              ? tagMap
+              : undefined;
+      const fieldId =
+        source === "custom_field"
+          ? (fieldMap.get(String(row.fieldId)) ?? null)
+          : null;
+      statements.push(
+        db
+          .prepare(
+            `INSERT INTO review_routing_conditions
+             (id,group_id,source,field_id,operator,value_json,position) VALUES(?,?,?,?,?,?,?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            groupId,
+            source,
+            fieldId,
+            row.operator,
+            remapRoutingValue(row.valueJson, valueMap),
+            Number(row.position ?? 0),
+          ),
+      );
+    }
+    for (const row of configuration.review.routing.excludedReviewers) {
+      const ruleId = routingRuleMap.get(String(row.ruleId));
+      if (ruleId && row.reviewerUserId)
+        statements.push(
+          db
+            .prepare(
+              "INSERT INTO review_routing_excluded_reviewers(rule_id,reviewer_user_id) VALUES(?,?)",
+            )
+            .bind(ruleId, row.reviewerUserId),
+        );
+    }
+    for (const row of configuration.review.routing.ruleTags) {
+      const ruleId = routingRuleMap.get(String(row.ruleId));
+      const tagId = tagMap.get(String(row.tagId));
+      if (ruleId && tagId)
+        statements.push(
+          db
+            .prepare(
+              "INSERT INTO review_routing_rule_tags(rule_id,tag_id) VALUES(?,?)",
+            )
+            .bind(ruleId, tagId),
+        );
+    }
   }
   if (domains.includes("onboarding"))
     for (const row of configuration.onboarding)
@@ -1038,7 +1258,7 @@ async function materialize(
             "INSERT INTO tracks (id,event_id,name,slug,color,description,position) VALUES (?,?,?,?,?,?,?)",
           )
           .bind(
-            crypto.randomUUID(),
+            trackMap.get(String(row.id)),
             eventId,
             row.name,
             row.slug,
@@ -1114,7 +1334,7 @@ async function materialize(
       .bind(
         eventId,
         JSON.stringify(
-          domains.includes("review") ? configuration.review.routing : {},
+          domains.includes("review") ? configuration.review.routing.legacy : {},
         ),
         JSON.stringify(
           domains.includes("communications")
@@ -1161,7 +1381,20 @@ function emptyConfiguration(name: string): Configuration {
       fileUploadsEnabled: 1,
     },
     cfp: { forms: [], fields: [], conditions: [] },
-    review: { rounds: [], scorecards: [], routing: {} },
+    review: {
+      rounds: [],
+      scorecards: [],
+      reviewers: [],
+      tags: [],
+      routing: {
+        legacy: {},
+        rules: [],
+        groups: [],
+        conditions: [],
+        excludedReviewers: [],
+        ruleTags: [],
+      },
+    },
     onboarding: [],
     resources: [],
     communications: { templates: [], reminderRules: [] },
@@ -1176,6 +1409,7 @@ function normalizeConfiguration(value: Row): Configuration {
   const source = (value.source ?? {}) as Row;
   const fallback = emptyConfiguration(String(source.name ?? "Template"));
   const review = (value.review ?? {}) as Row;
+  const routing = (review.routing ?? {}) as Row;
   const crm = (value.crm ?? {}) as Row;
   const communications = value.communications;
   return {
@@ -1185,7 +1419,22 @@ function normalizeConfiguration(value: Row): Configuration {
     review: {
       rounds: Array.isArray(review.rounds) ? review.rounds : [],
       scorecards: Array.isArray(review.scorecards) ? review.scorecards : [],
-      routing: review.routing ?? crm.reviewerRouting ?? {},
+      reviewers: Array.isArray(review.reviewers) ? review.reviewers : [],
+      tags: Array.isArray(review.tags) ? review.tags : [],
+      routing: {
+        legacy:
+          routing.legacy ??
+          (review.routing && !Array.isArray(review.routing)
+            ? review.routing
+            : (crm.reviewerRouting ?? {})),
+        rules: Array.isArray(routing.rules) ? routing.rules : [],
+        groups: Array.isArray(routing.groups) ? routing.groups : [],
+        conditions: Array.isArray(routing.conditions) ? routing.conditions : [],
+        excludedReviewers: Array.isArray(routing.excludedReviewers)
+          ? routing.excludedReviewers
+          : [],
+        ruleTags: Array.isArray(routing.ruleTags) ? routing.ruleTags : [],
+      },
     },
     communications: Array.isArray(communications)
       ? {
@@ -1442,7 +1691,7 @@ export function starterConfiguration(id: string): Configuration {
         : ["Talk (30 min)", "Panel (45 min)"],
   };
   config.contentWorkflow = { fileUploadsEnabled: 1, requiresApproval: true };
-  config.review.routing = { strategy: "manual" };
+  config.review.routing.legacy = { strategy: "manual" };
   config.crm = {
     handoffDefaults: { createContactOnAcceptance: true },
     customFields: [
@@ -1469,6 +1718,23 @@ function parseJson(value: string, fallback: unknown) {
   } catch {
     return fallback;
   }
+}
+
+function remapRoutingValue(
+  valueJson: unknown,
+  ids: Map<string, string> | undefined,
+) {
+  if (!ids || valueJson === null || valueJson === undefined)
+    return valueJson ?? null;
+  const value =
+    typeof valueJson === "string" ? parseJson(valueJson, valueJson) : valueJson;
+  const remap = (item: unknown): unknown =>
+    Array.isArray(item)
+      ? item.map(remap)
+      : typeof item === "string"
+        ? (ids.get(item) ?? item)
+        : item;
+  return JSON.stringify(remap(value));
 }
 
 function objectSize(value: unknown) {

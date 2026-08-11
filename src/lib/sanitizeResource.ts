@@ -1,12 +1,20 @@
 import DOMPurify from "dompurify";
 
-const allowedEmbedPrefixes = [
-  "https://www.youtube.com/embed/",
-  "https://player.vimeo.com/video/",
-  "https://docs.google.com/presentation/",
+export const defaultResourceEmbedDomains = [
+  "www.youtube.com",
+  "player.vimeo.com",
+  "docs.google.com",
 ];
 
-export function sanitizeResourceHtml(html: string): string {
+export function sanitizeResourceHtml(
+  html: string,
+  configuredDomains: string[] = defaultResourceEmbedDomains,
+): string {
+  const allowedDomains = new Set(
+    [...defaultResourceEmbedDomains, ...configuredDomains].map((domain) =>
+      domain.toLowerCase(),
+    ),
+  );
   const sanitized = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       "p",
@@ -40,6 +48,8 @@ export function sanitizeResourceHtml(html: string): string {
       "allowfullscreen",
       "loading",
       "sandbox",
+      "referrerpolicy",
+      "class",
     ],
     ALLOW_DATA_ATTR: false,
   });
@@ -53,7 +63,17 @@ export function sanitizeResourceHtml(html: string): string {
   });
   document.querySelectorAll("iframe").forEach((frame) => {
     const source = frame.getAttribute("src") ?? "";
-    if (!allowedEmbedPrefixes.some((prefix) => source.startsWith(prefix))) {
+    let url: URL;
+    try {
+      url = new URL(source);
+    } catch {
+      frame.remove();
+      return;
+    }
+    if (
+      url.protocol !== "https:" ||
+      !allowedDomains.has(url.hostname.toLowerCase())
+    ) {
       frame.remove();
       return;
     }
@@ -62,6 +82,12 @@ export function sanitizeResourceHtml(html: string): string {
       "allow-scripts allow-same-origin allow-presentation",
     );
     frame.setAttribute("loading", "lazy");
+    frame.setAttribute("referrerpolicy", "no-referrer");
+    frame.setAttribute("class", "resource-embed");
+    frame.setAttribute(
+      "title",
+      frame.getAttribute("title") || "Embedded reference",
+    );
   });
 
   return document.body.innerHTML;

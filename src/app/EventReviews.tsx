@@ -28,6 +28,7 @@ import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
+import { ReviewRoutingWorkspace } from "./ReviewRoutingWorkspace";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -714,6 +715,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
           {feedback.message}
         </div>
       )}
+      <ReviewRoutingWorkspace eventId={eventId} />
       <div className="review-admin-layout">
         <aside className="round-list">
           <div className="panel-title">

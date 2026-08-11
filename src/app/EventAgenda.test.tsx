@@ -146,9 +146,11 @@ describe("agenda calendar lifecycle controls", () => {
     ).toBeVisible();
 
     expect(await screen.findByRole("table")).toHaveAccessibleName(
-      "Organizer agenda grid",
+      "Organizer agenda day grid",
     );
     expect(screen.getAllByRole("tab")).toHaveLength(2);
+    for (const view of ["List", "Day", "Week", "Track", "Room"])
+      expect(screen.getByRole("button", { name: view })).toBeVisible();
     expect(
       screen.getByRole("columnheader", { name: "Main stage" }),
     ).toBeVisible();

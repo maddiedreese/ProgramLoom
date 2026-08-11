@@ -150,7 +150,7 @@ ON CONFLICT(submission_id) DO UPDATE SET status='approved',updated_by=excluded.u
 
 INSERT INTO submissions(id,form_id,event_id,submitter_user_id,title,abstract,format,duration_minutes,status,answers_json,submitted_at,decision_state)
 VALUES
-(${q(ids.aiPair)},${q(ids.form)},${q(ids.event)},${q(ids.speakerUser)},${q(aiPairTitle)},${q(aiPairAbstract)},'Talk (30 min)',30,'pending',${answer(aiPairTitle, aiPairAbstract, "Talk (30 min)", "AI Engineering", "Trust AI output only after observable verification.")},CURRENT_TIMESTAMP,'none'),
+(${q(ids.aiPair)},${q(ids.form)},${q(ids.event)},${q(ids.speakerUser)},${q(aiPairTitle)},${q(aiPairAbstract)},'Workshop (120 min)',120,'pending',${answer(aiPairTitle, aiPairAbstract, "Workshop (120 min)", "AI Engineering", "Trust AI output only after observable verification.")},CURRENT_TIMESTAMP,'none'),
 (${q(ids.docs)},${q(ids.form)},${q(ids.event)},NULL,${q(docsTitle)},${q(docsAbstract)},'Talk (30 min)',30,'pending',${answer(docsTitle, docsAbstract, "Talk (30 min)", "Developer Experience", "Documentation answers should remain grounded and reviewable.")},CURRENT_TIMESTAMP,'none'),
 (${q(ids.lightning)},${q(ids.form)},${q(ids.event)},NULL,${q(lightningTitle)},${q(lightningAbstract)},'Lightning Talk (10 min)',10,'accepted',${answer(lightningTitle, lightningAbstract, "Lightning Talk (10 min)", "AI Engineering", "Production agents need explicit operating boundaries.")},CURRENT_TIMESTAMP,'accepted')
 ON CONFLICT(id) DO UPDATE SET title=excluded.title,abstract=excluded.abstract,format=excluded.format,duration_minutes=excluded.duration_minutes,answers_json=excluded.answers_json,updated_at=CURRENT_TIMESTAMP;
@@ -178,6 +178,19 @@ UPDATE review_rounds SET name='Executive Review',status='draft' WHERE id='59998a
 INSERT INTO review_round_reviewers(round_id,reviewer_user_id,capacity)
 VALUES(${q(ids.initialRound)},${q(ids.reviewer)},20)
 ON CONFLICT(round_id,reviewer_user_id) DO UPDATE SET capacity=20;
+INSERT INTO review_routing_rules
+  (id,organization_id,event_id,name,description,priority,enabled,group_operator,round_id,reviewers_per_submission,owner_user_id,created_by,updated_by)
+VALUES
+  ('62000000-0000-4000-8000-000000000001',${q(ids.organization)},${q(ids.event)},'AI Engineering workshops','Route hands-on AI Engineering workshops into Initial Review with an eligible reviewer.',10,1,'and',${q(ids.initialRound)},1,${q(ids.organizer)},${q(ids.organizer)},${q(ids.organizer)})
+ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,priority=excluded.priority,enabled=1,round_id=excluded.round_id,reviewers_per_submission=excluded.reviewers_per_submission,owner_user_id=excluded.owner_user_id,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP;
+INSERT INTO review_routing_condition_groups(id,rule_id,position,condition_operator)
+VALUES('62000000-0000-4000-8000-000000000002','62000000-0000-4000-8000-000000000001',0,'and')
+ON CONFLICT(id) DO UPDATE SET position=0,condition_operator='and';
+INSERT INTO review_routing_conditions(id,group_id,source,field_id,operator,value_json,position)
+VALUES
+  ('62000000-0000-4000-8000-000000000003','62000000-0000-4000-8000-000000000002','track',NULL,'equals',${q(JSON.stringify(ids.aiTrack))},0),
+  ('62000000-0000-4000-8000-000000000004','62000000-0000-4000-8000-000000000002','format',NULL,'equals',${q(JSON.stringify("Workshop (120 min)"))},1)
+ON CONFLICT(id) DO UPDATE SET source=excluded.source,field_id=excluded.field_id,operator=excluded.operator,value_json=excluded.value_json,position=excluded.position;
 UPDATE scorecard_fields SET weight=2 WHERE id='3da0a1d3-fd6a-4493-ae09-33b8bc78c046';
 UPDATE scorecard_fields SET weight=1 WHERE id='3be936e3-f342-4d1c-af33-97be2a0596d7';
 INSERT INTO scorecard_fields(id,round_id,label,field_type,min_value,max_value,weight,required,position)

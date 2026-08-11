@@ -198,7 +198,15 @@ describe("speaker workspace", () => {
                 },
               ],
               resources: [],
+              embedDomains: ["docs.google.com"],
               files: [],
+            }),
+          );
+        if (path === `/api/speakers/admin/events/${eventId}/resources/preview`)
+          return Promise.resolve(
+            Response.json({
+              html: "<h2>Safe guide</h2>",
+              removals: ["Scripts are not allowed and were removed."],
             }),
           );
         return Promise.resolve(Response.json({ ok: true }));
@@ -254,6 +262,20 @@ describe("speaker workspace", () => {
       screen.getByRole("button", { name: "Remove assignment" }),
     ).toBeVisible();
     expect(screen.getByLabelText("Filter task progress")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Preview sanitized resource" }),
+    ).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("HTML content"), {
+      target: { value: "<h2>Safe guide</h2><script>alert(1)</script>" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Preview sanitized resource" }),
+    );
+    expect(await screen.findByText("Speaker-facing preview")).toBeVisible();
+    expect(
+      screen.getByText("Scripts are not allowed and were removed."),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Save resource" })).toBeEnabled();
     fireEvent.change(screen.getByLabelText("Filter task progress"), {
       target: { value: "incomplete" },
     });

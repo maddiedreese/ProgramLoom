@@ -47,6 +47,41 @@ describe("event template contracts", () => {
     expect(selected.onboarding).toHaveLength(0);
   });
 
+  it("keeps reviewer-routing rules inside the review template domain", () => {
+    const source = starterConfiguration("conference");
+    source.review.routing.rules.push({
+      id: "route-ai-workshops",
+      name: "AI workshops",
+      priority: 10,
+      enabled: 1,
+      groupOperator: "and",
+      roundId: "starter-round",
+      reviewersPerSubmission: 2,
+    });
+    source.review.routing.groups.push({
+      id: "route-ai-workshops-group",
+      ruleId: "route-ai-workshops",
+      position: 0,
+      conditionOperator: "and",
+    });
+    source.review.routing.conditions.push({
+      id: "route-ai-workshops-condition",
+      groupId: "route-ai-workshops-group",
+      source: "format",
+      operator: "equals",
+      valueJson: JSON.stringify("Workshop (60 min)"),
+      position: 0,
+    });
+
+    const selected = selectConfiguration(source, ["review"]);
+    expect(selected.review.routing.rules).toHaveLength(1);
+    expect(selected.review.routing.groups).toHaveLength(1);
+    expect(selected.review.routing.conditions).toHaveLength(1);
+    expect(selectConfiguration(source, ["cfp"]).review.routing.rules).toEqual(
+      [],
+    );
+  });
+
   it("rejects invalid ranges and unsupported template sources", () => {
     expect(() =>
       previewSchema.parse({

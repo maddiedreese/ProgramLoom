@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { BookOpen, LogOut } from "lucide-react";
 import { useState } from "react";
 
 type SidebarUserProps = {
@@ -26,6 +26,9 @@ export function SidebarUser({ user }: SidebarUserProps) {
     <div className="sidebar-user">
       <span>{user.name}</span>
       <small>{user.email}</small>
+      <a href="/guide">
+        <BookOpen size={14} /> Product guide
+      </a>
       <button type="button" onClick={signOut} disabled={signingOut}>
         <LogOut size={14} /> {signingOut ? "Signing out…" : "Sign out"}
       </button>

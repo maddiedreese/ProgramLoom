@@ -7,6 +7,7 @@ import {
   Code2,
   FileInput,
   Files,
+  GripVertical,
   Inbox,
   LoaderCircle,
   MapPin,
@@ -38,9 +39,17 @@ type Session = {
   id: string;
   title: string;
   abstract: string;
+  format: string | null;
   trackId: string | null;
   speakerIds: string[];
   speakerNames: string[];
+};
+type AgendaView = "list" | "day" | "week" | "track" | "room";
+type DragSource = { kind: "item" | "session"; id: string; title: string };
+type MoveTarget = {
+  source: DragSource;
+  roomId: string;
+  startsAt: string;
 };
 type Speaker = {
   id: string;
@@ -124,6 +133,35 @@ function eventDays(event: EventRecord) {
   return days;
 }
 
+function eventSlots(event: EventRecord, day: string) {
+  const slots: string[] = [];
+  const start = new Date(event.startsAt).getTime();
+  const end = new Date(event.endsAt).getTime();
+  for (
+    let cursor = start;
+    cursor <= end && slots.length < 48;
+    cursor += 30 * 60_000
+  ) {
+    const value = new Date(cursor).toISOString();
+    if (dayKey(value, event.timezone) === day) slots.push(value);
+  }
+  return slots;
+}
+
+function updateAgendaUrl(input: {
+  view: AgendaView;
+  day: string;
+  track: string;
+  room: string;
+}) {
+  const query = new URLSearchParams(window.location.search);
+  query.set("view", input.view);
+  input.day ? query.set("date", input.day) : query.delete("date");
+  input.track ? query.set("track", input.track) : query.delete("track");
+  input.room ? query.set("room", input.room) : query.delete("room");
+  window.history.replaceState(null, "", `${window.location.pathname}?${query}`);
+}
+
 function EventChrome({
   event,
   eventId,
@@ -162,6 +200,7 @@ function EventChrome({
 
 export function EventAgenda({ user }: { user: User }) {
   const { eventId = "" } = useParams();
+  const initialQuery = useRef(new URLSearchParams(window.location.search));
   const [event, setEvent] = useState<EventRecord>();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -170,7 +209,24 @@ export function EventAgenda({ user }: { user: User }) {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [selectedDay, setSelectedDay] = useState("");
+  const initialView = initialQuery.current.get("view");
+  const [view, setView] = useState<AgendaView>(
+    ["list", "day", "week", "track", "room"].includes(initialView ?? "")
+      ? (initialView as AgendaView)
+      : "day",
+  );
+  const [selectedDay, setSelectedDay] = useState(
+    initialQuery.current.get("date") ?? "",
+  );
+  const [trackFilter, setTrackFilter] = useState(
+    initialQuery.current.get("track") ?? "",
+  );
+  const [roomFilter, setRoomFilter] = useState(
+    initialQuery.current.get("room") ?? "",
+  );
+  const [dragged, setDragged] = useState<DragSource>();
+  const [movePreview, setMovePreview] = useState<MoveTarget>();
+  const [liveMessage, setLiveMessage] = useState("");
   const [assistPreviewCount, setAssistPreviewCount] = useState<number>();
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
@@ -217,6 +273,14 @@ export function EventAgenda({ user }: { user: User }) {
       feedbackRef.current?.focus({ preventScroll: true });
     });
   }, [feedback]);
+  useEffect(() => {
+    updateAgendaUrl({
+      view,
+      day: selectedDay,
+      track: trackFilter,
+      room: roomFilter,
+    });
+  }, [view, selectedDay, trackFilter, roomFilter]);
 
   async function act(operation: () => Promise<unknown>, message: string) {
     setBusy(true);
@@ -472,6 +536,91 @@ export function EventAgenda({ user }: { user: User }) {
         : "Conflict-free suggestions generated; choose Apply to persist them.",
     );
   }
+  function sourceItem(source: DragSource) {
+    return source.kind === "item"
+      ? items.find((item) => item.id === source.id)
+      : undefined;
+  }
+  async function commitMove(target: MoveTarget) {
+    const item = sourceItem(target.source);
+    const session =
+      target.source.kind === "session"
+        ? sessions.find((candidate) => candidate.id === target.source.id)
+        : item?.submissionId
+          ? sessions.find((candidate) => candidate.id === item.submissionId)
+          : undefined;
+    const duration =
+      item?.startsAt && item.endsAt
+        ? Math.max(
+            15 * 60_000,
+            new Date(item.endsAt).getTime() - new Date(item.startsAt).getTime(),
+          )
+        : 45 * 60_000;
+    const endsAt = new Date(
+      new Date(target.startsAt).getTime() + duration,
+    ).toISOString();
+    await act(
+      () =>
+        target.source.kind === "session"
+          ? api(`/api/agenda/admin/events/${eventId}/placements`, {
+              method: "POST",
+              body: JSON.stringify({
+                submissionId: target.source.id,
+                roomId: target.roomId || null,
+                trackId: session?.trackId ?? null,
+                startsAt: target.startsAt,
+                endsAt,
+              }),
+            })
+          : api(
+              `/api/agenda/admin/events/${eventId}/items/${target.source.id}`,
+              {
+                method: "PATCH",
+                body: JSON.stringify({
+                  roomId: target.roomId || null,
+                  trackId: item?.trackId ?? null,
+                  startsAt: target.startsAt,
+                  endsAt,
+                  reschedule: false,
+                }),
+              },
+            ),
+      `${target.source.title} moved. Its agenda draft and calendar state are updated; review conflicts, then publish the agenda.`,
+    );
+    setMovePreview(undefined);
+    setDragged(undefined);
+    setLiveMessage(`${target.source.title} moved successfully.`);
+  }
+  function requestMove(roomId: string, startsAt: string, source = dragged) {
+    if (!source) return;
+    const item = sourceItem(source);
+    const target = { source, roomId, startsAt };
+    if (item?.startsAt) setMovePreview(target);
+    else void commitMove(target);
+  }
+  function beginDrag(source: DragSource, event?: React.DragEvent) {
+    setDragged(source);
+    event?.dataTransfer.setData("text/plain", `${source.kind}:${source.id}`);
+    if (event?.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    setLiveMessage(
+      `${source.title} selected. Drop it into a room and time, or use its scheduling form for keyboard placement.`,
+    );
+  }
+  function finishPointerDrag(event: React.PointerEvent, source: DragSource) {
+    const element = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest<HTMLElement>("[data-drop-room][data-drop-start]");
+    if (element)
+      requestMove(
+        element.dataset.dropRoom ?? "",
+        element.dataset.dropStart ?? "",
+        source,
+      );
+    else
+      setLiveMessage(
+        `${source.title} was not moved. Drop it over a room and time cell.`,
+      );
+  }
   async function publish() {
     await act(
       () =>
@@ -497,14 +646,111 @@ export function EventAgenda({ user }: { user: User }) {
     (session) => !items.some((item) => item.submissionId === session.id),
   );
   const days = event ? eventDays(event) : [];
-  const activeDay = selectedDay || days[0]?.key || "";
-  const dayItems = scheduled.filter(
+  const activeDay =
+    days.some((day) => day.key === selectedDay) && selectedDay
+      ? selectedDay
+      : days[0]?.key || "";
+  const visibleScheduled = scheduled.filter(
+    (item) =>
+      (!trackFilter || item.trackId === trackFilter) &&
+      (!roomFilter || item.roomId === roomFilter),
+  );
+  const dayItems = visibleScheduled.filter(
     (item) => dayKey(item.startsAt!, event!.timezone) === activeDay,
   );
-  const dayStarts = [...new Set(dayItems.map((item) => item.startsAt!))].sort();
+  const dayStarts = event
+    ? [
+        ...new Set([
+          ...eventSlots(event, activeDay),
+          ...dayItems.map((item) => item.startsAt!),
+        ]),
+      ].sort()
+    : [];
   const agendaColumns: Room[] = dayItems.some((item) => !item.roomId)
     ? [...rooms, { id: "", name: "Room unassigned", capacity: null }]
-    : rooms;
+    : rooms.filter((room) => !roomFilter || room.id === roomFilter);
+  const formatTime = (value: string) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: event!.timezone,
+      weekday: view === "week" || view === "list" ? "short" : undefined,
+      month: view === "list" ? "short" : undefined,
+      day: view === "list" ? "numeric" : undefined,
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(value));
+  const trackColor = (trackId: string | null) =>
+    tracks.find((track) => track.id === trackId)?.color ?? "#64748b";
+  const itemContext = (item: AgendaItem) => {
+    const session = item.submissionId
+      ? sessions.find((candidate) => candidate.id === item.submissionId)
+      : undefined;
+    return [
+      item.roomName || "Room unassigned",
+      item.trackName || "No track",
+      session?.format || item.itemType,
+      session?.speakerNames.join(", ") || "No speaker assigned",
+    ].join(" · ");
+  };
+  const dragCard = (item: AgendaItem) => {
+    const source: DragSource = {
+      kind: "item",
+      id: item.id,
+      title: item.title,
+    };
+    return (
+      <article
+        id={`agenda-item-${item.id}`}
+        className="agenda-move-card"
+        style={{ borderInlineStartColor: trackColor(item.trackId) }}
+        tabIndex={-1}
+        draggable
+        onDragStart={(event) => beginDrag(source, event)}
+        onDragEnd={() => setDragged(undefined)}
+      >
+        <button
+          type="button"
+          className="agenda-drag-handle"
+          aria-label={`Drag ${item.title} to another room or time`}
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId);
+            beginDrag(source);
+          }}
+          onPointerUp={(event) => finishPointerDrag(event, source)}
+        >
+          <GripVertical size={15} aria-hidden="true" /> Move
+        </button>
+        <strong>{item.title}</strong>
+        <span>{itemContext(item)}</span>
+        {item.startsAt && <time>{formatTime(item.startsAt)}</time>}
+        <a href={`#agenda-placement-${item.id}`}>Schedule with form</a>
+      </article>
+    );
+  };
+  const groupedItems =
+    view === "track"
+      ? tracks.map((track) => ({
+          id: track.id,
+          label: track.name,
+          items: visibleScheduled.filter((item) => item.trackId === track.id),
+        }))
+      : view === "room"
+        ? rooms.map((room) => ({
+            id: room.id,
+            label: room.name,
+            items: visibleScheduled.filter((item) => item.roomId === room.id),
+          }))
+        : days.map((day) => ({
+            id: day.key,
+            label: new Intl.DateTimeFormat("en-US", {
+              timeZone: event!.timezone,
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            }).format(new Date(day.value)),
+            items: visibleScheduled.filter(
+              (item) => dayKey(item.startsAt!, event!.timezone) === day.key,
+            ),
+          }));
   return (
     <EventChrome event={event} eventId={eventId} user={user}>
       <main id="main-content" className="event-main agenda-main">
@@ -553,6 +799,62 @@ export function EventAgenda({ user }: { user: User }) {
             {feedback.message}
           </div>
         )}
+        <p className="sr-only" aria-live="polite">
+          {liveMessage}
+        </p>
+        {movePreview && (
+          <div className="modal-backdrop" role="presentation">
+            <section
+              className="confirmation-modal agenda-move-preview"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="agenda-move-title"
+            >
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close move preview"
+                onClick={() => setMovePreview(undefined)}
+              >
+                Close
+              </button>
+              <h2 id="agenda-move-title">Preview schedule move</h2>
+              <p>
+                Move <strong>{movePreview.source.title}</strong> to{" "}
+                {rooms.find((room) => room.id === movePreview.roomId)?.name ??
+                  "Room unassigned"}
+                {" at "}
+                {formatTime(movePreview.startsAt)}?
+              </p>
+              <div className="consequence-note">
+                <strong>What changes</strong>
+                <p>
+                  The agenda item returns to draft. Existing participant
+                  calendar invitations keep the same UID, increase their
+                  sequence, and receive the new room and time. Publish agenda
+                  when the revised schedule is ready for attendees.
+                </p>
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => setMovePreview(undefined)}
+                >
+                  Keep current placement
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy}
+                  onClick={() => void commitMove(movePreview)}
+                >
+                  Confirm move and update calendar
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
         <div className="agenda-layout">
           <section className="agenda-canvas">
             <div className="agenda-summary">
@@ -567,6 +869,51 @@ export function EventAgenda({ user }: { user: User }) {
               </span>
             </div>
             <section className="organizer-agenda" aria-label="Agenda timeline">
+              <div className="agenda-view-toolbar">
+                <div role="group" aria-label="Agenda view">
+                  {(["list", "day", "week", "track", "room"] as const).map(
+                    (choice) => (
+                      <button
+                        type="button"
+                        key={choice}
+                        className={view === choice ? "active" : ""}
+                        aria-pressed={view === choice}
+                        onClick={() => setView(choice)}
+                      >
+                        {choice[0].toUpperCase() + choice.slice(1)}
+                      </button>
+                    ),
+                  )}
+                </div>
+                <label>
+                  Track
+                  <select
+                    value={trackFilter}
+                    onChange={(input) => setTrackFilter(input.target.value)}
+                  >
+                    <option value="">All tracks</option>
+                    {tracks.map((track) => (
+                      <option value={track.id} key={track.id}>
+                        {track.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Room
+                  <select
+                    value={roomFilter}
+                    onChange={(input) => setRoomFilter(input.target.value)}
+                  >
+                    <option value="">All rooms</option>
+                    {rooms.map((room) => (
+                      <option value={room.id} key={room.id}>
+                        {room.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <div
                 className="agenda-day-tabs"
                 role="tablist"
@@ -588,95 +935,145 @@ export function EventAgenda({ user }: { user: User }) {
                   </button>
                 ))}
               </div>
-              <div className="agenda-grid-scroll">
-                <table
-                  className="agenda-grid organizer-agenda-grid"
-                  aria-label="Organizer agenda grid"
-                >
-                  <thead>
-                    <tr>
-                      <th scope="col">Time</th>
-                      {agendaColumns.map((room) => (
-                        <th scope="col" key={room.id}>
-                          {room.name}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dayStarts.map((start) => (
-                      <tr key={start}>
-                        <th scope="row">
-                          {new Intl.DateTimeFormat("en-US", {
-                            timeZone: event!.timezone,
-                            hour: "numeric",
-                            minute: "2-digit",
-                          }).format(new Date(start))}
-                        </th>
-                        {agendaColumns.map((room) => {
-                          const item = dayItems.find(
-                            (candidate) =>
-                              candidate.startsAt === start &&
-                              (candidate.roomId ?? "") === room.id,
-                          );
-                          return (
-                            <td key={room.id}>
-                              {item ? (
-                                <article
-                                  id={`agenda-item-${item.id}`}
-                                  tabIndex={-1}
-                                >
-                                  <strong>{item.title}</strong>
-                                  <span>{item.trackName || item.itemType}</span>
-                                  <a href={`#agenda-placement-${item.id}`}>
-                                    Edit placement
-                                  </a>
-                                  <button
-                                    className="button button-small button-ghost"
-                                    onClick={() => clear(item)}
-                                    aria-label={`Clear placement for ${item.title}`}
-                                    disabled={busy}
-                                  >
-                                    Clear placement
-                                  </button>
-                                  {item.itemType === "session" ? (
-                                    <button
-                                      className="button button-small button-danger"
-                                      onClick={() => cancel(item)}
-                                      aria-label={`Cancel session: ${item.title}`}
-                                      disabled={busy}
-                                    >
-                                      Cancel session
-                                    </button>
-                                  ) : (
-                                    <button
-                                      className="button button-small button-ghost"
-                                      onClick={() => removeBlock(item)}
-                                      disabled={busy}
-                                    >
-                                      Remove block
-                                    </button>
-                                  )}
-                                </article>
-                              ) : (
-                                <span
-                                  className="agenda-grid-empty"
-                                  aria-hidden="true"
-                                >
-                                  —
-                                </span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="agenda-unscheduled-strip">
+                <div>
+                  <strong>Unscheduled sessions</strong>
+                  <span>
+                    Drag one into the Day grid, or use Schedule with form.
+                  </span>
+                </div>
+                {[
+                  ...unscheduled.map((item) => ({
+                    kind: "item" as const,
+                    id: item.id,
+                    title: item.title,
+                  })),
+                  ...availableSessions.map((session) => ({
+                    kind: "session" as const,
+                    id: session.id,
+                    title: session.title,
+                  })),
+                ].map((source) => (
+                  <article
+                    key={`${source.kind}-${source.id}`}
+                    draggable
+                    onDragStart={(input) => beginDrag(source, input)}
+                    onDragEnd={() => setDragged(undefined)}
+                  >
+                    <button
+                      type="button"
+                      className="agenda-drag-handle"
+                      aria-label={`Drag ${source.title} into the agenda`}
+                      onPointerDown={(input) => {
+                        input.currentTarget.setPointerCapture(input.pointerId);
+                        beginDrag(source);
+                      }}
+                      onPointerUp={(input) => finishPointerDrag(input, source)}
+                    >
+                      <GripVertical size={15} aria-hidden="true" /> Move
+                    </button>
+                    <strong>{source.title}</strong>
+                    {source.kind === "item" ? (
+                      <a href={`#agenda-placement-${source.id}`}>
+                        Schedule with form
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          addSession(
+                            sessions.find((item) => item.id === source.id)!,
+                          )
+                        }
+                      >
+                        Add, then schedule with form
+                      </button>
+                    )}
+                  </article>
+                ))}
+                {!unscheduled.length && !availableSessions.length && (
+                  <p>Every accepted session has a placement.</p>
+                )}
               </div>
-              {!dayItems.length && (
+              {view === "day" ? (
+                <div className="agenda-grid-scroll">
+                  <table
+                    className="agenda-grid organizer-agenda-grid"
+                    aria-label="Organizer agenda day grid"
+                  >
+                    <thead>
+                      <tr>
+                        <th scope="col">Time</th>
+                        {agendaColumns.map((room) => (
+                          <th scope="col" key={room.id || "unassigned"}>
+                            {room.name}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dayStarts.map((start) => (
+                        <tr key={start}>
+                          <th scope="row">{formatTime(start)}</th>
+                          {agendaColumns.map((room) => {
+                            const cellItems = dayItems.filter(
+                              (candidate) =>
+                                candidate.startsAt === start &&
+                                (candidate.roomId ?? "") === room.id,
+                            );
+                            return (
+                              <td
+                                key={room.id || "unassigned"}
+                                className={dragged ? "agenda-drop-ready" : ""}
+                                data-drop-room={room.id}
+                                data-drop-start={start}
+                                onDragOver={(input) => {
+                                  input.preventDefault();
+                                  input.dataTransfer.dropEffect = "move";
+                                }}
+                                onDrop={(input) => {
+                                  input.preventDefault();
+                                  requestMove(room.id, start);
+                                }}
+                              >
+                                {cellItems.map((item) => (
+                                  <div key={item.id}>{dragCard(item)}</div>
+                                ))}
+                                {!cellItems.length && (
+                                  <span className="agenda-grid-empty">
+                                    Drop here
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : view === "list" ? (
+                <div className="agenda-view-list">
+                  {visibleScheduled.map((item) => (
+                    <div key={item.id}>{dragCard(item)}</div>
+                  ))}
+                </div>
+              ) : (
+                <div className={`agenda-group-view agenda-group-${view}`}>
+                  {groupedItems.map((group) => (
+                    <section key={group.id}>
+                      <h3>{group.label}</h3>
+                      {group.items.map((item) => (
+                        <div key={item.id}>{dragCard(item)}</div>
+                      ))}
+                      {!group.items.length && <p>No matching sessions.</p>}
+                    </section>
+                  ))}
+                </div>
+              )}
+              {!visibleScheduled.length && (
                 <div className="empty-panel">
-                  <p>No sessions are scheduled for this day.</p>
+                  <p>No scheduled sessions match this view.</p>
                   <a href="#accepted-sessions">Add an accepted session</a>
                 </div>
               )}
@@ -792,6 +1189,28 @@ export function EventAgenda({ user }: { user: User }) {
                     "Schedule session"
                   )}
                 </button>
+                {item.startsAt && !item.cancelledAt && (
+                  <button
+                    className="button button-small button-ghost"
+                    type="button"
+                    onClick={() => clear(item)}
+                    disabled={busy}
+                    aria-label={`Clear placement for ${item.title}`}
+                  >
+                    Clear placement
+                  </button>
+                )}
+                {item.itemType === "session" && !item.cancelledAt && (
+                  <button
+                    className="button button-small button-danger"
+                    type="button"
+                    onClick={() => cancel(item)}
+                    disabled={busy}
+                    aria-label={`Cancel session: ${item.title}`}
+                  >
+                    Cancel session
+                  </button>
+                )}
                 {item.itemType !== "session" && !item.cancelledAt && (
                   <button
                     className="button button-small button-ghost"

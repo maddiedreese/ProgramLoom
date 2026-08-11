@@ -17,6 +17,11 @@ const requestSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
   mode: z.enum(["login", "register"]),
   turnstileToken: z.string().optional(),
+  returnTo: z
+    .string()
+    .max(2000)
+    .refine((value) => value.startsWith("/") && !value.startsWith("//"))
+    .optional(),
 });
 
 const invitationTokenSchema = z.object({ token: z.string().min(32).max(200) });
@@ -92,7 +97,7 @@ router.post("/request", zValidator("json", requestSchema), async (context) => {
         input.email,
         purpose,
         tokenHash,
-        "/app",
+        input.returnTo ?? "/app",
         expiresAt,
         JSON.stringify({ name: input.name }),
       ),

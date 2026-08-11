@@ -32,11 +32,13 @@ The Control Room stays connected to every stage, so resolved blockers disappear 
 
 This separation is deliberate. **Stage decision** records what the organizer intends to do and sends nothing. The organizer must then open the **Communications Center**, choose the recipients, inspect the rendered message, and select **Send decision**. This makes it safe to prepare a program before communicating it.
 
-For a concise, end-to-end tour, follow the [guided product walkthrough](docs/evaluator-guide.md). The [screen and role map](docs/evaluator-route-map.md) explains where organizers, reviewers, speakers, and attendees begin.
+New to program operations? Start with the [complete user guide](docs/user-guide.md). It explains the vocabulary, roles, full lifecycle, public attendee experience, integrations, recovery paths, and common questions without assuming prior product knowledge.
 
 ## How it works
 
 The user interface and API run together on a Cloudflare Worker. D1 stores account access and durable workflow state; R2 stores private file versions and generated exports; Cloudflare Queues handles retry-safe email and Airtable synchronization. Resend delivers transactional email, Airtable can remain the authoritative business-record store, and PostHog receives only intentionally limited product events. Structured Cloudflare logs and Workers Observability provide operational diagnosis.
+
+Organization owners can also connect trusted systems through hashed API tokens, signed webhooks, OAuth 2.1, a stable REST API, a bounded query surface, and remote MCP. The public [developer guide](https://app.programloom.com/developers) explains scopes, event restrictions, PII masking, pagination, safe writes, and examples.
 
 Technical readers can continue with the [architecture](docs/architecture.md), [data model](docs/data-model.md), [Airtable design](docs/airtable.md), and [operator runbook](docs/runbook.md).
 
@@ -63,7 +65,7 @@ npm run verify:evidence
 
 Authenticated production Playwright requires ignored values for `PROGRAMLOOM_E2E_URL`, `PROGRAMLOOM_E2E_STORAGE_STATE`, and `PROGRAMLOOM_E2E_EVENT_ID`; then run `npm run test:e2e`. CRM and content protocols are available as `npm run smoke:crm` and `npm run smoke:content`.
 
-The [product and evidence map](docs/parity-map.md) links capabilities to production routes and automated tests. The [production evidence index](docs/evidence/README.md) explains what has been verified, where nonsensitive proof lives, and how the restricted final release manifest is checked without committing private verification state.
+The [capability map](docs/parity-map.md) links product behavior to production routes and automated tests. Release evidence is sanitized; private inbox contents, provider identifiers, authentication state, and sensitive logs remain outside the repository.
 
 ## Deployment
 
@@ -75,9 +77,11 @@ RELEASE_COMMIT="$(git rev-parse HEAD)" npm run deploy
 
 The deploy script rejects a missing, abbreviated, uppercase, or malformed source commit and binds the validated SHA directly to Wrangler. Record the returned Worker version, verify `/api/health`, run the production Playwright gate, and require Airtable to settle at zero pending work, zero failures, and zero open conflicts. Full recovery and secret-handling procedures are in the [runbook](docs/runbook.md).
 
-## Guided product walkthrough
+## Learn the product
 
-Follow one uninterrupted lifecycle in [the guided walkthrough](docs/evaluator-guide.md): template → CFP → proposal → saved view → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule and calendar → conflict resolution → five public views → search → integration health → cancellation → a reconciled or intentionally explained Control Room.
+The [user guide](docs/user-guide.md) follows one understandable lifecycle: template → CFP → proposal → saved view → automatic routing → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule and calendar → conflict resolution → five public views → search → integration health → cancellation and recovery.
+
+Inside the deployed product, open [the product guide](https://app.programloom.com/guide) from the marketing site or workspace navigation. Organizers should begin in an event’s **Control Room**; reviewers and speakers land in their role-specific workspaces.
 
 ## Honest limitations and waivers
 

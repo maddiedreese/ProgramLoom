@@ -31,6 +31,14 @@ export const issuesSql = `
     (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1) trackId
   FROM submissions s WHERE s.event_id=?1 AND (s.status='draft' OR (s.status='pending' AND s.organizer_seen_at IS NULL))
   UNION ALL
+  SELECT 'routing_unmatched','submission',s.id,s.title,'No reviewer-routing rule matches this proposal','blocking','unmatched',
+    NULL,COALESCE(s.submitted_at,s.created_at),'/app/events/'||s.event_id||'/reviews?routing=1&submission='||s.id,
+    (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1)
+  FROM submissions s WHERE s.event_id=?1 AND s.status='pending' AND EXISTS (
+    SELECT 1 FROM review_routing_rules r WHERE r.event_id=s.event_id AND r.enabled=1)
+    AND NOT EXISTS (
+      SELECT 1 FROM submission_routing_state srs WHERE srs.submission_id=s.id AND srs.status!='unmatched')
+  UNION ALL
   SELECT 'reviewer_assignment','submission',s.id,s.title,'No active reviewer assignment','blocking',s.status,
     NULL,COALESCE(s.submitted_at,s.created_at),'/app/events/'||s.event_id||'/reviews?submission='||s.id,
     (SELECT track_id FROM submission_tracks WHERE submission_id=s.id ORDER BY track_id LIMIT 1)
@@ -143,6 +151,11 @@ export const issuesSql = `
   SELECT 'integration_failures','integration_incident',ii.id,ii.integration,ii.summary,ii.severity,ii.status,
     NULL,ii.last_seen_at,'/app/events/'||ii.event_id||'/control-room?category=integration_failures',NULL
   FROM integration_incidents ii WHERE ii.event_id=?1 AND ii.status IN ('open','acknowledged')
+  UNION ALL
+  SELECT 'webhook_failures','api_webhook_delivery',d.id,s.name,'Developer webhook exhausted its retries',
+    'blocking',d.status,d.next_attempt_at,d.updated_at,'/app/settings?tab=webhooks',NULL
+  FROM api_webhook_deliveries d JOIN api_webhook_subscriptions s ON s.id=d.subscription_id
+  WHERE d.event_id=?1 AND d.status='failed'
 `;
 
 // Cloudflare's SQLite build intentionally caps compound SELECT terms. Keep

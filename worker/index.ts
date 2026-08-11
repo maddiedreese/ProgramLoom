@@ -20,6 +20,10 @@ import submissionWorkspaceRoutes from "./routes/submission-workspace";
 import eventTemplateRoutes from "./routes/event-templates";
 import searchRoutes from "./routes/search";
 import notificationRoutes from "./routes/notifications";
+import reviewRoutingRoutes from "./routes/review-routing";
+import developerAdminRoutes from "./routes/developer-admin";
+import developerApiRoutes from "./routes/developer-api";
+import developerOauthRoutes, { oauthMetadata } from "./routes/developer-oauth";
 import {
   cleanupNotificationRetention,
   createOverdueTaskNotifications,
@@ -40,6 +44,11 @@ import {
   processCommunication,
   type CommunicationJob,
 } from "./lib/communications";
+import {
+  dispatchPendingDeveloperWebhooks,
+  processDeveloperWebhook,
+  queueDeveloperWebhookAudits,
+} from "./lib/developerPlatform";
 
 type Variables = { requestId: string };
 
@@ -70,6 +79,19 @@ app.use("/api/*", async (context, next) => {
         requestId: context.get("requestId"),
         message:
           error instanceof Error ? error.message : "Outbox dispatch failed.",
+      }),
+    );
+  }
+  try {
+    await queueDeveloperWebhookAudits(context.env, context.get("requestId"));
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        service: "developer_webhook_outbox",
+        requestId: context.get("requestId"),
+        message:
+          error instanceof Error ? error.message : "Webhook queueing failed.",
       }),
     );
   }
@@ -166,6 +188,13 @@ app.route("/api/submission-workspace", submissionWorkspaceRoutes);
 app.route("/api/event-templates", eventTemplateRoutes);
 app.route("/api/search", searchRoutes);
 app.route("/api/notifications", notificationRoutes);
+app.route("/api/review-routing", reviewRoutingRoutes);
+app.route("/api/developer", developerAdminRoutes);
+app.route("/api/v1", developerApiRoutes);
+app.route("/api/oauth", developerOauthRoutes);
+app.get("/.well-known/oauth-authorization-server", (context) =>
+  context.json(oauthMetadata(context.env)),
+);
 
 app.get("/embed/:publicKey", async (context) => {
   const assetUrl = new URL("/index.html", context.req.url);
@@ -250,6 +279,7 @@ app.onError((error, context) => {
 type ProgramLoomJob =
   | { kind: "airtable_outbox"; outboxId: string }
   | { kind: "airtable_reconcile" }
+  | { kind: "developer_webhook"; deliveryId: string }
   | CommunicationJob;
 
 const worker: ExportedHandler<Env, ProgramLoomJob> = {
@@ -260,6 +290,15 @@ const worker: ExportedHandler<Env, ProgramLoomJob> = {
         if (message.body.kind === "communication_send") {
           const result = await processCommunication(env, message.body);
           if (result.retry) message.retry({ delaySeconds: 60 });
+          else message.ack();
+          continue;
+        } else if (message.body.kind === "developer_webhook") {
+          const result = await processDeveloperWebhook(
+            env,
+            message.body.deliveryId,
+          );
+          if (result.retry)
+            message.retry({ delaySeconds: result.delaySeconds });
           else message.ack();
           continue;
         } else if (message.body.kind === "airtable_outbox")
@@ -292,6 +331,11 @@ const worker: ExportedHandler<Env, ProgramLoomJob> = {
     context.waitUntil(
       observeOperation("communication_dispatch", () =>
         dispatchScheduledCommunications(env),
+      ),
+    );
+    context.waitUntil(
+      observeOperation("developer_webhook_dispatch", () =>
+        dispatchPendingDeveloperWebhooks(env),
       ),
     );
     context.waitUntil(

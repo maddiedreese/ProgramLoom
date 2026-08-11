@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CheckCircle2,
   FileInput,
+  HelpCircle,
   LoaderCircle,
   Pencil,
   Plus,
@@ -311,8 +312,16 @@ export function Dashboard({ user }: { user: User }) {
               >
                 <Building2 size={18} /> Speaker CRM
               </a>
+              <a
+                href={`/app/settings${selectedId ? `?organization=${selectedId}` : ""}`}
+              >
+                Developer settings
+              </a>
             </>
           )}
+          <a href="/guide">
+            <HelpCircle size={18} /> Product guide
+          </a>
         </nav>
         <SidebarUser user={user} />
       </aside>
@@ -593,8 +602,8 @@ export function Dashboard({ user }: { user: User }) {
                 <p className="kicker">Your submissions</p>
                 <h2 id="my-proposals-title">Proposals you submitted</h2>
                 <p>
-                  You also submitted these proposals. They are separate from
-                  the events you organize above.
+                  You also submitted these proposals. They are separate from the
+                  events you organize above.
                 </p>
               </div>
             </div>

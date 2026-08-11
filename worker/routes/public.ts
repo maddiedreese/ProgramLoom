@@ -10,6 +10,7 @@ import {
 import { randomToken, sha256 } from "../lib/crypto";
 import { renderSimpleTransactionalEmail } from "../lib/email";
 import { eventManagerNotificationStatement } from "../lib/notifications";
+import { runReviewRouting } from "../lib/reviewRouting";
 import { verifyTurnstile } from "../lib/turnstile";
 
 type Variables = { requestId: string };
@@ -910,6 +911,33 @@ router.post(
         entityId: submissionId,
         coalesceKey: `submission:${submissionId}:${previousStatus ? "updated" : "created"}`,
       }).run();
+    if (status === "pending") {
+      try {
+        await runReviewRouting(context.env, {
+          organizationId: form.organizationId,
+          eventId: form.eventId,
+          triggerType: "submission",
+          actorUserId: authenticatedUser?.id,
+          submissionIds: [submissionId],
+          requestId: context.get("requestId"),
+        });
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            service: "review_routing",
+            action: "automatic_routing_failed",
+            requestId: context.get("requestId"),
+            eventId: form.eventId,
+            submissionId,
+            message:
+              error instanceof Error
+                ? error.message
+                : "Automatic routing failed.",
+          }),
+        );
+      }
+    }
     const editLink = `${context.env.MARKETING_URL}/c/${context.req.param("organizationSlug")}/${form.eventSlug}/${form.slug}#edit=${encodeURIComponent(rawEditToken!)}`;
     let emailQueued = false;
     if (

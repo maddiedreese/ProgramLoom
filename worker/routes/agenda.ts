@@ -82,6 +82,13 @@ const placementSchema = z.object({
   endsAt: z.iso.datetime({ offset: true }).nullable(),
   reschedule: z.boolean().default(false),
 });
+export const directPlacementSchema = z.object({
+  submissionId: z.string().uuid(),
+  roomId: z.string().uuid().nullable(),
+  trackId: z.string().uuid().nullable().optional(),
+  startsAt: z.iso.datetime({ offset: true }),
+  endsAt: z.iso.datetime({ offset: true }),
+});
 const constraintSchema = z.object({
   constraintType: z.enum([
     "speaker_availability",
@@ -126,7 +133,7 @@ async function eventData(db: D1Database, eventId: string) {
         .all(),
       db
         .prepare(
-          `SELECT s.id,s.title,s.abstract,MIN(st.track_id) AS trackId,GROUP_CONCAT(DISTINCT sp.id) AS speakerIds,GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames FROM submissions s LEFT JOIN submission_tracks st ON st.submission_id=s.id LEFT JOIN session_speakers ss ON ss.submission_id=s.id LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id WHERE s.event_id=? AND s.status='accepted' GROUP BY s.id ORDER BY s.title`,
+          `SELECT s.id,s.title,s.abstract,s.format,MIN(st.track_id) AS trackId,GROUP_CONCAT(DISTINCT sp.id) AS speakerIds,GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames FROM submissions s LEFT JOIN submission_tracks st ON st.submission_id=s.id LEFT JOIN session_speakers ss ON ss.submission_id=s.id LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id WHERE s.event_id=? AND s.status='accepted' GROUP BY s.id ORDER BY s.title`,
         )
         .bind(eventId)
         .all(),
@@ -542,6 +549,144 @@ router.post(
     }).run();
     return context.json(
       { item: { id, ...input, title, status: "draft", version: 1 } },
+      201,
+    );
+  },
+);
+
+router.post(
+  "/admin/events/:eventId/placements",
+  zValidator("json", directPlacementSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const input = context.req.valid("json");
+    const db = database(context.env);
+    const session = await db
+      .prepare(
+        "SELECT id,title FROM submissions WHERE id=? AND event_id=? AND status='accepted'",
+      )
+      .bind(input.submissionId, eventId)
+      .first<{ id: string; title: string }>();
+    if (!session)
+      throw new HttpError(
+        404,
+        "session_not_found",
+        "Accepted session not found.",
+      );
+    if (
+      await db
+        .prepare(
+          "SELECT id FROM agenda_items WHERE event_id=? AND submission_id=?",
+        )
+        .bind(eventId, input.submissionId)
+        .first()
+    )
+      throw new HttpError(
+        409,
+        "agenda_item_exists",
+        "That session is already on the agenda. Refresh and move its existing card.",
+      );
+    if (input.endsAt <= input.startsAt)
+      throw new HttpError(
+        400,
+        "invalid_time",
+        "The end must be after the start.",
+      );
+    if (
+      input.roomId &&
+      !(await db
+        .prepare("SELECT id FROM rooms WHERE id=? AND event_id=?")
+        .bind(input.roomId, eventId)
+        .first())
+    )
+      throw new HttpError(
+        400,
+        "invalid_room",
+        "Choose a room from this event.",
+      );
+    const id = crypto.randomUUID();
+    const candidate: AgendaItem = {
+      id,
+      submissionId: input.submissionId,
+      roomId: null,
+      startsAt: null,
+      endsAt: null,
+      cancelledAt: null,
+    };
+    const conflicts = await placementConflicts(
+      db,
+      eventId,
+      candidate,
+      input.roomId,
+      input.startsAt,
+      input.endsAt,
+    );
+    if (conflicts.length)
+      return context.json(
+        {
+          error: {
+            code: "schedule_conflict",
+            message:
+              "Nothing was moved. Choose another room or time before placing this session.",
+          },
+          conflicts,
+        },
+        409,
+      );
+    await db.batch([
+      db
+        .prepare(
+          `INSERT INTO agenda_items
+           (id,event_id,submission_id,track_id,room_id,item_type,title,starts_at,ends_at,status)
+           VALUES(?,?,?,?,?,'session',?,?,?,'draft')`,
+        )
+        .bind(
+          id,
+          eventId,
+          input.submissionId,
+          input.trackId ?? null,
+          input.roomId,
+          session.title,
+          input.startsAt,
+          input.endsAt,
+        ),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "agenda_item.placed",
+        entityType: "agenda_item",
+        entityId: id,
+        after: { ...input, source: "direct_placement" },
+        requestId: context.get("requestId"),
+      }),
+    ]);
+    let calendarError: string | undefined;
+    try {
+      await syncAgendaCalendarInvitations(context.env, {
+        eventId,
+        agendaItemId: id,
+        actorUserId: access.user.id,
+        correlationId: context.get("requestId"),
+        action: "placement",
+      });
+    } catch (error) {
+      calendarError =
+        "The session was placed, but calendar delivery needs organizer attention.";
+      logOperationalEvent("error", {
+        operation: "calendar_agenda_sync_failed",
+        requestId: context.get("requestId"),
+        eventId,
+        entityType: "agenda_item",
+        entityId: id,
+        message: safeOperationalError(error),
+      });
+    }
+    return context.json(
+      { item: { id, ...input, title: session.title }, calendarError },
       201,
     );
   },

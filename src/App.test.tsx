@@ -65,6 +65,24 @@ describe("ProgramLoom application", () => {
     expect(screen.getByText(/acceptable use/i)).toBeInTheDocument();
   });
 
+  it("publishes a first-time user guide without requiring an account", async () => {
+    render(
+      <MemoryRouter initialEntries={["/guide"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: /run a complete event program without losing the thread/i,
+      }),
+    ).toBeVisible();
+    expect(screen.getByText(/stage decision records/i)).toBeVisible();
+    expect(screen.getByText(/begin in the control room/i)).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /open programloom/i }),
+    ).toHaveAttribute("href", "/app");
+  });
+
   it("makes published calls discoverable without an account", async () => {
     vi.stubGlobal(
       "fetch",

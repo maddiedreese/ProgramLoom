@@ -15,6 +15,7 @@ const supportedEntityTypes = [
   "speaker",
   "review_assignment",
   "review_conflict",
+  "review_routing_rule",
   "speaker_task",
   "agenda_item",
   "schedule_conflict",
@@ -699,6 +700,44 @@ async function projectEntity(
             "Resolution Note": row.resolutionNote,
             "Resolved At": normalizeDate(row.resolvedAt),
             "Created At": normalizeDate(row.createdAt),
+          })
+        : null;
+    }
+    case "review_routing_rule": {
+      const row = await db
+        .prepare(
+          `SELECT r.organization_id AS organizationId,r.event_id AS eventId,r.name,r.description,r.priority,
+                  r.enabled,r.group_operator AS groupOperator,r.round_id AS roundId,
+                  r.reviewers_per_submission AS reviewersPerSubmission,r.owner_user_id AS ownerUserId,
+                  r.updated_at AS updatedAt,
+                  COALESCE((SELECT json_group_array(json_object(
+                    'position',g.position,'operator',g.condition_operator,
+                    'conditions',(SELECT json_group_array(json_object(
+                      'source',c.source,'fieldId',c.field_id,'operator',c.operator,'value',json(c.value_json),'position',c.position
+                    )) FROM review_routing_conditions c WHERE c.group_id=g.id ORDER BY c.position)
+                  )) FROM review_routing_condition_groups g WHERE g.rule_id=r.id ORDER BY g.position),'[]') AS conditionsJson,
+                  COALESCE((SELECT json_group_array(reviewer_user_id) FROM review_routing_excluded_reviewers WHERE rule_id=r.id),'[]') AS excludedReviewerIds,
+                  COALESCE((SELECT json_group_array(tag_id) FROM review_routing_rule_tags WHERE rule_id=r.id),'[]') AS tagIds
+           FROM review_routing_rules r WHERE r.id=?`,
+        )
+        .bind(entityId)
+        .first<Record<string, unknown>>();
+      return row
+        ? projection("PL Review Routing Rules", {
+            "Organization ID": row.organizationId,
+            "Event ID": row.eventId,
+            Name: row.name,
+            Description: row.description,
+            Priority: row.priority,
+            Enabled: Boolean(row.enabled),
+            "Group Operator": row.groupOperator,
+            "Round ID": row.roundId,
+            "Reviewers Per Submission": row.reviewersPerSubmission,
+            "Owner User ID": row.ownerUserId,
+            "Conditions JSON": row.conditionsJson,
+            "Excluded Reviewer IDs": row.excludedReviewerIds,
+            "Tag IDs": row.tagIds,
+            "Updated At": normalizeDate(row.updatedAt),
           })
         : null;
     }

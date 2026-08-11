@@ -102,3 +102,21 @@ Scheduled work creates overdue-task notifications, dispatches explicitly enabled
 For an email-channel incident, inspect `notification_channel_deliveries`, the linked Communications outbox record, operational job, provider attempt, and correlation ID. Do not insert a second message manually: the deterministic notification idempotency key makes the normal dispatcher/retry path safe. In-app delivery remains independent of email provider state.
 
 Resend lifecycle callbacks must be signed, deduplicated by provider event ID, and monotonic: late `email.sent` retries cannot downgrade `delivered`, `bounced`, `failed`, or `cancelled` records. After rotating a webhook secret, send a controlled test message and require the outbox detail to contain both provider lifecycle events and a final `delivered` state. A provider dashboard success alone is insufficient evidence.
+
+## Reviewer-routing operations
+
+Preview routing before running it across existing proposals. Resolve contradiction and overlap warnings deliberately; a lower priority number wins. A submitted proposal with no match appears in the Control Room and must not receive a guessed assignment. If a run skips work, inspect its persisted reason: existing assignment, reviewer conflict/recusal, capacity, exclusion, or no eligible reviewer. Repair the pool or rule and choose **Run routing** again; never insert a second assignment manually. A rerun must leave existing assignments unchanged and create an audit for only the actual changes and skips.
+
+## Developer-platform operations
+
+Owners and admins manage tokens, webhooks, and OAuth clients in **Workspace settings → Developer platform**. Secrets are one-time reveal. If a secret is lost, rotate it; do not attempt to recover database values. Revocation takes effect immediately. Event-restricted tokens must never be widened during incident diagnosis, and **Hide PII** should stay enabled unless the integration has a documented need.
+
+For API incidents, filter structured logs by request ID, token ID, and route template. Never log the `x-access-token`, idempotency key payload, query contents, response body, webhook body, or personal data. A 409 on an idempotency key indicates a different or still-running request; retry the identical operation with the same key only after the in-progress request completes. A 412 indicates stale `If-Match`; refetch before deciding whether to apply the change.
+
+Webhook deliveries are Queue-backed. Failed deliveries appear in Developer settings and the Control Room. Fix the endpoint, then use **Retry delivery**; the stable delivery ID and source sequence let consumers deduplicate and ignore stale state. After recovery, require a delivered attempt, recovery audit, cleared blocking notification, and no failed Control Room item. Rotate a signing secret only through the visible action and update the receiver before resuming traffic.
+
+OAuth clients require HTTPS redirect URIs outside local development, exact redirect matching, authorization code + PKCE S256, short-lived codes, and rotating refresh tokens. Revoke the client to stop both new grants and refresh. The MCP and query endpoints use the same scopes and event restrictions as REST; they are not privileged bypasses.
+
+## Resource-embed operations
+
+Only owners/admins may expand the exact-domain iframe allowlist. Add the narrowest provider hostname, preview representative markup, and verify the removal explanation before publishing. Do not allow wildcard domains, HTTP, scripts, forms, popups, or top-level navigation. Removing a domain causes future previews and renders to strip it; existing stored resource HTML remains sanitized but should be reopened and saved if policy has changed.

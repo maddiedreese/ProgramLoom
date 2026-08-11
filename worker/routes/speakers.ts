@@ -5,6 +5,10 @@ import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
 import { eventManagerNotificationStatement } from "../lib/notifications";
+import {
+  defaultEmbedDomains,
+  sanitizeResourceHtmlServer,
+} from "../lib/resourceSanitizer";
 import { notificationStatement } from "../lib/operations";
 
 type Variables = { requestId: string };
@@ -65,6 +69,35 @@ const resourceSchema = z.object({
   bodyHtml: z.string().trim().min(1).max(50000),
   published: z.boolean().default(false),
 });
+const embedDomainsSchema = z.object({
+  domains: z
+    .array(
+      z
+        .string()
+        .trim()
+        .toLowerCase()
+        .regex(
+          /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/,
+          "Enter a domain such as docs.example.org, without a scheme or path.",
+        ),
+    )
+    .max(50),
+});
+
+async function embedDomains(db: D1Database, organizationId: string) {
+  const rows = await db
+    .prepare(
+      "SELECT domain FROM organization_embed_domains WHERE organization_id=? ORDER BY domain",
+    )
+    .bind(organizationId)
+    .all<{ domain: string }>();
+  return [
+    ...new Set([
+      ...defaultEmbedDomains,
+      ...rows.results.map((row) => row.domain),
+    ]),
+  ];
+}
 const fileRequestSchema = z.object({
   purpose: z.string().trim().min(2).max(200),
   speakerIds: z.array(z.string().uuid()).min(1).max(200),
@@ -131,7 +164,7 @@ async function speakerContext(
 
 router.get("/events/:eventId", async (context) => {
   const eventId = context.req.param("eventId");
-  const { db, event, profile } = await speakerContext(context, eventId);
+  const { access, db, event, profile } = await speakerContext(context, eventId);
   const sessions = await db
     .prepare(
       "SELECT s.id, s.title, s.abstract, s.status FROM session_speakers ss JOIN submissions s ON s.id=ss.submission_id WHERE ss.speaker_id=? AND s.event_id=? ORDER BY s.title",
@@ -173,6 +206,7 @@ router.get("/events/:eventId", async (context) => {
       responseJson: undefined,
     })),
     resources: resources.results,
+    embedDomains: await embedDomains(db, access.organizationId),
     files: files.results,
   });
 });
@@ -867,7 +901,7 @@ router.get(
 
 router.get("/admin/events/:eventId", async (context) => {
   const eventId = context.req.param("eventId");
-  await requireEventRole(context, eventId, [...organizerRoles]);
+  const access = await requireEventRole(context, eventId, [...organizerRoles]);
   const db = database(context.env);
   const speakers = await db
     .prepare(
@@ -922,6 +956,7 @@ router.get("/admin/events/:eventId", async (context) => {
       }),
     ),
     resources: resources.results,
+    embedDomains: await embedDomains(db, access.organizationId),
     files: files.results,
   });
 });
@@ -1170,6 +1205,72 @@ router.post(
   },
 );
 router.post(
+  "/admin/events/:eventId/resources/preview",
+  zValidator("json", z.object({ bodyHtml: z.string().max(50000) })),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const db = database(context.env);
+    return context.json(
+      sanitizeResourceHtmlServer(
+        context.req.valid("json").bodyHtml,
+        await embedDomains(db, access.organizationId),
+      ),
+    );
+  },
+);
+
+router.put(
+  "/admin/events/:eventId/embed-domains",
+  zValidator("json", embedDomainsSchema),
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const domains = [
+      ...new Set(
+        context.req
+          .valid("json")
+          .domains.filter((domain) => !defaultEmbedDomains.includes(domain)),
+      ),
+    ];
+    const db = database(context.env);
+    const before = await embedDomains(db, access.organizationId);
+    await db.batch([
+      db
+        .prepare(
+          "DELETE FROM organization_embed_domains WHERE organization_id=?",
+        )
+        .bind(access.organizationId),
+      ...domains.map((domain) =>
+        db
+          .prepare(
+            "INSERT INTO organization_embed_domains(organization_id,domain,created_by) VALUES(?,?,?)",
+          )
+          .bind(access.organizationId, domain, access.user.id),
+      ),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "resource_embed_domains.updated",
+        entityType: "organization",
+        entityId: access.organizationId,
+        before: { domains: before },
+        after: { domains: [...defaultEmbedDomains, ...domains] },
+        requestId: context.get("requestId"),
+      }),
+    ]);
+    return context.json({
+      domains: [...defaultEmbedDomains, ...domains].sort(),
+    });
+  },
+);
+
+router.post(
   "/admin/events/:eventId/resources",
   zValidator("json", resourceSchema),
   async (context) => {
@@ -1179,6 +1280,10 @@ router.post(
     ]);
     const input = context.req.valid("json");
     const db = database(context.env);
+    const sanitized = sanitizeResourceHtmlServer(
+      input.bodyHtml,
+      await embedDomains(db, access.organizationId),
+    );
     const id = crypto.randomUUID();
     const position = Number(
       (
@@ -1196,7 +1301,7 @@ router.post(
         .prepare(
           "INSERT INTO resources (id,event_id,title,body_html,position,published_at) VALUES (?,?,?,?,?,?)",
         )
-        .bind(id, eventId, input.title, input.bodyHtml, position, publishedAt),
+        .bind(id, eventId, input.title, sanitized.html, position, publishedAt),
       auditStatement(db, {
         organizationId: access.organizationId,
         eventId,
@@ -1209,7 +1314,16 @@ router.post(
       }),
     ]);
     return context.json(
-      { resource: { id, ...input, position, publishedAt } },
+      {
+        resource: {
+          id,
+          ...input,
+          bodyHtml: sanitized.html,
+          position,
+          publishedAt,
+        },
+        sanitization: { removals: sanitized.removals },
+      },
       201,
     );
   },
