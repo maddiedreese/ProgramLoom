@@ -682,11 +682,11 @@ export function EventCommunications({ user }: { user: User }) {
               aria-label="Event communication outbox"
             >
               <div className="outbox-row outbox-header" role="row">
-                <span>Recipient</span>
-                <span>Communication</span>
-                <span>Status</span>
-                <span>Date</span>
-                <span>Actions</span>
+                <span role="columnheader">Recipient</span>
+                <span role="columnheader">Communication</span>
+                <span role="columnheader">Status</span>
+                <span role="columnheader">Date</span>
+                <span role="columnheader">Actions</span>
               </div>
               {overview?.messages.map((message) => (
                 <div
@@ -696,19 +696,19 @@ export function EventCommunications({ user }: { user: User }) {
                   tabIndex={-1}
                   key={message.id}
                 >
-                  <span>
+                  <span role="cell">
                     <strong>
                       {message.recipientName || message.recipientEmail}
                     </strong>
                     <small>{message.recipientEmail}</small>
                   </span>
-                  <span>
+                  <span role="cell">
                     <strong>{message.subject}</strong>
                     <small>
                       {categoryLabels[message.category] ?? message.category}
                     </small>
                   </span>
-                  <span>
+                  <span role="cell">
                     <i
                       className={`message-status message-status-${message.status}`}
                     >
@@ -716,7 +716,7 @@ export function EventCommunications({ user }: { user: User }) {
                     </i>
                     {message.lastError && <small>{message.lastError}</small>}
                   </span>
-                  <span>
+                  <span role="cell">
                     <time dateTime={message.sentAt ?? message.createdAt}>
                       {new Intl.DateTimeFormat(undefined, {
                         dateStyle: "medium",
@@ -728,7 +728,7 @@ export function EventCommunications({ user }: { user: User }) {
                       {message.attempts === 1 ? "" : "s"}
                     </small>
                   </span>
-                  <span className="outbox-actions">
+                  <span className="outbox-actions" role="cell">
                     {message.status === "failed" && (
                       <button
                         className="text-button"
@@ -751,21 +751,23 @@ export function EventCommunications({ user }: { user: User }) {
                 </div>
               ))}
               {!overview?.messages.length && (
-                <div className="communications-empty">
-                  <Inbox size={26} />
-                  <strong>No communications match this view.</strong>
-                  <span>
-                    Prepared messages will appear here with queued, processing,
-                    sent, delivered, bounced, failed, or cancelled evidence as
-                    it becomes available.
-                  </span>
-                  <button
-                    className="button button-small"
-                    type="button"
-                    onClick={() => setTab("compose")}
-                  >
-                    Compose a communication
-                  </button>
+                <div role="row">
+                  <div className="communications-empty" role="cell">
+                    <Inbox size={26} />
+                    <strong>No communications match this view.</strong>
+                    <span>
+                      Prepared messages will appear here with queued,
+                      processing, sent, delivered, bounced, failed, or cancelled
+                      evidence as it becomes available.
+                    </span>
+                    <button
+                      className="button button-small"
+                      type="button"
+                      onClick={() => setTab("compose")}
+                    >
+                      Compose a communication
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

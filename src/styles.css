@@ -7308,6 +7308,27 @@ input {
     min-width: 560px;
   }
 }
+@media (max-width: 760px) {
+  .developer-settings-shell .workspace-switcher,
+  .developer-settings-shell .sidebar-user {
+    display: grid;
+  }
+  .developer-settings-shell .app-nav {
+    width: 100%;
+    display: flex;
+    gap: 6px;
+    margin-top: 14px;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+  .developer-settings-shell .app-nav > * {
+    flex: 0 0 auto;
+  }
+  .developer-settings-shell .sidebar-user {
+    margin-top: 14px;
+  }
+}
 @media (max-width: 560px) {
   .public-widget {
     padding: 16px;

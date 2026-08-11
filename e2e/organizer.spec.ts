@@ -29,7 +29,9 @@ test.describe("authenticated organizer operations", () => {
         `/app/events/${eventId}/${surface.path}`,
       );
       expect(response?.ok()).toBeTruthy();
-      await expect(page.getByText(surface.marker).first()).toBeVisible();
+      await expect(
+        page.locator("main").getByText(surface.marker).first(),
+      ).toBeVisible();
       await expectNoHorizontalOverflow(page);
       await expectAccessible(page);
     }
@@ -88,7 +90,9 @@ test.describe("authenticated organizer operations", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Reviewer routing" }),
+      page.getByRole("heading", {
+        name: "Send each proposal to the right review path.",
+      }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Create routing rule" }),
