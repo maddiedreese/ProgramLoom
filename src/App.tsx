@@ -508,6 +508,10 @@ export function App() {
           element={<AuthenticatedPage page="submissions" />}
         />
         <Route
+          path="/app/events/:eventId/submissions/:submissionId"
+          element={<AuthenticatedPage page="submissions" />}
+        />
+        <Route
           path="/app/events/:eventId/reviews"
           element={<AuthenticatedPage page="reviews" />}
         />

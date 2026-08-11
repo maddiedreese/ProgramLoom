@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
@@ -87,6 +87,20 @@ function decisionCommunicationCategory(state: string) {
       : "decision_rejection";
 }
 
+export function submissionDetailPath(
+  eventId: string,
+  submissionId: string,
+  search = "",
+) {
+  return `/app/events/${eventId}/submissions/${submissionId}${search}`;
+}
+
+export function submissionListPath(eventId: string, search = "") {
+  const query = new URLSearchParams(search);
+  query.delete("submission");
+  return `/app/events/${eventId}/submissions${query.size ? `?${query}` : ""}`;
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -104,7 +118,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function EventSubmissions({ user }: { user: User }) {
-  const { eventId = "" } = useParams();
+  const { eventId = "", submissionId: routeSubmissionId } = useParams();
+  const navigate = useNavigate();
   const [event, setEvent] = useState<EventRecord>();
   const [selected, setSelected] = useState<SubmissionDetail>();
   const [fields, setFields] = useState<Field[]>([]);
@@ -144,9 +159,8 @@ export function EventSubmissions({ user }: { user: User }) {
       setSelected(result.submission);
       setFields(result.fields);
       setPeople(result.people);
-      const url = new URL(window.location.href);
-      url.searchParams.set("submission", id);
-      window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+      if (routeSubmissionId !== id)
+        navigate(submissionDetailPath(eventId, id, window.location.search));
       api<{ assessments: AiAssessment[] }>(
         `/api/reviews/events/${eventId}/submissions/${id}/ai-assessments`,
       )
@@ -166,18 +180,16 @@ export function EventSubmissions({ user }: { user: User }) {
   }
   function closeSubmission() {
     setSelected(undefined);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("submission");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    navigate(submissionListPath(eventId, window.location.search));
   }
   useEffect(() => {
     if (loading) return;
-    const submissionId = new URLSearchParams(window.location.search).get(
-      "submission",
-    );
+    const submissionId =
+      routeSubmissionId ??
+      new URLSearchParams(window.location.search).get("submission");
     if (submissionId && submissionId !== selected?.id)
       void openSubmission(submissionId);
-  }, [loading, eventId]);
+  }, [loading, eventId, routeSubmissionId]);
   async function changeDecision(
     state:
       "none" | "acceptance_staged" | "waitlist_staged" | "rejection_staged",
