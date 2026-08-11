@@ -118,7 +118,7 @@ test.describe("authenticated organizer operations", () => {
     await expect(
       page.getByRole("button", { name: /Clear placement for/ }).first(),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Apply" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Apply" })).toBeEnabled();
 
     await page.goto(`/app/events/${eventId}/calendar`);
     await expect(
