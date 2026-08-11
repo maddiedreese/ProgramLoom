@@ -130,11 +130,19 @@ test.describe("authenticated organizer operations", () => {
     await expect(page.getByRole("button", { name: "Apply" })).toBeVisible();
 
     await page.goto(`/app/events/${eventId}/calendar`);
-    await expect(
-      page
-        .getByRole("button", { name: /Send calendar (invitation|update)/ })
-        .first(),
-    ).toBeVisible();
+    const sendCalendar = page
+      .getByRole("button", { name: /Send calendar (invitation|update)/ })
+      .first();
+    if ((await sendCalendar.count()) === 0) {
+      const reschedule = page
+        .getByRole("button", { name: "Explicitly reschedule" })
+        .first();
+      await expect(reschedule).toBeVisible();
+      page.once("dialog", (dialog) => dialog.accept());
+      await reschedule.click();
+      await expect(sendCalendar).toBeVisible();
+    }
+    await expect(sendCalendar).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Cancel calendar invitation" }).first(),
     ).toBeVisible();
@@ -148,7 +156,9 @@ test.describe("authenticated organizer operations", () => {
 
     await page.goto(`/app/events/${eventId}/widgets`);
     await expect
-      .poll(() => page.locator(".widget-config-list article em").allTextContents())
+      .poll(() =>
+        page.locator(".widget-config-list article em").allTextContents(),
+      )
       .toEqual(
         expect.arrayContaining([
           "sessions",
