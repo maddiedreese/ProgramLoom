@@ -497,7 +497,7 @@ router.get(`${route}`, async (context) => {
   let currentSubmission:
     | {
         id: string;
-        status: "draft" | "pending";
+        status: string;
         answers: Record<string, unknown>;
         submitter: {
           name: string;
@@ -510,23 +510,33 @@ router.get(`${route}`, async (context) => {
           organization: string;
           participantRole: string;
         }>;
+        locked: boolean;
       }
     | undefined;
   if (authenticatedUser) {
+    const requestedSubmissionId = context.req.query("submission") ?? null;
     const owned = await db
       .prepare(
         `SELECT s.id,s.status,s.answers_json AS answersJson,p.name,p.email,p.organization
          FROM submissions s
          JOIN submission_people p ON p.submission_id=s.id AND p.role='primary'
-         WHERE s.form_id=? AND s.status IN ('draft','pending')
+         WHERE s.form_id=? AND (? IS NULL OR s.id=?)
            AND (p.user_id=? OR p.email=? COLLATE NOCASE)
-         ORDER BY CASE s.status WHEN 'draft' THEN 0 ELSE 1 END,s.updated_at DESC
+         ORDER BY CASE WHEN s.id=? THEN 0 ELSE 1 END,
+                  CASE s.status WHEN 'draft' THEN 0 ELSE 1 END,s.updated_at DESC
          LIMIT 1`,
       )
-      .bind(form.id, authenticatedUser.id, authenticatedUser.email)
+      .bind(
+        form.id,
+        requestedSubmissionId,
+        requestedSubmissionId,
+        authenticatedUser.id,
+        authenticatedUser.email,
+        requestedSubmissionId,
+      )
       .first<{
         id: string;
-        status: "draft" | "pending";
+        status: string;
         answersJson: string;
         name: string;
         email: string;
@@ -558,6 +568,7 @@ router.get(`${route}`, async (context) => {
           ...person,
           organization: person.organization ?? "",
         })),
+        locked: submissionEditingIsClosed(form, owned.status),
       };
     }
   }

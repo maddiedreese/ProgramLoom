@@ -179,7 +179,10 @@ describe("organizer onboarding", () => {
     expect(screen.getByText("pending")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /open proposal/i }),
-    ).toHaveAttribute("href", "/c/programs/assigned-program/community-cfp");
+    ).toHaveAttribute(
+      "href",
+      "/c/programs/assigned-program/community-cfp?submission=submission-1",
+    );
   });
 
   it("puts organizer events first and makes event identity visibly editable", async () => {

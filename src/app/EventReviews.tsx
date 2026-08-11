@@ -262,6 +262,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
   const [selectedRoundId, setSelectedRoundId] = useState<string>();
   const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
   const [selectedReviewers, setSelectedReviewers] = useState<string[]>([]);
+  const [lastAssignedRoundId, setLastAssignedRoundId] = useState<string>();
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
     message: string;
@@ -296,9 +297,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
         results: ReviewResult[];
         reviewDetails: ReviewDetail[];
       }>(`/api/reviews/events/${eventId}`),
-      api<{ submissions: Submission[] }>(
-        `/api/events/${eventId}/submissions?status=pending`,
-      ),
+      api<{ submissions: Submission[] }>(`/api/events/${eventId}/submissions`),
     ]);
     setRounds(config.rounds);
     setScorecards(config.scorecards);
@@ -545,6 +544,8 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       await load(selected.id);
       setSelectedSubmissions([]);
       setSelectedReviewers([]);
+      if (result.created || result.alreadyAssigned)
+        setLastAssignedRoundId(selected.id);
       setFeedback({
         kind: result.conflicts.length ? "error" : "success",
         message: `${result.created} reviewer ${result.created === 1 ? "assignment" : "assignments"} created.${result.alreadyAssigned ? ` ${result.alreadyAssigned} already existed and were left unchanged.` : ""}${result.capacitySkipped ? ` ${result.capacitySkipped} exceeded configured reviewer capacity and were skipped.` : ""}${result.conflicts.length ? ` ${result.conflicts.length} speaker/reviewer conflicts were safely skipped.` : " Open the round when reviewers should begin scoring."}`,
@@ -833,6 +834,18 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                     );
                   })}
                 </div>
+                <p className="inline-empty" role="status">
+                  {activePool.length
+                    ? `${selected.name} pool: ${activePool
+                        .map((membership) => {
+                          const reviewer = reviewers.find(
+                            (item) => item.id === membership.reviewerUserId,
+                          );
+                          return `${reviewer?.name ?? "Reviewer"} (capacity ${membership.capacity})`;
+                        })
+                        .join(", ")}. Other rounds keep separate pools.`
+                    : `${selected.name} has no dedicated pool. The full event reviewer roster is available only for this round until a pool is saved.`}
+                </p>
                 {!reviewers.length && (
                   <p className="inline-empty">
                     Invite a reviewer before configuring this round’s pool.
@@ -842,7 +855,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                   className="button button-small"
                   disabled={busy || !reviewers.length}
                 >
-                  Save reviewer pool
+                  Save {selected.name} reviewer pool
                 </button>
               </form>
               <section className="scorecard-section">
@@ -963,7 +976,26 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                           />
                           <span>
                             <strong>{submission.title}</strong>
-                            <small>{submission.submitterName}</small>
+                            <small>
+                              {submission.submitterName} · {submission.status}
+                            </small>
+                            {results.find(
+                              (result) =>
+                                result.roundId === selected.id &&
+                                result.submissionId === submission.id,
+                            ) && (
+                              <small>
+                                Assigned in {selected.name}:{" "}
+                                {reviewDetails
+                                  .filter(
+                                    (detail) =>
+                                      detail.roundId === selected.id &&
+                                      detail.submissionId === submission.id,
+                                  )
+                                  .map((detail) => detail.reviewerName)
+                                  .join(", ") || "reviewer assigned"}
+                              </small>
+                            )}
                           </span>
                         </label>
                       ))}
@@ -1021,6 +1053,23 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                 >
                   Assign reviewers
                 </button>
+                {lastAssignedRoundId === selected.id &&
+                  selected.status === "draft" && (
+                    <div className="form-status form-status-success">
+                      <strong>
+                        Assignments are saved. Reviewers cannot see this draft
+                        round yet.
+                      </strong>{" "}
+                      <button
+                        className="button button-small"
+                        type="button"
+                        onClick={() => setRoundStatus("open")}
+                        disabled={busy}
+                      >
+                        Open {selected.name} for reviewer scoring
+                      </button>
+                    </div>
+                  )}
               </section>
               <section className="review-results-section">
                 <div>
@@ -1132,7 +1181,7 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
                                     }
                                     disabled={busy}
                                   >
-                                    Run AI assessment
+                                    Generate AI assessment
                                   </button>
                                 </td>
                               </tr>

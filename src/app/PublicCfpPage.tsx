@@ -57,10 +57,11 @@ type Submitter = {
 };
 type CurrentSubmission = {
   id: string;
-  status: "draft" | "pending";
+  status: string;
   answers: Record<string, unknown>;
   submitter: Submitter;
   coSubmitters: Submitter[];
+  locked: boolean;
 };
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -103,6 +104,12 @@ function conditionMatches(
 export function PublicCfpPage() {
   const params = useParams();
   const apiPath = `/api/public/cfp/${params.organizationSlug}/${params.eventSlug}/${params.formSlug}`;
+  const requestedSubmissionId = new URLSearchParams(window.location.search).get(
+    "submission",
+  );
+  const definitionPath = requestedSubmissionId
+    ? `${apiPath}?submission=${encodeURIComponent(requestedSubmissionId)}`
+    : apiPath;
   const [form, setForm] = useState<PublicForm>();
   const [fields, setFields] = useState<Field[]>([]);
   const [conditions, setConditions] = useState<Condition[]>([]);
@@ -155,7 +162,7 @@ export function PublicCfpPage() {
       fields: Field[];
       conditions: Condition[];
       currentSubmission?: CurrentSubmission;
-    }>(apiPath)
+    }>(definitionPath)
       .then(async (result) => {
         setForm(result.form);
         setFields(result.fields);
@@ -201,12 +208,15 @@ export function PublicCfpPage() {
           setAnswers(result.currentSubmission.answers);
           setSubmitter(result.currentSubmission.submitter);
           setCoSubmitters(result.currentSubmission.coSubmitters);
+          setLocked(result.currentSubmission.locked);
           setFeedback({
             kind: "success",
             message:
               result.currentSubmission.status === "draft"
                 ? "Your saved draft is ready to continue."
-                : "Your submitted proposal is open for updates until the CFP closes or the organizer's earlier editing deadline.",
+                : result.currentSubmission.locked
+                  ? "This proposal is read-only because its decision is final or its editing window has closed."
+                  : "Your submitted proposal is open for updates until the CFP closes or the organizer's earlier editing deadline.",
           });
         }
       })
@@ -214,7 +224,7 @@ export function PublicCfpPage() {
         setFeedback({ kind: "error", message: error.message }),
       )
       .finally(() => setLoading(false));
-  }, [apiPath]);
+  }, [apiPath, definitionPath]);
 
   const requiresSecurityCheck = Boolean(siteKey && !signedIn);
 

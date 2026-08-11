@@ -572,7 +572,7 @@ export function Dashboard({ user }: { user: User }) {
                     }).format(new Date(submission.updatedAt))}
                   </span>
                   <a
-                    href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}`}
+                    href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}?submission=${encodeURIComponent(submission.id)}`}
                   >
                     {submission.status === "draft"
                       ? "Continue proposal"

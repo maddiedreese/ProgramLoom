@@ -902,7 +902,7 @@ router.get("/me/assignments", async (context) => {
   const db = database(context.env);
   const assignments = await db
     .prepare(
-      `SELECT ra.id, ra.submission_id AS submissionId, s.title, s.abstract, rr.id AS roundId, rr.name AS roundName, rr.is_blind AS isBlind, rr.closes_at AS closesAt, rr.status AS roundStatus, ra.completed_at AS completedAt, rv.weighted_score AS weightedScore, rv.recommendation FROM review_assignments ra JOIN review_rounds rr ON rr.id = ra.round_id JOIN submissions s ON s.id = ra.submission_id LEFT JOIN reviews rv ON rv.assignment_id = ra.id WHERE rr.event_id = ? AND ra.reviewer_user_id = ? AND ra.recused_at IS NULL AND rr.status IN ('open','closed') AND (rr.opens_at IS NULL OR rr.opens_at <= ?) ORDER BY rr.position, s.title COLLATE NOCASE`,
+      `SELECT ra.id, ra.submission_id AS submissionId, s.title, s.abstract, rr.id AS roundId, rr.name AS roundName, rr.is_blind AS isBlind, rr.closes_at AS closesAt, rr.status AS roundStatus, ra.completed_at AS completedAt, rv.weighted_score AS weightedScore, rv.recommendation FROM review_assignments ra JOIN review_rounds rr ON rr.id = ra.round_id JOIN submissions s ON s.id = ra.submission_id LEFT JOIN reviews rv ON rv.assignment_id = ra.id WHERE rr.event_id = ? AND ra.reviewer_user_id = ? AND ra.recused_at IS NULL AND rr.status IN ('open','closed') AND (rr.opens_at IS NULL OR rr.opens_at <= ?) ORDER BY CASE WHEN ra.completed_at IS NULL THEN 0 ELSE 1 END, rr.is_blind DESC, rr.position, s.title COLLATE NOCASE`,
     )
     .bind(eventId, user.id, new Date().toISOString())
     .all();

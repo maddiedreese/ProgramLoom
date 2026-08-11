@@ -140,7 +140,7 @@ describe("reviewer workspace", () => {
               results: [],
             }),
           );
-        if (path.includes("/submissions?status=pending"))
+        if (path === `/api/events/${eventId}/submissions`)
           return Promise.resolve(
             Response.json({
               submissions: [
@@ -221,7 +221,14 @@ describe("reviewer workspace", () => {
     fireEvent.change(screen.getByLabelText("Capacity"), {
       target: { value: "4" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save reviewer pool" }));
+    expect(
+      screen.getByText(/Program fit pool: Sam Reviewer \(capacity 4\)/),
+    ).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Save Program fit reviewer pool",
+      }),
+    );
     await waitFor(() =>
       expect(
         requests.some(
@@ -262,6 +269,11 @@ describe("reviewer workspace", () => {
     ).toBeVisible();
     expect(
       screen.getByText(/0 proposals and 0 reviewers selected/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "Open Program fit for reviewer scoring",
+      }),
     ).toBeVisible();
   });
 
@@ -338,7 +350,7 @@ describe("reviewer workspace", () => {
               ],
             }),
           );
-        if (path.includes("/submissions?status=pending"))
+        if (path === `/api/events/${eventId}/submissions`)
           return Promise.resolve(Response.json({ submissions: [] }));
         return Promise.resolve(Response.json({ ok: true }));
       }),
