@@ -54,6 +54,19 @@ export function airtableRecoveryAction(hasCurrentProjection: boolean) {
   return hasCurrentProjection ? "upsert" : "delete";
 }
 
+export function isStaleMergedExternalContact(input: {
+  hasLocalEntity: boolean;
+  hasExternalMapping: boolean;
+  emailOwnerId: string | null;
+  entityId: string;
+}) {
+  return (
+    !input.hasLocalEntity &&
+    input.hasExternalMapping &&
+    Boolean(input.emailOwnerId && input.emailOwnerId !== input.entityId)
+  );
+}
+
 function outboxRequestsDeletion(outbox: OutboxRecord) {
   if (outbox.action === "delete") return true;
   try {
@@ -1034,6 +1047,85 @@ async function applyAirtableRecord(
       )
       .run();
   } else if (entityType === "crm_contact") {
+    const email = requiredString(fields.Email, "Email").toLowerCase();
+    const [localEntity, externalMapping, emailOwner] = await Promise.all([
+      db
+        .prepare("SELECT id FROM crm_contacts WHERE id=? AND organization_id=?")
+        .bind(entityId, organizationId)
+        .first<{ id: string }>(),
+      db
+        .prepare(
+          `SELECT external_id AS externalId FROM external_records
+           WHERE organization_id=? AND integration='airtable' AND entity_type='crm_contact' AND entity_id=?`,
+        )
+        .bind(organizationId, entityId)
+        .first<{ externalId: string }>(),
+      db
+        .prepare(
+          "SELECT id FROM crm_contacts WHERE organization_id=? AND email=? COLLATE NOCASE",
+        )
+        .bind(organizationId, email)
+        .first<{ id: string }>(),
+    ]);
+    if (
+      isStaleMergedExternalContact({
+        hasLocalEntity: Boolean(localEntity),
+        hasExternalMapping: externalMapping?.externalId === record.id,
+        emailOwnerId: emailOwner?.id ?? null,
+        entityId,
+      })
+    ) {
+      await airtableRequest(
+        env,
+        `/v0/${env.AIRTABLE_BASE_ID}/${encodeURIComponent(table)}/${record.id}`,
+        { method: "DELETE" },
+      );
+      const recoveredAt = new Date().toISOString();
+      await db.batch([
+        db
+          .prepare(
+            `DELETE FROM external_records
+             WHERE organization_id=? AND integration='airtable' AND entity_type='crm_contact' AND entity_id=?`,
+          )
+          .bind(organizationId, entityId),
+        db
+          .prepare(resolvedConflictCompactionSql)
+          .bind(organizationId, entityType, entityId),
+        db
+          .prepare(
+            `UPDATE integration_conflicts SET status='resolved',resolved_at=?
+             WHERE organization_id=? AND integration='airtable' AND entity_type=? AND entity_id=? AND status='open'`,
+          )
+          .bind(recoveredAt, organizationId, entityType, entityId),
+        db
+          .prepare(
+            `INSERT INTO audit_events
+             (id,organization_id,action,entity_type,entity_id,before_json,after_json,request_id)
+             VALUES(?,?,'airtable.stale_merged_contact_removed','crm_contact',?,?,?,?)`,
+          )
+          .bind(
+            crypto.randomUUID(),
+            organizationId,
+            entityId,
+            JSON.stringify({ externalId: record.id, email }),
+            JSON.stringify({ mergedInto: emailOwner!.id, recoveredAt }),
+            `airtable-reconcile-${crypto.randomUUID()}`,
+          ),
+        eventManagerNotificationStatement(db, {
+          organizationId,
+          category: "integration",
+          notificationType: "integration.recovered",
+          severity: "info",
+          title: "Airtable synchronization recovered",
+          body: "A stale contact left by a completed merge was removed from Airtable.",
+          actionUrl: `/app?organization=${organizationId}#airtable-integration`,
+          entityType,
+          entityId,
+          coalesceKey: `airtable-recovered:${entityType}:${entityId}`,
+        }),
+      ]);
+      return;
+    }
     const tags = parseStringArray(fields["Tags JSON"]);
     await db
       .prepare(
@@ -1048,7 +1140,7 @@ async function applyAirtableRecord(
       .bind(
         entityId,
         organizationId,
-        requiredString(fields.Email, "Email").toLowerCase(),
+        email,
         requiredString(fields["First Name"], "First Name"),
         requiredString(fields["Last Name"], "Last Name"),
         optionalString(fields.Company),

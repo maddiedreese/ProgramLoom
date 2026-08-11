@@ -1131,6 +1131,18 @@ router.post(
           .prepare("DELETE FROM crm_contacts WHERE id=? AND organization_id=?")
           .bind(id, organizationId),
       ),
+      ...input.duplicateIds.map((id) =>
+        auditStatement(db, {
+          organizationId,
+          actorUserId: user.id,
+          action: "crm.contact.deleted",
+          entityType: "crm_contact",
+          entityId: id,
+          before: byId.get(id),
+          after: { mergedInto: input.primaryId },
+          requestId: context.get("requestId"),
+        }),
+      ),
       auditStatement(db, {
         organizationId,
         actorUserId: user.id,

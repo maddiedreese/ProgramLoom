@@ -3,6 +3,7 @@ import type { Env } from "../env";
 import {
   airtableRecoveryAction,
   isAirtableDeletionAudit,
+  isStaleMergedExternalContact,
   resolvedConflictCompactionSql,
   speakerTaskAssignmentSql,
   speakerTaskEntityParts,
@@ -33,6 +34,33 @@ describe("Airtable conflict recovery", () => {
   it("converges stale queued upserts by deleting missing projections", () => {
     expect(airtableRecoveryAction(false)).toBe("delete");
     expect(airtableRecoveryAction(true)).toBe("upsert");
+  });
+
+  it("removes only mapped, locally deleted contacts whose email belongs to a survivor", () => {
+    expect(
+      isStaleMergedExternalContact({
+        hasLocalEntity: false,
+        hasExternalMapping: true,
+        emailOwnerId: "survivor",
+        entityId: "merged-contact",
+      }),
+    ).toBe(true);
+    expect(
+      isStaleMergedExternalContact({
+        hasLocalEntity: true,
+        hasExternalMapping: true,
+        emailOwnerId: "survivor",
+        entityId: "merged-contact",
+      }),
+    ).toBe(false);
+    expect(
+      isStaleMergedExternalContact({
+        hasLocalEntity: false,
+        hasExternalMapping: false,
+        emailOwnerId: "survivor",
+        entityId: "merged-contact",
+      }),
+    ).toBe(false);
   });
 });
 
