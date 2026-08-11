@@ -8034,6 +8034,33 @@ input {
 .profile-identity small {
   color: #72776f;
 }
+.contact-history-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.contact-history-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #d8ddd5;
+  border-radius: 8px;
+  background: #f6f8f5;
+}
+.contact-history-summary strong {
+  font-size: 20px;
+}
+.contact-history-summary span {
+  color: #72776f;
+}
+.contact-history-summary button {
+  justify-self: start;
+}
+@media (max-width: 640px) {
+  .contact-history-summary {
+    grid-template-columns: 1fr;
+  }
+}
 .profile-actions {
   display: flex;
   justify-content: space-between;

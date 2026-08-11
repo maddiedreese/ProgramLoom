@@ -1040,6 +1040,17 @@ function DirectoryPanel({
     filter.tags.length,
   );
   const canSaveSegment = canSaveCrmSegment(filter, selected.length);
+  const duplicateGroups = Array.from(
+    contacts.reduce((groups, contact) => {
+      const key = `${contact.firstName} ${contact.lastName}`
+        .trim()
+        .toLowerCase();
+      groups.set(key, [...(groups.get(key) ?? []), contact]);
+      return groups;
+    }, new Map<string, Contact[]>()),
+  )
+    .map(([, matches]) => matches)
+    .filter((matches) => matches.length > 1);
   return (
     <section className="directory-panel">
       <div className="directory-toolbar">
@@ -1151,6 +1162,24 @@ function DirectoryPanel({
             : `Select all ${contacts.length} shown contacts`}
         </button>
       </div>
+      {duplicateGroups.length > 0 && (
+        <div className="duplicate-banner" role="status">
+          <GitMerge />
+          <span>
+            <strong>
+              {duplicateGroups.length} possible duplicate group
+              {duplicateGroups.length === 1 ? "" : "s"} found
+            </strong>
+            <small>
+              Same-name contacts use different email addresses. Review them
+              before outreach or event handoff.
+            </small>
+          </span>
+          <button onClick={() => openContact(duplicateGroups[0][0].id)}>
+            Review duplicates
+          </button>
+        </div>
+      )}
       {hasFilter && (
         <div className="filter-chips">
           {[
@@ -2758,6 +2787,25 @@ function ContactModal({
               </small>
             </div>
           </div>
+          <section
+            className="contact-history-summary"
+            aria-label="Cross-event contact history"
+          >
+            <div>
+              <strong>{connections.length + sessions.length}</strong>
+              <span>linked events and sessions</span>
+              <button type="button" onClick={() => setTab("connections")}>
+                View events & sessions
+              </button>
+            </div>
+            <div>
+              <strong>{activity.length + emails.length}</strong>
+              <span>activity and email records</span>
+              <button type="button" onClick={() => setTab("activity")}>
+                View activity & email
+              </button>
+            </div>
+          </section>
           <div className="form-columns">
             <label>
               First name
