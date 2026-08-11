@@ -18,10 +18,16 @@ test.describe("authenticated organizer operations", () => {
     page,
   }) => {
     const surfaces = [
-      { path: "control-room", marker: /Organizer Control Room/i },
-      { path: "communications", marker: /Communications/i },
-      { path: "submissions", marker: /Submissions/i },
-      { path: "calendar", marker: /Calendar/i },
+      { path: "control-room", heading: "What is blocking this program?" },
+      {
+        path: "communications",
+        heading: "Preview every recipient. Send with confidence.",
+      },
+      { path: "submissions", heading: "Find and move proposals forward." },
+      {
+        path: "calendar",
+        heading: "Send invitations that update instead of duplicate.",
+      },
     ];
 
     for (const surface of surfaces) {
@@ -30,7 +36,7 @@ test.describe("authenticated organizer operations", () => {
       );
       expect(response?.ok()).toBeTruthy();
       await expect(
-        page.locator("main").getByText(surface.marker).first(),
+        page.getByRole("heading", { name: surface.heading, level: 1 }),
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
       await expectAccessible(page);
