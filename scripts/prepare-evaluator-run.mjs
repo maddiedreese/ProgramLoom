@@ -288,6 +288,17 @@ WHERE email=${quote(process.env.PROGRAMLOOM_REVIEWER_EMAIL)} COLLATE NOCASE;`;
   const { forms } = await api(`/api/events/${event.id}/forms`);
   if (forms.length !== 1)
     throw new Error(`Expected exactly one CFP form; found ${forms.length}.`);
+  // Keep "open now" deterministic across time zones and overnight runs. The
+  // scenario can still edit these values, but it never begins on a translated
+  // future starter-template timestamp.
+  await api(`/api/events/${event.id}/forms/${forms[0].id}`, {
+    method: "PATCH",
+    body: {
+      opensAt: "2026-08-10T12:00:00.000-07:00",
+      closesAt: "2027-04-30T23:59:00.000-07:00",
+      editClosesAt: "2027-04-30T23:59:00.000-07:00",
+    },
+  });
   const formDefinition = await api(
     `/api/events/${event.id}/forms/${forms[0].id}`,
   );
