@@ -249,7 +249,7 @@ export function Dashboard({ user }: { user: User }) {
         kind: result.calendar.failed ? "error" : "success",
         message: result.calendar.failed
           ? `Event details were saved, but ${result.calendar.failed} calendar update needs attention.`
-          : `Event details were saved${result.calendar.updated ? ` and ${result.calendar.updated} calendar invitation ${result.calendar.updated === 1 ? "was" : "were"} updated` : ""}. Next, open the Control Room to review readiness.`,
+          : `Event details were saved${result.calendar.updated ? ` and ${result.calendar.updated} calendar ${result.calendar.updated === 1 ? "invitation was" : "invitations were"} updated` : ""}. Next, open the Control Room to review readiness.`,
       });
     } catch (error) {
       setFeedback({
