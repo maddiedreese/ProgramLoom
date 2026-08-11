@@ -7,34 +7,110 @@ import {
   Sparkles,
   UsersRound,
 } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import {
+  type ComponentType,
+  type FormEvent,
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+} from "react";
 import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
-import { Dashboard } from "./app/Dashboard";
-import { InvitePage } from "./app/InvitePage";
-import { TeamPage } from "./app/TeamPage";
-import { EventWorkspace } from "./app/EventWorkspace";
-import { PublicCfpPage } from "./app/PublicCfpPage";
-import { PublicCfpDirectory } from "./app/PublicCfpDirectory";
-import { EventSubmissions } from "./app/EventSubmissions";
-import { EventReviews } from "./app/EventReviews";
-import { EventAgenda } from "./app/EventAgenda";
-import { EventWidgets } from "./app/EventWidgets";
-import { EventCommunications } from "./app/EventCommunications";
-import { CommandPalette } from "./app/CommandPalette";
-import { NotificationCenter } from "./app/NotificationCenter";
-import { PublicWidgetPage } from "./app/PublicWidgetPage";
-import { CRMPage } from "./app/CRMPage";
-import { EventContent } from "./app/EventContent";
-import { EventCalendar } from "./app/EventCalendar";
-import { EventControlRoom } from "./app/EventControlRoom";
-import { SubmissionEditActionPage } from "./app/SubmissionEditActionPage";
-import { EventSpeakers } from "./app/EventSpeakers";
-import { PublicInterestPage } from "./app/PublicInterestPage";
-import { LegalPage } from "./app/LegalPage";
-import { DeveloperSettings } from "./app/DeveloperSettings";
-import { DeveloperDocs } from "./app/DeveloperDocs";
-import { OAuthAuthorize } from "./app/OAuthAuthorize";
-import { ProductGuide } from "./app/ProductGuide";
+
+function lazyNamed<T, K extends keyof T>(load: () => Promise<T>, name: K) {
+  return lazy(async () => ({
+    // Each imported module retains its own runtime prop validation; this
+    // adapter only converts a named React export into React.lazy's default.
+    default: (await load())[name] as ComponentType<any>,
+  }));
+}
+
+const Dashboard = lazyNamed(() => import("./app/Dashboard"), "Dashboard");
+const InvitePage = lazyNamed(() => import("./app/InvitePage"), "InvitePage");
+const TeamPage = lazyNamed(() => import("./app/TeamPage"), "TeamPage");
+const EventWorkspace = lazyNamed(
+  () => import("./app/EventWorkspace"),
+  "EventWorkspace",
+);
+const PublicCfpPage = lazyNamed(
+  () => import("./app/PublicCfpPage"),
+  "PublicCfpPage",
+);
+const PublicCfpDirectory = lazyNamed(
+  () => import("./app/PublicCfpDirectory"),
+  "PublicCfpDirectory",
+);
+const EventSubmissions = lazyNamed(
+  () => import("./app/EventSubmissions"),
+  "EventSubmissions",
+);
+const EventReviews = lazyNamed(
+  () => import("./app/EventReviews"),
+  "EventReviews",
+);
+const EventAgenda = lazyNamed(() => import("./app/EventAgenda"), "EventAgenda");
+const EventWidgets = lazyNamed(
+  () => import("./app/EventWidgets"),
+  "EventWidgets",
+);
+const EventCommunications = lazyNamed(
+  () => import("./app/EventCommunications"),
+  "EventCommunications",
+);
+const CommandPalette = lazyNamed(
+  () => import("./app/CommandPalette"),
+  "CommandPalette",
+);
+const NotificationCenter = lazyNamed(
+  () => import("./app/NotificationCenter"),
+  "NotificationCenter",
+);
+const PublicWidgetPage = lazyNamed(
+  () => import("./app/PublicWidgetPage"),
+  "PublicWidgetPage",
+);
+const CRMPage = lazyNamed(() => import("./app/CRMPage"), "CRMPage");
+const EventContent = lazyNamed(
+  () => import("./app/EventContent"),
+  "EventContent",
+);
+const EventCalendar = lazyNamed(
+  () => import("./app/EventCalendar"),
+  "EventCalendar",
+);
+const EventControlRoom = lazyNamed(
+  () => import("./app/EventControlRoom"),
+  "EventControlRoom",
+);
+const SubmissionEditActionPage = lazyNamed(
+  () => import("./app/SubmissionEditActionPage"),
+  "SubmissionEditActionPage",
+);
+const EventSpeakers = lazyNamed(
+  () => import("./app/EventSpeakers"),
+  "EventSpeakers",
+);
+const PublicInterestPage = lazyNamed(
+  () => import("./app/PublicInterestPage"),
+  "PublicInterestPage",
+);
+const LegalPage = lazyNamed(() => import("./app/LegalPage"), "LegalPage");
+const DeveloperSettings = lazyNamed(
+  () => import("./app/DeveloperSettings"),
+  "DeveloperSettings",
+);
+const DeveloperDocs = lazyNamed(
+  () => import("./app/DeveloperDocs"),
+  "DeveloperDocs",
+);
+const OAuthAuthorize = lazyNamed(
+  () => import("./app/OAuthAuthorize"),
+  "OAuthAuthorize",
+);
+const ProductGuide = lazyNamed(
+  () => import("./app/ProductGuide"),
+  "ProductGuide",
+);
 
 function LoadingRoute({ label }: { label: string }) {
   return (
@@ -492,98 +568,100 @@ export function App() {
   return (
     <>
       <EscapeDismissController />
-      <Routes>
-        <Route path="/" element={<MarketingPage />} />
-        <Route path="/login" element={<EntryPage mode="login" />} />
-        <Route path="/register" element={<EntryPage mode="register" />} />
-        <Route path="/invite" element={<InvitePage />} />
-        <Route path="/cfp" element={<PublicCfpDirectory />} />
-        <Route
-          path="/cfp/:organizationSlug/:eventSlug/:formSlug"
-          element={<PublicCfpAlias />}
-        />
-        <Route path="/privacy" element={<LegalPage kind="privacy" />} />
-        <Route path="/terms" element={<LegalPage kind="terms" />} />
-        <Route path="/developers" element={<DeveloperDocs />} />
-        <Route path="/guide" element={<ProductGuide />} />
-        <Route path="/oauth/authorize" element={<OAuthAuthorize />} />
-        <Route
-          path="/c/:organizationSlug/:eventSlug/:formSlug"
-          element={<PublicCfpPage />}
-        />
-        <Route
-          path="/interest/:organizationSlug/:formSlug"
-          element={<PublicInterestPage />}
-        />
-        <Route path="/embed/:publicKey" element={<PublicWidgetPage />} />
-        <Route
-          path="/action/submission-edit"
-          element={<SubmissionEditActionPage />}
-        />
-        <Route path="/app" element={<AuthenticatedPage page="dashboard" />} />
-        <Route path="/dashboard" element={<Navigate to="/app" replace />} />
-        <Route path="/admin" element={<Navigate to="/app" replace />} />
-        <Route path="/organizer" element={<Navigate to="/app" replace />} />
-        <Route path="/app/team" element={<AuthenticatedPage page="team" />} />
-        <Route path="/app/crm" element={<AuthenticatedPage page="crm" />} />
-        <Route
-          path="/app/settings"
-          element={<AuthenticatedPage page="developer-settings" />}
-        />
-        <Route
-          path="/app/events/:eventId"
-          element={<AuthenticatedPage page="event" />}
-        />
-        <Route
-          path="/app/events/:eventId/submissions"
-          element={<AuthenticatedPage page="submissions" />}
-        />
-        <Route
-          path="/app/events/:eventId/submissions/:submissionId"
-          element={<AuthenticatedPage page="submissions" />}
-        />
-        <Route
-          path="/app/events/:eventId/reviews"
-          element={<AuthenticatedPage page="reviews" />}
-        />
-        <Route
-          path="/app/events/:eventId/speakers"
-          element={<AuthenticatedPage page="speakers" />}
-        />
-        <Route
-          path="/app/events/:eventId/speaker"
-          element={<AuthenticatedPage page="speakers" />}
-        />
-        <Route
-          path="/app/events/:eventId/speaker-portal"
-          element={<AuthenticatedPage page="speakers" />}
-        />
-        <Route
-          path="/app/events/:eventId/content"
-          element={<AuthenticatedPage page="content" />}
-        />
-        <Route
-          path="/app/events/:eventId/agenda"
-          element={<AuthenticatedPage page="agenda" />}
-        />
-        <Route
-          path="/app/events/:eventId/widgets"
-          element={<AuthenticatedPage page="widgets" />}
-        />
-        <Route
-          path="/app/events/:eventId/communications"
-          element={<AuthenticatedPage page="communications" />}
-        />
-        <Route
-          path="/app/events/:eventId/calendar"
-          element={<AuthenticatedPage page="calendar" />}
-        />
-        <Route
-          path="/app/events/:eventId/control-room"
-          element={<AuthenticatedPage page="control-room" />}
-        />
-        <Route path="*" element={<MarketingPage />} />
-      </Routes>
+      <Suspense fallback={<LoadingRoute label="Loading ProgramLoom…" />}>
+        <Routes>
+          <Route path="/" element={<MarketingPage />} />
+          <Route path="/login" element={<EntryPage mode="login" />} />
+          <Route path="/register" element={<EntryPage mode="register" />} />
+          <Route path="/invite" element={<InvitePage />} />
+          <Route path="/cfp" element={<PublicCfpDirectory />} />
+          <Route
+            path="/cfp/:organizationSlug/:eventSlug/:formSlug"
+            element={<PublicCfpAlias />}
+          />
+          <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+          <Route path="/terms" element={<LegalPage kind="terms" />} />
+          <Route path="/developers" element={<DeveloperDocs />} />
+          <Route path="/guide" element={<ProductGuide />} />
+          <Route path="/oauth/authorize" element={<OAuthAuthorize />} />
+          <Route
+            path="/c/:organizationSlug/:eventSlug/:formSlug"
+            element={<PublicCfpPage />}
+          />
+          <Route
+            path="/interest/:organizationSlug/:formSlug"
+            element={<PublicInterestPage />}
+          />
+          <Route path="/embed/:publicKey" element={<PublicWidgetPage />} />
+          <Route
+            path="/action/submission-edit"
+            element={<SubmissionEditActionPage />}
+          />
+          <Route path="/app" element={<AuthenticatedPage page="dashboard" />} />
+          <Route path="/dashboard" element={<Navigate to="/app" replace />} />
+          <Route path="/admin" element={<Navigate to="/app" replace />} />
+          <Route path="/organizer" element={<Navigate to="/app" replace />} />
+          <Route path="/app/team" element={<AuthenticatedPage page="team" />} />
+          <Route path="/app/crm" element={<AuthenticatedPage page="crm" />} />
+          <Route
+            path="/app/settings"
+            element={<AuthenticatedPage page="developer-settings" />}
+          />
+          <Route
+            path="/app/events/:eventId"
+            element={<AuthenticatedPage page="event" />}
+          />
+          <Route
+            path="/app/events/:eventId/submissions"
+            element={<AuthenticatedPage page="submissions" />}
+          />
+          <Route
+            path="/app/events/:eventId/submissions/:submissionId"
+            element={<AuthenticatedPage page="submissions" />}
+          />
+          <Route
+            path="/app/events/:eventId/reviews"
+            element={<AuthenticatedPage page="reviews" />}
+          />
+          <Route
+            path="/app/events/:eventId/speakers"
+            element={<AuthenticatedPage page="speakers" />}
+          />
+          <Route
+            path="/app/events/:eventId/speaker"
+            element={<AuthenticatedPage page="speakers" />}
+          />
+          <Route
+            path="/app/events/:eventId/speaker-portal"
+            element={<AuthenticatedPage page="speakers" />}
+          />
+          <Route
+            path="/app/events/:eventId/content"
+            element={<AuthenticatedPage page="content" />}
+          />
+          <Route
+            path="/app/events/:eventId/agenda"
+            element={<AuthenticatedPage page="agenda" />}
+          />
+          <Route
+            path="/app/events/:eventId/widgets"
+            element={<AuthenticatedPage page="widgets" />}
+          />
+          <Route
+            path="/app/events/:eventId/communications"
+            element={<AuthenticatedPage page="communications" />}
+          />
+          <Route
+            path="/app/events/:eventId/calendar"
+            element={<AuthenticatedPage page="calendar" />}
+          />
+          <Route
+            path="/app/events/:eventId/control-room"
+            element={<AuthenticatedPage page="control-room" />}
+          />
+          <Route path="*" element={<MarketingPage />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }
