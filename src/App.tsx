@@ -186,7 +186,7 @@ function MarketingPage() {
           <figure>
             <img
               src="/programloom-control-room.jpg"
-              alt="ProgramLoom Organizer Control Room showing every operational category clear"
+              alt="ProgramLoom Organizer Control Room showing live blockers and prioritized work"
               loading="eager"
             />
             <figcaption>
