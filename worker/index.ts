@@ -314,8 +314,7 @@ app.notFound(async (context) => {
     const headers = new Headers(application.headers);
     headers.set("cache-control", "no-cache, no-store, must-revalidate");
     return new Response(application.body, {
-      status: application.status,
-      statusText: application.statusText,
+      status: isKnownClientRoute(context.req.path) ? application.status : 404,
       headers,
     });
   }

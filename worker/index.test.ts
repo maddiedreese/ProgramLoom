@@ -57,6 +57,29 @@ describe("ProgramLoom Worker", () => {
     expect(await response.text()).toContain("application shell");
   });
 
+  it("returns a real 404 when the asset binding misses before loading the application shell", async () => {
+    const response = await app.request(
+      "/another-missing-programloom-page",
+      {},
+      {
+        ...env,
+        ASSETS: {
+          fetch: (request: Request) =>
+            Promise.resolve(
+              new URL(request.url).pathname === "/index.html"
+                ? new Response("<html>application shell</html>", {
+                    headers: { "content-type": "text/html; charset=utf-8" },
+                  })
+                : new Response("missing", { status: 404 }),
+            ),
+        },
+      },
+    );
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(await response.text()).toContain("application shell");
+  });
+
   it.each([
     "/app/events/event-1/control-room",
     "/c/example/event/cfp",
