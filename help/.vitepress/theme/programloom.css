@@ -96,4 +96,11 @@
     font-size: 38px;
     line-height: 1.08;
   }
+
+  .VPNav button,
+  .VPLocalNav button,
+  .VPSidebar button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

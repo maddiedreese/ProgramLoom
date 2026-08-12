@@ -40,6 +40,18 @@ test("developer machine-readable references are public and versioned", async ({
   });
 });
 
+test("unknown browser routes render a useful recovery page", async ({ page }) => {
+  await page.goto("/not-a-real-programloom-page");
+  await expect(
+    page.getByRole("heading", {
+      name: "This ProgramLoom page does not exist.",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Return to workspace" }),
+  ).toBeVisible();
+});
+
 test("shared calls to action retain readable spacing and contrast", async ({
   page,
 }) => {

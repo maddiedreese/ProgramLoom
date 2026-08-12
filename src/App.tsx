@@ -18,7 +18,14 @@ import {
   useEffect,
   useState,
 } from "react";
-import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 
 function lazyNamed<T, K extends keyof T>(load: () => Promise<T>, name: K) {
   return lazy(async () => ({
@@ -143,6 +150,63 @@ function EscapeDismissController() {
     document.addEventListener("keydown", dismiss);
     return () => document.removeEventListener("keydown", dismiss);
   }, []);
+  return null;
+}
+
+const EVENT_PAGE_TITLES: Record<string, string> = {
+  "control-room": "Control Room",
+  submissions: "Proposals",
+  reviews: "Reviews",
+  speakers: "Speakers",
+  speaker: "Speaker portal",
+  "speaker-portal": "Speaker portal",
+  content: "Content",
+  agenda: "Agenda",
+  calendar: "Calendar invitations",
+  communications: "Communications Center",
+  widgets: "Public widgets",
+};
+
+export function titleForPath(pathname: string) {
+  if (pathname === "/")
+    return "ProgramLoom — Turn proposals into a trusted program";
+  if (pathname === "/login") return "Sign in — ProgramLoom";
+  if (pathname === "/register") return "Create your account — ProgramLoom";
+  if (pathname === "/invite") return "Accept your invitation — ProgramLoom";
+  if (pathname === "/guide") return "How ProgramLoom works";
+  if (pathname === "/developers") return "Developer platform — ProgramLoom";
+  if (pathname === "/privacy") return "Privacy notice — ProgramLoom";
+  if (pathname === "/terms") return "Terms of service — ProgramLoom";
+  if (
+    pathname === "/cfp" ||
+    pathname.startsWith("/cfp/") ||
+    pathname.startsWith("/c/")
+  )
+    return "Calls for proposals — ProgramLoom";
+  if (pathname.startsWith("/interest/"))
+    return "Speaker interest form — ProgramLoom";
+  if (pathname.startsWith("/embed/")) return "Public program — ProgramLoom";
+  if (pathname === "/app") return "Events — ProgramLoom";
+  if (pathname === "/app/team") return "Team — ProgramLoom";
+  if (pathname === "/app/crm") return "Speaker CRM — ProgramLoom";
+  if (pathname === "/app/settings") return "Developer settings — ProgramLoom";
+
+  const eventRoute = pathname.match(/^\/app\/events\/[^/]+(?:\/([^/]+))?$/);
+  if (eventRoute) {
+    const section = eventRoute[1];
+    const label = section
+      ? (EVENT_PAGE_TITLES[section] ?? "Event workspace")
+      : "Event workspace";
+    return `${label} — ProgramLoom`;
+  }
+  return "Page not found — ProgramLoom";
+}
+
+function DocumentTitle() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    document.title = titleForPath(pathname);
+  }, [pathname]);
   return null;
 }
 
@@ -626,6 +690,7 @@ function PublicCfpAlias() {
 export function App() {
   return (
     <>
+      <DocumentTitle />
       <EscapeDismissController />
       <Suspense fallback={<LoadingRoute label="Loading ProgramLoom…" />}>
         <Routes>

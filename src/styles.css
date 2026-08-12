@@ -1190,6 +1190,15 @@ input {
   margin-top: 1.25rem;
 }
 
+.event-template-studio > *,
+.event-template-studio label,
+.event-template-studio input,
+.event-template-studio select,
+.event-template-studio fieldset {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .event-template-studio .wide {
   grid-column: 1 / -1;
 }
@@ -8775,9 +8784,11 @@ input {
 .docs-layout > article {
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 50px;
 }
 .docs-layout article > section {
+  min-width: 0;
   scroll-margin-top: 20px;
 }
 .docs-layout h2 {
@@ -8796,6 +8807,7 @@ input {
   margin-bottom: 8px;
 }
 .docs-layout pre {
+  max-width: 100%;
   padding: 18px;
   overflow-x: auto;
   border-radius: 9px;

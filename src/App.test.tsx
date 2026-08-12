@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { App } from "./App";
+import { App, titleForPath } from "./App";
 
 afterEach(() => {
   cleanup();
@@ -10,6 +10,21 @@ afterEach(() => {
 });
 
 describe("ProgramLoom application", () => {
+  it("gives public and workspace routes useful browser titles", () => {
+    expect(titleForPath("/")).toBe(
+      "ProgramLoom — Turn proposals into a trusted program",
+    );
+    expect(titleForPath("/app/events/event-1/control-room")).toBe(
+      "Control Room — ProgramLoom",
+    );
+    expect(titleForPath("/app/events/event-1/communications")).toBe(
+      "Communications Center — ProgramLoom",
+    );
+    expect(titleForPath("/not-a-real-page")).toBe(
+      "Page not found — ProgramLoom",
+    );
+  });
+
   it("presents the core program workflow", () => {
     render(
       <MemoryRouter>

@@ -230,6 +230,39 @@ app.get("/assets/*", async (context) => {
   return asset;
 });
 
+function isKnownClientRoute(pathname: string) {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  if (
+    new Set([
+      "/",
+      "/login",
+      "/register",
+      "/invite",
+      "/cfp",
+      "/privacy",
+      "/terms",
+      "/developers",
+      "/guide",
+      "/oauth/authorize",
+      "/action/submission-edit",
+      "/app",
+      "/app/team",
+      "/app/crm",
+      "/app/settings",
+      "/dashboard",
+      "/admin",
+      "/organizer",
+    ]).has(path)
+  )
+    return true;
+  if (/^\/(?:c|cfp)\/[^/]+\/[^/]+\/[^/]+$/.test(path)) return true;
+  if (/^\/interest\/[^/]+\/[^/]+$/.test(path)) return true;
+  if (/^\/embed\/[^/]+$/.test(path)) return true;
+  return /^\/app\/events\/[^/]+(?:\/(?:submissions(?:\/[^/]+)?|reviews|speakers|speaker|speaker-portal|content|agenda|widgets|communications|calendar|control-room))?$/.test(
+    path,
+  );
+}
+
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {
     return context.json(
@@ -287,8 +320,18 @@ app.notFound(async (context) => {
     });
   }
   const headers = new Headers(asset.headers);
-  if (headers.get("content-type")?.includes("text/html"))
+  const isHtml = headers.get("content-type")?.includes("text/html");
+  if (isHtml)
     headers.set("cache-control", "no-cache, no-store, must-revalidate");
+  if (
+    isHtml &&
+    !context.req.path.startsWith("/help/") &&
+    !isKnownClientRoute(context.req.path)
+  )
+    return new Response(asset.body, {
+      status: 404,
+      headers,
+    });
   return new Response(asset.body, {
     status: asset.status,
     statusText: asset.statusText,

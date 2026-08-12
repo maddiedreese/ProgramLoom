@@ -50,6 +50,13 @@ test("help-center primary actions have readable contrast and touch targets", asy
   page,
 }) => {
   await page.goto("/help/");
+  const logo = page.locator(".VPNavBarTitle img");
+  await expect(logo).toBeVisible();
+  await expect
+    .poll(() =>
+      logo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
   for (const name of ["Create your first event", "Open ProgramLoom"]) {
     const action = page.getByRole("link", { name, exact: true });
     await expect(action).toBeVisible();
@@ -66,6 +73,30 @@ test("help-center primary actions have readable contrast and touch targets", asy
     expect(style.background).not.toBe("rgba(0, 0, 0, 0)");
     expect(style.height).toBeGreaterThanOrEqual(48);
     expect(style.paddingInline).toBeGreaterThanOrEqual(20);
+  }
+
+  if ((page.viewportSize()?.width ?? 1000) <= 640) {
+    const undersizedControls = await page
+      .locator(".VPNav button, .VPLocalNav button, .VPSidebar button")
+      .evaluateAll((controls) =>
+        controls
+          .map((control) => {
+            const bounds = control.getBoundingClientRect();
+            return {
+              name:
+                control.getAttribute("aria-label") ?? control.textContent ?? "",
+              width: bounds.width,
+              height: bounds.height,
+            };
+          })
+          .filter(
+            (control) =>
+              control.width > 0 &&
+              control.height > 0 &&
+              (control.width < 44 || control.height < 44),
+          ),
+      );
+    expect(undersizedControls).toEqual([]);
   }
 });
 

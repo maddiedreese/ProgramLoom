@@ -36,6 +36,54 @@ describe("ProgramLoom Worker", () => {
     expect(await response.text()).toBe("asset");
   });
 
+  it("returns the application recovery page with a real 404 for unknown browser routes", async () => {
+    const response = await app.request(
+      "/not-a-real-programloom-page",
+      {},
+      {
+        ...env,
+        ASSETS: {
+          fetch: () =>
+            Promise.resolve(
+              new Response("<html>application shell</html>", {
+                headers: { "content-type": "text/html; charset=utf-8" },
+              }),
+            ),
+        },
+      },
+    );
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(await response.text()).toContain("application shell");
+  });
+
+  it.each([
+    "/app/events/event-1/control-room",
+    "/c/example/event/cfp",
+    "/embed/public-key",
+  ])(
+    "keeps known browser route %s successful when assets return the application shell",
+    async (path) => {
+      const response = await app.request(
+        path,
+        {},
+        {
+          ...env,
+          ASSETS: {
+            fetch: () =>
+              Promise.resolve(
+                new Response("<html>application shell</html>", {
+                  headers: { "content-type": "text/html; charset=utf-8" },
+                }),
+              ),
+          },
+        },
+      );
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain("application shell");
+    },
+  );
+
   it("keeps missing help pages inside the help center", async () => {
     const requestedPaths: string[] = [];
     const response = await app.request(
