@@ -22,6 +22,8 @@ describe("communication template catalog", () => {
       ).toEqual([]);
     }
     expect(supportedCommunicationMergeFields).toContain("speaker.first_name");
+    expect(supportedCommunicationMergeFields).toContain("speaker.name");
+    expect(supportedCommunicationMergeFields).toContain("speaker_name");
     expect(
       defaultCommunicationTemplates.find(
         (template) => template.category === "speaker_message",

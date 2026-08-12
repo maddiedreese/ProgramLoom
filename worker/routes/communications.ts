@@ -14,6 +14,7 @@ import {
   enqueueCommunication,
   syncCrmCommunicationState,
 } from "../lib/communications";
+import { humanNameParts } from "../lib/humanNames";
 import { randomToken, sha256 } from "../lib/crypto";
 import {
   communicationCategories,
@@ -1314,12 +1315,35 @@ async function resolveRecipients(
   });
 }
 
+export function compatibleSpeakerMergeData(
+  recipientName: string,
+  source: Record<string, string | number | boolean | null | undefined>,
+) {
+  const firstName = String(
+    source["speaker.first_name"] ?? recipientName.split(/\s+/)[0] ?? "",
+  ).trim();
+  const lastName = String(
+    source["speaker.last_name"] ??
+      recipientName.split(/\s+/).slice(1).join(" "),
+  ).trim();
+  const speakerName =
+    [firstName, lastName].filter(Boolean).join(" ") || recipientName;
+  return {
+    ...source,
+    "speaker.name": source["speaker.name"] ?? speakerName,
+    speaker_name: source.speaker_name ?? speakerName,
+  };
+}
+
 function renderTemplate(
   template: { subject: string; bodyHtml: string; bodyText: string },
   recipient: Recipient,
   organizerMessage?: string,
 ) {
-  const data = { ...recipient.data, "organizer.message": organizerMessage };
+  const data = {
+    ...compatibleSpeakerMergeData(recipient.name, recipient.data),
+    "organizer.message": organizerMessage,
+  };
   const subject = renderMergeFields(template.subject, data);
   const bodyHtml = renderMergeFields(template.bodyHtml, data);
   const bodyText = renderMergeFields(template.bodyText, data);
@@ -1518,7 +1542,7 @@ async function materializeDecisionRecipient(
       ...recipient,
       data: { ...recipient.data, "speaker.portal_link": portalLink },
     };
-    const nameParts = recipient.name.trim().split(/\s+/);
+    const nameParts = humanNameParts(recipient.name);
     const speakerId = crypto.randomUUID();
     statements.push(
       db
@@ -1534,8 +1558,8 @@ async function materializeDecisionRecipient(
           speakerId,
           event.organizationId,
           recipient.email,
-          nameParts[0] || recipient.name,
-          nameParts.slice(1).join(" ") || "—",
+          nameParts.firstName,
+          nameParts.lastName,
           recipient.data["internal.submitter_organization"] ?? null,
         ),
       db

@@ -301,6 +301,7 @@ router.get("/cfp", async (context) => {
        JOIN events e ON e.id = f.event_id
        JOIN organizations o ON o.id = e.organization_id
        WHERE f.published_at IS NOT NULL
+         AND e.status='active'
          AND (f.closes_at IS NULL OR datetime(f.closes_at) >= datetime('now', '-30 days'))
        ORDER BY
          CASE WHEN f.opens_at IS NOT NULL AND datetime(f.opens_at) > datetime('now') THEN 1

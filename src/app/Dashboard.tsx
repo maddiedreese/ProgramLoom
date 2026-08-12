@@ -271,6 +271,13 @@ export function Dashboard({ user }: { user: User }) {
         <LoaderCircle className="spin" /> Loading your workspaces…
       </div>
     );
+  const primaryDraftId = events.find((item) => item.status === "draft")?.id;
+  const visibleEvents = events.filter(
+    (item) => item.status === "active" || item.id === primaryDraftId,
+  );
+  const backgroundEvents = events.filter(
+    (item) => !visibleEvents.some((visible) => visible.id === item.id),
+  );
   return (
     <div className="workspace-shell">
       <aside className="workspace-sidebar">
@@ -468,7 +475,7 @@ export function Dashboard({ user }: { user: User }) {
               )}
             </div>
             <div className="event-grid">
-              {events.map((item) => (
+              {visibleEvents.map((item) => (
                 <article
                   className="event-card"
                   key={item.id}
@@ -523,6 +530,33 @@ export function Dashboard({ user }: { user: User }) {
                 </article>
               ))}
             </div>
+            {!visibleEvents.length && (
+              <div className="inline-empty">
+                No current events. Choose Create event to start a new program.
+              </div>
+            )}
+            {backgroundEvents.length > 0 && (
+              <details className="archived-events">
+                <summary>
+                  Older drafts and archived events ({backgroundEvents.length})
+                </summary>
+                <p>
+                  Older drafts and finished programs stay available without
+                  crowding the events your team is working on now.
+                </p>
+                <div className="archived-event-links">
+                  {backgroundEvents.map((item) => (
+                    <a
+                      key={item.id}
+                      href={"/app/events/" + item.id + "/control-room"}
+                    >
+                      <span>{item.name}</span>
+                      <ArrowRight size={15} />
+                    </a>
+                  ))}
+                </div>
+              </details>
+            )}
           </section>
         ) : (
           <section className="empty-events">

@@ -172,6 +172,48 @@ export function safeReviewSpreadsheetText(value: unknown) {
   return /^[\t\r\n ]*[=+\-@]/.test(text) ? `'${text}` : text;
 }
 
+export function reviewResultsCsv(
+  rows: Array<{
+    title: string;
+    assignmentCount: number;
+    completedCount: number;
+    aggregateScore: number | null;
+    recommendations: string | null;
+  }>,
+) {
+  return `\uFEFF${[
+    [
+      "Submission",
+      "Review status",
+      "Completed reviews",
+      "Assigned reviews",
+      "Aggregate score",
+      "Recommendations",
+    ],
+    ...rows.map((row) => [
+      row.title,
+      row.completedCount === 0
+        ? "Not started"
+        : row.completedCount < row.assignmentCount
+          ? "In progress"
+          : "Complete",
+      row.completedCount,
+      row.assignmentCount,
+      row.aggregateScore ?? "Pending",
+      row.recommendations ?? "Pending",
+    ]),
+  ]
+    .map((row) =>
+      row
+        .map(
+          (cell) =>
+            `"${safeReviewSpreadsheetText(cell).replaceAll('"', '""')}"`,
+        )
+        .join(","),
+    )
+    .join("\r\n")}\r\n`;
+}
+
 async function requireRound(
   db: D1Database,
   eventId: string,
@@ -359,7 +401,8 @@ router.get("/events/:eventId/export", async (context) => {
       `SELECT s.title,
               COUNT(DISTINCT ra.id) AS assignmentCount,
               COUNT(DISTINCT CASE WHEN rv.submitted_at IS NOT NULL THEN ra.id END) AS completedCount,
-              ROUND(AVG(CASE WHEN rv.submitted_at IS NOT NULL THEN rv.weighted_score END),2) AS aggregateScore
+              ROUND(AVG(CASE WHEN rv.submitted_at IS NOT NULL THEN rv.weighted_score END),2) AS aggregateScore,
+              GROUP_CONCAT(CASE WHEN rv.submitted_at IS NOT NULL THEN rv.recommendation END, '; ') AS recommendations
        FROM review_assignments ra
        JOIN submissions s ON s.id=ra.submission_id
        LEFT JOIN reviews rv ON rv.assignment_id=ra.id
@@ -372,25 +415,9 @@ router.get("/events/:eventId/export", async (context) => {
       assignmentCount: number;
       completedCount: number;
       aggregateScore: number | null;
+      recommendations: string | null;
     }>();
-  const csv = `\uFEFF${[
-    ["Submission", "Completed reviews", "Assigned reviews", "Aggregate score"],
-    ...rows.results.map((row) => [
-      row.title,
-      row.completedCount,
-      row.assignmentCount,
-      row.aggregateScore ?? "Pending",
-    ]),
-  ]
-    .map((row) =>
-      row
-        .map(
-          (cell) =>
-            `"${safeReviewSpreadsheetText(cell).replaceAll('"', '""')}"`,
-        )
-        .join(","),
-    )
-    .join("\r\n")}\r\n`;
+  const csv = reviewResultsCsv(rows.results);
   await auditStatement(db, {
     organizationId: access.organizationId,
     eventId,

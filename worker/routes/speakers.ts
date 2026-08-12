@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
+import { normalizeStoredNameParts } from "../lib/humanNames";
 import { eventManagerNotificationStatement } from "../lib/notifications";
 import {
   defaultEmbedDomains,
@@ -931,13 +932,24 @@ router.get("/admin/events/:eventId", async (context) => {
     .all();
   const files = await db
     .prepare(
-      `SELECT f.id,f.speaker_id AS speakerId,sp.first_name||' '||sp.last_name AS speakerName,f.purpose,f.status,f.current_version_id AS currentVersionId,fv.filename,fv.version_number AS versionNumber,fv.size_bytes AS sizeBytes,fv.created_at AS uploadedAt FROM files f JOIN speaker_profiles sp ON sp.id=f.speaker_id LEFT JOIN file_versions fv ON fv.id=f.current_version_id WHERE f.event_id=? ORDER BY f.created_at`,
+      `SELECT f.id,f.speaker_id AS speakerId,sp.first_name||' '||sp.last_name AS speakerName,
+              f.purpose,f.status,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.id,f.current_version_id) ELSE f.current_version_id END AS currentVersionId,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.filename,fv.filename) ELSE fv.filename END AS filename,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.version_number,fv.version_number) ELSE fv.version_number END AS versionNumber,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.size_bytes,fv.size_bytes) ELSE fv.size_bytes END AS sizeBytes,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.created_at,fv.created_at) ELSE fv.created_at END AS uploadedAt
+       FROM files f JOIN speaker_profiles sp ON sp.id=f.speaker_id
+       LEFT JOIN file_versions fv ON fv.id=f.current_version_id
+       LEFT JOIN file_versions hfv ON hfv.file_id=f.id AND hfv.r2_key=sp.headshot_key
+       WHERE f.event_id=? ORDER BY f.created_at`,
     )
     .bind(eventId)
     .all();
   return context.json({
     speakers: speakers.results.map((speaker: Record<string, unknown>) => ({
       ...speaker,
+      ...normalizeStoredNameParts(speaker.firstName, speaker.lastName),
       social: speaker.socialJson ? JSON.parse(String(speaker.socialJson)) : {},
       logistics: speaker.logisticsJson
         ? JSON.parse(String(speaker.logisticsJson))
@@ -1504,7 +1516,13 @@ router.get("/admin/events/:eventId/files/:fileId/download", async (context) => {
     );
   const version = await database(context.env)
     .prepare(
-      "SELECT fv.r2_key AS r2Key,fv.filename,fv.content_type AS contentType FROM files f JOIN file_versions fv ON fv.id=f.current_version_id WHERE f.id=? AND f.event_id=?",
+      `SELECT CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.r2_key,sp.headshot_key,fv.r2_key) ELSE fv.r2_key END AS r2Key,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.filename,'speaker-headshot') ELSE fv.filename END AS filename,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.content_type,fv.content_type) ELSE fv.content_type END AS contentType
+       FROM files f JOIN speaker_profiles sp ON sp.id=f.speaker_id
+       LEFT JOIN file_versions fv ON fv.id=f.current_version_id
+       LEFT JOIN file_versions hfv ON hfv.file_id=f.id AND hfv.r2_key=sp.headshot_key
+       WHERE f.id=? AND f.event_id=?`,
     )
     .bind(context.req.param("fileId"), eventId)
     .first<{ r2Key: string; filename: string; contentType: string }>();
@@ -1519,7 +1537,7 @@ router.get("/admin/events/:eventId/files/:fileId/download", async (context) => {
     );
   return new Response(object.body, {
     headers: {
-      "content-type": version.contentType,
+      "content-type": object.httpMetadata?.contentType ?? version.contentType,
       "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(version.filename)}`,
       "cache-control": "private, no-store",
       "x-content-type-options": "nosniff",

@@ -285,6 +285,7 @@ function SpeakerPortal({
     setResources(result.resources);
     setEmbedDomains(result.embedDomains ?? []);
     setFiles(result.files);
+    return result;
   }
   useEffect(() => {
     load().catch((error: Error) =>
@@ -377,10 +378,21 @@ function SpeakerPortal({
         `/api/speakers/events/${eventId}/files/${fileRequest.id}/upload`,
         { method: "POST", body: form },
       );
-      await load();
+      const refreshed = await load();
+      if (selectedFile?.id === fileRequest.id) {
+        setSelectedFile(
+          refreshed.files.find((item) => item.id === fileRequest.id) ??
+            fileRequest,
+        );
+        setFileDetail(
+          await api<SpeakerFileDetail>(
+            `/api/speakers/events/${eventId}/files/${fileRequest.id}`,
+          ),
+        );
+      }
       setFeedback({
         kind: "success",
-        message: `${file.name} uploaded as a new version.`,
+        message: `${file.name} uploaded as a new version. The latest version and history are now up to date.`,
       });
     } catch (error) {
       setFeedback({
