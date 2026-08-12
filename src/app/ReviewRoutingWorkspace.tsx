@@ -542,7 +542,7 @@ export function ReviewRoutingWorkspace({ eventId }: { eventId: string }) {
               className="button button-small"
               onClick={() => setOpen(true)}
             >
-              Create routing rule
+              Create first routing rule
             </button>
           </div>
         )}
