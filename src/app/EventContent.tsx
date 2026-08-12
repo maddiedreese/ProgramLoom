@@ -7,6 +7,7 @@ import {
   Download,
   FileArchive,
   FileInput,
+  FileText,
   Files,
   History,
   Inbox,
@@ -743,6 +744,22 @@ export function EventContent({ user }: { user: User }) {
                 </small>
               </button>
             ))}
+            {!sessions.length && (
+              <div className="empty-state">
+                <FileText size={28} />
+                <h2>No session content to review yet</h2>
+                <p>
+                  Accept a proposal to create its session, then return here to
+                  review the title, description, and public content.
+                </p>
+                <a
+                  className="button button-small"
+                  href={`/app/events/${eventId}/submissions`}
+                >
+                  Open proposals
+                </a>
+              </div>
+            )}
           </section>
         )}
         {tab === "speakers" && (
@@ -770,6 +787,22 @@ export function EventContent({ user }: { user: User }) {
                 </small>
               </button>
             ))}
+            {!speakers.length && (
+              <div className="empty-state">
+                <UserRound size={28} />
+                <h2>No speaker profiles to review yet</h2>
+                <p>
+                  Invite or add a speaker, then return here to review their
+                  biography, role, company, and headshot.
+                </p>
+                <a
+                  className="button button-small"
+                  href={`/app/events/${eventId}/speakers`}
+                >
+                  Open speakers
+                </a>
+              </div>
+            )}
           </section>
         )}
         {tab === "files" && (
