@@ -168,6 +168,13 @@ for (const [name, route] of [
     await page.waitForLoadState("networkidle");
     await expect(page.locator("body")).toBeVisible();
     await expect(page.getByText("Loading ProgramLoom…")).toHaveCount(0);
+    if (name === "sign-in") {
+      await page
+        .getByRole("button", { name: "Email me a secure link" })
+        .evaluate((button: HTMLButtonElement) => {
+          button.disabled = true;
+        });
+    }
     if (name === "marketing" || name === "public-program") {
       const widget = page.frameLocator("iframe").last();
       await expect(widget.locator("main")).toBeVisible();

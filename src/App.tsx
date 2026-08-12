@@ -964,16 +964,16 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
               Email address
               <input autoComplete="email" name="email" type="email" required />
             </label>
-            {turnstileSiteKey && (
-              <div className="turnstile-slot" data-visual-dynamic>
+            <div className="turnstile-slot" data-visual-dynamic>
+              {turnstileSiteKey && (
                 <Turnstile
                   siteKey={turnstileSiteKey}
                   onSuccess={setTurnstileToken}
                   onExpire={() => setTurnstileToken(undefined)}
                   options={{ theme: "light" }}
                 />
-              </div>
-            )}
+              )}
+            </div>
             {status && (
               <div
                 className={`form-status form-status-${status.kind}`}
