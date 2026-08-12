@@ -1,50 +1,55 @@
 # ProgramLoom
 
-ProgramLoom is a complete program-operations workspace for conferences, meetups, workshops, and community calls for proposals.
-
 ProgramLoom shows organizers exactly what is blocking their program, gives them the tools to resolve it, and carries every accepted proposal safely through communication, onboarding, scheduling, publication, and follow-up.
 
-Use it when a program starts with an open call for ideas and ends with a published agenda. Instead of stitching together forms, spreadsheets, email threads, file requests, and calendar tools, an organizing team can see the whole journey—and the work that still needs attention—in one place.
+The **Control Room** shows what is keeping the program from being ready and takes the organizer directly to the work that resolves it.
 
-- Marketing: [programloom.com](https://programloom.com)
-- Application: [app.programloom.com](https://app.programloom.com)
-- Public CFP directory: [app.programloom.com/cfp](https://app.programloom.com/cfp)
-- Source: [github.com/maddiedreese/SaaS](https://github.com/maddiedreese/SaaS)
+- [Visit ProgramLoom](https://programloom.com)
+- [Open the application](https://app.programloom.com)
+- [Read the help center](https://programloom.com/help/)
+- [Browse open calls for proposals](https://app.programloom.com/cfp)
 
-![ProgramLoom Organizer Control Room showing a clear, live operational program](public/programloom-control-room.jpg)
+![ProgramLoom Control Room showing an event team's next actions](public/programloom-control-room.jpg)
 
-## How the product fits together
+## What you can do with ProgramLoom
 
-The **Control Room** is the organizer's starting point. It answers one practical question: “What is keeping this program from being ready?” Each live issue links directly to the person, proposal, message, file, or schedule item that needs attention.
+ProgramLoom keeps one proposal connected through the full event journey:
 
-ProgramLoom then guides the team through six understandable stages:
+1. **Collect ideas.** Publish a clear call for proposals with the questions, tracks, and session formats your event needs.
+2. **Coordinate reviews.** Route proposals to eligible reviewers, collect consistent scorecards, and monitor unfinished work.
+3. **Make careful decisions.** Record an intended acceptance, waitlist, or rejection without emailing anyone yet.
+4. **Send the right message.** Preview the real recipients and rendered decision message before it enters the delivery queue.
+5. **Prepare speakers.** Invite accepted speakers to a private portal, collect profiles and headshots, and track onboarding tasks.
+6. **Collect session content.** Request slides and other files, keep version history and comments, and approve public content.
+7. **Build the schedule.** Place sessions into rooms and times, resolve speaker or room conflicts, and keep calendar invitations current.
+8. **Publish for attendees.** Share an accessible agenda, session directory, speaker directory, gallery, and personal itinerary.
 
-1. **Collect proposals.** Create an event from a reusable template, customize its call for proposals (CFP), publish the form, and manage incoming ideas.
-2. **Evaluate proposals.** Assign reviewers, collect structured scorecards, and see when a proposal has enough evidence for a decision.
-3. **Decide and communicate.** Record an intended outcome, preview the exact recipients and message, and send it from a durable, auditable outbox.
-4. **Prepare speakers.** Give accepted speakers portal access, collect profiles and files, track onboarding, and review session content.
-5. **Schedule.** Place approved sessions into rooms and times, resolve conflicts, and send calendar invitations that update in place.
-6. **Publish.** Release the agenda to five live attendee views, including a searchable schedule, speaker directory, and personal itinerary.
+At every stage, the Control Room turns the event's saved state into an understandable next-action list.
 
-The Control Room stays connected to every stage, so resolved blockers disappear and new delivery, onboarding, content, schedule, or integration problems become visible.
+## A safer way to communicate decisions
 
-### Staging a decision does not send it
+**Stage decision** and **Send decision** are separate actions.
 
-This separation is deliberate. **Stage decision** records what the organizer intends to do and sends nothing. The organizer must then open the **Communications Center**, choose the recipients, inspect the rendered message, and select **Send decision**. This makes it safe to prepare a program before communicating it.
+Staging records what the team intends to do. It sends no message. An organizer then opens **Communications**, checks the recipient list and message preview, and chooses **Send decision** when everything is ready.
 
-New to program operations? Start with the [complete user guide](docs/user-guide.md). It explains the vocabulary, roles, full lifecycle, public attendee experience, integrations, recovery paths, and common questions without assuming prior product knowledge.
+## Who ProgramLoom is for
 
-## How it works
+- **Organizers** see the complete event workflow and readiness state.
+- **Reviewers** see only the proposals and scorecards assigned to them.
+- **Speakers** see their own profile, sessions, tasks, files, resources, and feedback.
+- **Attendees** use the public schedule and itinerary without creating an account.
 
-The user interface and API run together on a Cloudflare Worker. D1 stores account access and durable workflow state; R2 stores private file versions and generated exports; Cloudflare Queues handles retry-safe email and Airtable synchronization. Resend delivers transactional email, Airtable can remain the authoritative business-record store, and PostHog receives only intentionally limited product events. Structured Cloudflare logs and Workers Observability provide operational diagnosis.
+New to the product? Start with [Create your first event](https://programloom.com/help/getting-started), or choose a guide for [organizers](https://programloom.com/help/organizers/control-room), [reviewers](https://programloom.com/help/reviewers), [speakers](https://programloom.com/help/speakers), or [attendees](https://programloom.com/help/attendees).
 
-Organization owners can also connect trusted systems through hashed API tokens, signed webhooks, OAuth 2.1, a stable REST API, a bounded query surface, and remote MCP. The public [developer guide](https://app.programloom.com/developers) and repository [developer-platform guide](docs/developer-platform.md) explain scopes, event restrictions, PII masking, pagination, safe writes, webhooks, versioning, and examples.
+## Open source and self-hostable
 
-Technical readers can continue with the [architecture](docs/architecture.md), [data model](docs/data-model.md), [Airtable design](docs/airtable.md), and [operator runbook](docs/runbook.md).
+ProgramLoom is licensed under the [GNU Affero General Public License v3.0](LICENSE), and its [source code is available on GitHub](https://github.com/maddiedreese/SaaS). The production application uses Cloudflare Workers, D1, R2, and Queues, with Resend for transactional email and optional Airtable and PostHog connections.
 
-## Local setup
+The product is designed so required event workflows use real saved records, real file storage, real background jobs, and server-side permissions. It does not depend on browser-only demo state.
 
-Node.js 22 or newer is required.
+## Run ProgramLoom locally
+
+You need Node.js 22 or newer and a Cloudflare account for the Worker-backed features.
 
 ```bash
 npm install
@@ -53,21 +58,29 @@ npm run db:migrate:local
 npm run dev
 ```
 
-Never commit `.env.local`, `.dev.vars`, authentication state, private links, provider payloads, or controlled inbox evidence.
-
-## Verification
+The public help center runs separately during documentation editing:
 
 ```bash
-npm run check
-npm run test:e2e:public
-npm run verify:evidence
+npm run docs:dev
 ```
 
-Authenticated production Playwright requires ignored values for `PROGRAMLOOM_E2E_URL`, `PROGRAMLOOM_E2E_STORAGE_STATE`, and `PROGRAMLOOM_E2E_EVENT_ID`; then run `npm run test:e2e`. CRM and content protocols are available as `npm run smoke:crm` and `npm run smoke:content`.
+Do not commit environment files, authentication state, private links, provider payloads, or production evidence.
 
-The [capability map](docs/parity-map.md) links product behavior to production routes and automated tests. Release evidence is sanitized; private inbox contents, provider identifiers, authentication state, and sensitive logs remain outside the repository.
+## Verify a change
 
-## Deployment
+```bash
+npm run typecheck
+npm run test
+npm run build
+npm run test:e2e:public
+npm run test:e2e:help
+```
+
+The complete `npm run check` command also validates the sanitized production-evidence schema. Authenticated browser tests require ignored storage-state and event configuration described in [the contributor runbook](docs/runbook.md).
+
+## Deploy
+
+Apply additive database migrations before deploying the matching source commit:
 
 ```bash
 npm run check
@@ -75,19 +88,16 @@ npm run db:migrate:remote
 RELEASE_COMMIT="$(git rev-parse HEAD)" npm run deploy
 ```
 
-The deploy script rejects a missing, abbreviated, uppercase, or malformed source commit and binds the validated SHA directly to Wrangler. Record the returned Worker version, verify `/api/health`, run the production Playwright gate, and require Airtable to settle at zero pending work, zero failures, and zero open conflicts. Full recovery and secret-handling procedures are in the [runbook](docs/runbook.md).
+After deployment, verify production health, authenticated desktop and mobile workflows, public views, message and integration queues, and the exact deployed source identity.
 
-## Learn the product
+## Technical reference
 
-The [user guide](docs/user-guide.md) follows one understandable lifecycle: template → CFP → proposal → saved view → automatic routing → review → staged decision → delivery → speaker onboarding → content → Control Room → schedule and calendar → conflict resolution → five public views → search → integration health → cancellation and recovery.
-
-Inside the deployed product, open [the product guide](https://app.programloom.com/guide) from the marketing site or workspace navigation. Organizers should begin in an event’s **Control Room**; reviewers and speakers land in their role-specific workspaces.
-
-## Honest limitations and waivers
-
-- Outlook calendar behavior is explicitly waived and untested because no account is available. Gmail and Apple Calendar are the only calendar clients eligible for final claims.
-- No Sentry integration is present; Cloudflare structured observability is the operational source.
-- Optional AI-assisted operations use OpenRouter only when configured. No paid plan or resource should be enabled without the account owner's approval.
+- [Architecture](docs/architecture.md)
+- [Data model](docs/data-model.md)
+- [Airtable synchronization](docs/airtable.md)
+- [Developer platform](docs/developer-platform.md)
+- [Operations and recovery](docs/runbook.md)
+- [Capability map](docs/parity-map.md)
 
 ## License
 

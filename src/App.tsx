@@ -3,7 +3,10 @@ import {
   ArrowRight,
   CalendarRange,
   Check,
+  ClipboardCheck,
+  FileCheck2,
   GalleryVerticalEnd,
+  MessageSquareText,
   Sparkles,
   UsersRound,
 } from "lucide-react";
@@ -146,18 +149,33 @@ function EscapeDismissController() {
 const capabilities = [
   {
     icon: GalleryVerticalEnd,
-    title: "Know what blocks readiness",
-    body: "Open the Control Room to see prioritized, live work and go directly to the record or workflow that resolves it.",
+    title: "Collect session ideas",
+    body: "Publish a clear call for proposals, ask the questions your event needs, and keep every submission easy to find.",
+  },
+  {
+    icon: ClipboardCheck,
+    title: "Review them fairly",
+    body: "Send proposals to the right reviewers, collect consistent scorecards, and see exactly which reviews are unfinished.",
+  },
+  {
+    icon: MessageSquareText,
+    title: "Choose, then communicate",
+    body: "Record decisions without sending them. Preview the people and message separately before any email leaves ProgramLoom.",
   },
   {
     icon: UsersRound,
-    title: "Carry every acceptance safely",
-    body: "Stage decisions separately from sending, then connect speaker access, onboarding, files, content, and communications.",
+    title: "Prepare every speaker",
+    body: "Give speakers one private place for their profile, headshot, tasks, files, session details, and organizer feedback.",
+  },
+  {
+    icon: FileCheck2,
+    title: "Approve what will be public",
+    body: "Collect real file versions and final session wording, request changes, and keep unfinished content off attendee pages.",
   },
   {
     icon: CalendarRange,
-    title: "Schedule and publish with confidence",
-    body: "Resolve conflicts, maintain calendar invitations, and keep five attendee-ready public views synchronized with the agenda.",
+    title: "Schedule and publish",
+    body: "Resolve room and speaker conflicts, keep calendar invitations current, and publish a schedule attendees can actually use.",
   },
 ];
 
@@ -186,12 +204,17 @@ function MarketingPage() {
           <Wordmark />
         </Link>
         <nav aria-label="Primary navigation">
-          <a href="#product">Product</a>
+          <a href="#product">How it works</a>
           <a href="#principles">Why ProgramLoom</a>
-          <Link to="/guide">Product guide</Link>
+          <a
+            className="button button-small button-ghost site-help"
+            href="/help/"
+          >
+            Help
+          </a>
           <a href={applicationHref("/cfp")}>Browse CFPs</a>
           <a
-            className="button button-small button-ghost"
+            className="button button-small button-ghost site-sign-in"
             href={applicationHref("/login")}
           >
             Sign in
@@ -207,36 +230,38 @@ function MarketingPage() {
       <main id="main-content">
         <section className="hero">
           <div className="eyebrow">
-            <Sparkles size={15} /> The program workspace that keeps its promises
+            <Sparkles size={15} /> Speaker programs, without the spreadsheet
+            maze
           </div>
-          <h1>See what is blocking your program—and resolve it.</h1>
+          <h1>Turn session ideas into a schedule people can trust.</h1>
           <p className="hero-copy">
-            Built for conferences, meetups, workshops, and community calls for
-            proposals. ProgramLoom shows organizers exactly what is blocking
-            their program, gives them the tools to resolve it, and carries every
-            accepted proposal safely through communication, onboarding,
-            scheduling, publication, and follow-up.
+            ProgramLoom gives event teams one understandable place to collect
+            proposals, coordinate reviews, notify submitters, prepare speakers,
+            build the schedule, and publish it for attendees.
           </p>
           <div className="hero-actions">
             <a
               className="button button-large"
               href={applicationHref("/register")}
             >
-              Build your first event <ArrowRight size={18} />
+              Create your event <ArrowRight size={18} />
             </a>
             <a className="text-link" href="#walkthrough">
-              See the complete lifecycle
+              See how ProgramLoom works
+            </a>
+            <a className="text-link" href="/help/">
+              Read the help center
             </a>
           </div>
-          <div className="proof-row" aria-label="Product principles">
+          <div className="proof-row" aria-label="What ProgramLoom provides">
             <span>
-              <Check size={16} /> Free to start
+              <Check size={16} /> One connected workflow
             </span>
             <span>
-              <Check size={16} /> No attendee data resale
+              <Check size={16} /> Clear next actions
             </span>
             <span>
-              <Check size={16} /> AGPL open source
+              <Check size={16} /> Free and open source
             </span>
           </div>
         </section>
@@ -246,23 +271,23 @@ function MarketingPage() {
           aria-labelledby="product-preview-title"
         >
           <div className="product-preview-copy">
-            <p className="kicker">The operational center</p>
+            <p className="kicker">Your event home base</p>
             <h2 id="product-preview-title">
-              Start with the blocker. Finish with a published program.
+              Know what is ready—and what needs attention next.
             </h2>
             <p>
-              The Control Room turns live program state into an ordered next
-              action. Every proposal remains connected as it moves through
-              review, decision delivery, speaker onboarding, content approval,
-              scheduling, calendar updates, and attendee publication.
+              The Control Room turns the current state of your event into a
+              practical to-do list. Select an item to open the proposal,
+              speaker, file, message, or schedule change that needs attention.
+              Finish the work and the blocker clears.
             </p>
             <p className="decision-distinction">
-              <strong>Staging a decision sends nothing.</strong> Delivery begins
-              only after an organizer previews the real recipients and rendered
-              message in the Communications Center and chooses Send decision.
+              <strong>Choosing an outcome does not send an email.</strong> You
+              first stage the decision, then review the recipients and message
+              in Communications before choosing Send decision.
             </p>
-            <a className="button button-large" href={applicationHref("/login")}>
-              Open the production workspace <ArrowRight size={18} />
+            <a className="button button-large" href="/help/getting-started">
+              Learn how to create an event <ArrowRight size={18} />
             </a>
           </div>
           <figure>
@@ -272,8 +297,8 @@ function MarketingPage() {
               loading="eager"
             />
             <figcaption>
-              Live persisted work is grouped by severity and workflow, with an
-              explicit next action and a clear state when no blockers remain.
+              The Control Room groups the event's saved work by importance and
+              gives every item a clear next action.
             </figcaption>
           </figure>
         </section>
@@ -283,9 +308,9 @@ function MarketingPage() {
           aria-labelledby="capabilities-title"
         >
           <div className="section-heading">
-            <p className="kicker">One continuous workflow</p>
+            <p className="kicker">From open call to show day</p>
             <h2 id="capabilities-title">
-              From proposal to published program, without losing the thread.
+              One place for the work that normally gets scattered everywhere.
             </h2>
           </div>
           <div className="card-grid">
@@ -300,16 +325,20 @@ function MarketingPage() {
           </div>
         </section>
         <section id="principles" className="manifesto">
-          <p className="kicker">Designed for the people doing the work</p>
+          <p className="kicker">Built for real organizing teams</p>
           <blockquote>
-            “A program tool should reduce uncertainty, not move it into another
-            spreadsheet.”
+            “Everyone should be able to see what changed, what is ready, and
+            what happens next.”
           </blockquote>
           <p>
-            ProgramLoom keeps every decision, handoff, and public update
-            connected—while Airtable remains available to teams that work best
-            there.
+            Organizers get a complete event view. Reviewers see only their
+            assigned proposals. Speakers get a focused portal. Attendees get a
+            clear public schedule—without needing to understand the tools behind
+            it.
           </p>
+          <a className="button button-large" href="/help/">
+            Explore the help center <ArrowRight size={18} />
+          </a>
         </section>
       </main>
       <footer>
@@ -317,7 +346,7 @@ function MarketingPage() {
         <nav aria-label="Legal">
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
-          <Link to="/guide">Product guide</Link>
+          <a href="/help/">Help center</a>
           <a href="https://github.com/maddiedreese/SaaS">Source</a>
         </nav>
       </footer>

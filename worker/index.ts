@@ -110,6 +110,14 @@ app.use(
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       scriptSrc: [
         "'self'",
+        // VitePress emits these two fixed, non-data-bearing startup snippets
+        // for theme preference and macOS shortcut labels. Hashes keep the
+        // help center functional without allowing arbitrary inline scripts.
+        "'sha256-CUFLjg0/PrsMf8xbok429Fq66aDGe3lUN/QY4rcXnT8='",
+        "'sha256-ng8W1FnGVqbzCCV1hV2EGXSMN/WlYnkoQZy8x1kkcsM='",
+        // Vite's local React refresh preamble. This exact hash keeps
+        // `npm run dev` usable without allowing arbitrary inline scripts.
+        "'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk='",
         "https://challenges.cloudflare.com",
         "https://*.posthog.com",
         "https://static.cloudflareinsights.com",
@@ -210,7 +218,7 @@ app.get("/embed/:publicKey", async (context) => {
 
 app.get("/assets/*", async (context) => {
   const asset = await context.env.ASSETS.fetch(context.req.raw);
-  if (asset.headers.get("content-type")?.includes("text/html")) {
+  if (!asset.ok || asset.headers.get("content-type")?.includes("text/html")) {
     return new Response("Asset not found.", {
       status: 404,
       headers: {
@@ -236,6 +244,31 @@ app.notFound(async (context) => {
     );
   }
   const asset = await context.env.ASSETS.fetch(context.req.raw);
+  if (context.req.path.startsWith("/help/") && !asset.ok) {
+    const helpNotFoundUrl = new URL("/help/404.html", context.req.url);
+    const helpNotFound = await context.env.ASSETS.fetch(
+      new Request(helpNotFoundUrl),
+    );
+    const headers = new Headers(helpNotFound.headers);
+    headers.set("cache-control", "no-cache, no-store, must-revalidate");
+    return new Response(helpNotFound.body, {
+      status: 404,
+      headers,
+    });
+  }
+  if (!asset.ok) {
+    const applicationUrl = new URL("/index.html", context.req.url);
+    const application = await context.env.ASSETS.fetch(
+      new Request(applicationUrl),
+    );
+    const headers = new Headers(application.headers);
+    headers.set("cache-control", "no-cache, no-store, must-revalidate");
+    return new Response(application.body, {
+      status: application.status,
+      statusText: application.statusText,
+      headers,
+    });
+  }
   const headers = new Headers(asset.headers);
   if (headers.get("content-type")?.includes("text/html"))
     headers.set("cache-control", "no-cache, no-store, must-revalidate");

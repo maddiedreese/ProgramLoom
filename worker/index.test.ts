@@ -36,6 +36,31 @@ describe("ProgramLoom Worker", () => {
     expect(await response.text()).toBe("asset");
   });
 
+  it("keeps missing help pages inside the help center", async () => {
+    const requestedPaths: string[] = [];
+    const response = await app.request(
+      "/help/not-real",
+      {},
+      {
+        ...env,
+        ASSETS: {
+          fetch: (request: Request) => {
+            const path = new URL(request.url).pathname;
+            requestedPaths.push(path);
+            return Promise.resolve(
+              path === "/help/404.html"
+                ? new Response("help not found")
+                : new Response("missing", { status: 404 }),
+            );
+          },
+        },
+      },
+    );
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe("help not found");
+    expect(requestedPaths).toEqual(["/help/not-real", "/help/404.html"]);
+  });
+
   it("does not serve the application shell for a missing hashed asset", async () => {
     const response = await app.request(
       "/assets/stale-chunk.js",
@@ -47,6 +72,28 @@ describe("ProgramLoom Worker", () => {
             Promise.resolve(
               new Response("<html>shell</html>", {
                 headers: { "content-type": "text/html" },
+              }),
+            ),
+        },
+      },
+    );
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("content-type")).toContain("text/plain");
+  });
+
+  it("overrides immutable caching on an asset-layer 404", async () => {
+    const response = await app.request(
+      "/assets/missing.js",
+      {},
+      {
+        ...env,
+        ASSETS: {
+          fetch: () =>
+            Promise.resolve(
+              new Response(null, {
+                status: 404,
+                headers: { "cache-control": "public, max-age=31536000" },
               }),
             ),
         },
@@ -69,6 +116,12 @@ describe("ProgramLoom Worker", () => {
     const application = await app.request("/register", {}, env);
     expect(application.headers.get("content-security-policy")).toContain(
       "frame-ancestors 'none'",
+    );
+    expect(application.headers.get("content-security-policy")).toContain(
+      "sha256-CUFLjg0/PrsMf8xbok429Fq66aDGe3lUN/QY4rcXnT8=",
+    );
+    expect(application.headers.get("content-security-policy")).toContain(
+      "sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk=",
     );
     expect(application.headers.get("x-frame-options")).toBe("SAMEORIGIN");
   });

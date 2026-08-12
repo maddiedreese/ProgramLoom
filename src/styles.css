@@ -217,6 +217,7 @@ blockquote {
 .hero-actions {
   margin-top: 35px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 24px;
@@ -354,11 +355,14 @@ blockquote {
   font-size: clamp(35px, 5vw, 58px);
   line-height: 1.12;
 }
-.manifesto > p:last-child {
+.manifesto > p:not(.kicker) {
   max-width: 650px;
   color: #5b6158;
   font-size: 18px;
   line-height: 1.65;
+}
+.manifesto > .button {
+  margin-top: 18px;
 }
 footer {
   border-top: 1px solid var(--line);
@@ -2697,9 +2701,15 @@ input {
   }
 }
 @media (max-width: 760px) {
-  nav > a:not(.button),
-  nav .button-ghost {
+  .site-header nav > a:not(.button),
+  .site-header nav .site-sign-in {
     display: none;
+  }
+  .site-header nav {
+    gap: 8px;
+  }
+  .site-header .button-small {
+    padding: 8px 10px;
   }
   .site-header {
     padding: 18px 20px;
@@ -3922,6 +3932,32 @@ input {
   display: grid;
   gap: 2px;
   flex: 1 1 300px;
+}
+.public-proposal-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px !important;
+  flex-basis: 100% !important;
+}
+.public-proposal-links a {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid #cbd9ce;
+  border-radius: 9px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+}
+.public-proposal-links a:hover,
+.public-proposal-links a:focus-visible,
+.public-proposal-links a.active {
+  border-color: var(--event-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--event-color) 18%, transparent);
+}
+.public-proposal-links span {
+  color: var(--muted);
+  font-size: 12px;
 }
 .deadline-row svg {
   color: var(--event-color);

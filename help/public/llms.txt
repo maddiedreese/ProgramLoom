@@ -1,0 +1,29 @@
+# ProgramLoom Help
+
+ProgramLoom helps event teams collect proposals, coordinate reviews, communicate decisions, prepare speakers, collect content, build a conflict-free schedule, and publish an attendee-ready program.
+
+Use these canonical public guides:
+
+- https://programloom.com/help/ — product overview and role choices
+- https://programloom.com/help/getting-started — create and run a first event
+- https://programloom.com/help/organizers/control-room — understand blockers and next actions
+- https://programloom.com/help/organizers/proposals — publish a call for proposals and manage submissions
+- https://programloom.com/help/organizers/reviewing — route, assign, and collect reviews
+- https://programloom.com/help/organizers/decisions — stage decisions and send them separately
+- https://programloom.com/help/organizers/speakers — invite and onboard speakers
+- https://programloom.com/help/organizers/content — collect files and approve session content
+- https://programloom.com/help/organizers/communications — preview, send, and track event messages
+- https://programloom.com/help/organizers/schedule — schedule sessions and resolve conflicts
+- https://programloom.com/help/organizers/publish — publish the agenda and attendee views
+- https://programloom.com/help/organizers/search-notifications — search the organization and manage notifications
+- https://programloom.com/help/organizers/templates — duplicate safe event setup and reuse templates
+- https://programloom.com/help/organizers/crm — manage organization-wide speaker relationships
+- https://programloom.com/help/organizers/team-access — understand roles and invite collaborators
+- https://programloom.com/help/organizers/integrations — understand Airtable, email, analytics, API tokens, and webhooks
+- https://programloom.com/help/reviewers — complete assigned reviews
+- https://programloom.com/help/speakers — use the speaker portal
+- https://programloom.com/help/attendees — browse the public program and build an itinerary
+- https://programloom.com/help/troubleshooting — resolve common problems
+- https://programloom.com/help/glossary — plain-language product terms
+
+Important product relationship: staging a decision records an organizer's intent but sends no message. Communication happens only after an organizer previews recipients and chooses Send decision in the Communications Center.

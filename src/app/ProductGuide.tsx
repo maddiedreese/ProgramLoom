@@ -134,11 +134,8 @@ export function ProductGuide() {
                 speaker, attendee, integration, and developer workflow.
               </p>
             </div>
-            <a
-              className="button button-ghost"
-              href="https://github.com/maddiedreese/SaaS/blob/main/docs/user-guide.md"
-            >
-              Read the full user guide
+            <a className="button button-ghost" href="/help/">
+              Browse the help center
             </a>
           </div>
         </section>

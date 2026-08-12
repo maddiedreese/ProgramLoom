@@ -15,7 +15,7 @@ describe("ProgramLoom application", () => {
     );
     expect(
       screen.getByRole("heading", {
-        name: /see what is blocking your program/i,
+        name: /turn session ideas into a schedule people can trust/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /start free/i })).toHaveAttribute(
@@ -27,15 +27,15 @@ describe("ProgramLoom application", () => {
       "/cfp",
     );
     expect(
-      screen.getByRole("link", { name: /see the complete lifecycle/i }),
+      screen.getByRole("link", { name: /see how programloom works/i }),
     ).toHaveAttribute("href", "#walkthrough");
     expect(
       screen.getByRole("heading", {
-        name: /start with the blocker. finish with a published program/i,
+        name: /know what is ready—and what needs attention next/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/staging a decision sends nothing/i),
+      screen.getByText(/choosing an outcome does not send an email/i),
     ).toBeInTheDocument();
   });
 
