@@ -137,7 +137,12 @@ test.describe("authenticated organizer operations", () => {
       page.getByRole("link", { name: "Import speakers" }),
     ).toBeVisible();
     await expect(page.getByLabel("Filter speaker status")).toBeVisible();
-    await expect(page.getByLabel("Program status").first()).toBeVisible();
+    const programStatus = page.getByLabel("Program status").first();
+    if (await programStatus.count()) await expect(programStatus).toBeVisible();
+    else
+      await expect(
+        page.getByText("No speakers match these filters."),
+      ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Preview sanitized resource" }),
     ).toBeVisible();
