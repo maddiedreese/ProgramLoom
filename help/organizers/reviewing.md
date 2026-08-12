@@ -5,7 +5,7 @@ description: Create fair review rounds, assign eligible reviewers, and monitor c
 
 # Assign and collect reviews
 
-Review rounds help your team evaluate proposals consistently.
+A review evaluates a proposal. Review rounds help your team perform that work consistently.
 
 ## Set up a review round
 

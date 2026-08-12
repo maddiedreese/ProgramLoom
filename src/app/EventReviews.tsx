@@ -29,6 +29,7 @@ import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
 import { ReviewRoutingWorkspace } from "./ReviewRoutingWorkspace";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -706,14 +707,14 @@ function OrganizerReviews({ eventId }: { eventId: string }) {
       </header>
       <EventPageGuide eventId={eventId} surface="reviews" />
       {feedback && (
-        <div
-          ref={feedbackRef}
-          className={`form-status form-status-${feedback.kind}`}
-          role={feedback.kind === "error" ? "alert" : "status"}
-          tabIndex={-1}
-        >
-          {feedback.message}
-        </div>
+        <MutationResultPanel
+          feedback={feedback}
+          focusRef={feedbackRef}
+          nextAction={{
+            label: "Open proposals awaiting decisions",
+            href: `/app/events/${eventId}/submissions?decision=none`,
+          }}
+        />
       )}
       <ReviewRoutingWorkspace eventId={eventId} />
       <div className="review-admin-layout">
@@ -1572,9 +1573,13 @@ function ReviewerQueue({ eventId }: { eventId: string }) {
         </div>
       </header>
       {feedback && (
-        <div className={`form-status form-status-${feedback.kind}`}>
-          {feedback.message}
-        </div>
+        <MutationResultPanel
+          feedback={feedback}
+          nextAction={{
+            label: "Return to review queue",
+            href: `/app/events/${eventId}/reviews`,
+          }}
+        />
       )}
       <section className="reviewer-list">
         {assignments.length ? (

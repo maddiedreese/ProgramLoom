@@ -1,32 +1,25 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "status": "draft",
   "production": {
     "marketingUrl": "https://programloom.com",
     "applicationUrl": "https://app.programloom.com",
+    "helpUrl": "https://programloom.com/help/",
+    "cfpDirectoryUrl": "https://app.programloom.com/cfp",
     "healthUrl": "https://app.programloom.com/api/health",
-    "publicWidgetUrls": [
-      "https://programloom.com/embed/sessions-bfdfc1515f0d4bf8aea4",
-      "https://programloom.com/embed/speakers-675b59dd225f4152acf3",
-      "https://programloom.com/embed/agenda-8b0020bb6481415f864a",
-      "https://programloom.com/embed/itinerary-2508fc81fad24cb591fc",
-      "https://programloom.com/embed/gallery-f0410c5463644a2fbae0"
-    ]
+    "publicWidgetUrls": []
   },
   "release": {
     "sourceCommit": null,
     "workerVersion": null,
     "verifiedAt": null
   },
+  "paidEvaluator": { "status": "not_run", "count": 0 },
   "calendarClients": {
     "tested": ["Gmail", "Apple Calendar"],
     "waived": ["Outlook"]
   },
-  "airtable": {
-    "pending": null,
-    "failed": null,
-    "openConflicts": null
-  },
+  "airtable": { "pending": null, "failed": null, "openConflicts": null },
   "controlRoom": {
     "openItems": null,
     "reconciled": false,
@@ -45,30 +38,28 @@
     ]
   },
   "tests": {
-    "unitFiles": null,
-    "unitCases": null,
-    "playwrightExecuted": null,
-    "playwrightPassed": null,
-    "desktopAndMobile": false
+    "unit": { "files": null, "executed": null, "passed": null },
+    "desktop": { "executed": null, "passed": null },
+    "mobile": { "executed": null, "passed": null },
+    "accessibility": { "serious": null, "critical": null },
+    "skippedRequired": null,
+    "focused": null
   },
-  "evaluator": {
-    "areas": 7,
-    "scenarios": 20,
-    "criteria": 96,
-    "manualPending": null
+  "commands": [],
+  "evidence": {
+    "resend": { "status": "pending" },
+    "calendar": { "status": "pending" },
+    "posthog": { "status": "pending" },
+    "publicWidgets": { "status": "pending" },
+    "authorization": { "status": "pending" },
+    "migrations": { "status": "pending" },
+    "dependencies": { "status": "pending", "high": null, "critical": null },
+    "helpCrawler": { "status": "pending", "brokenLinks": null }
   },
-  "performance": {
-    "route": null,
-    "environment": "production",
-    "cloudflareRegion": null,
-    "device": null,
-    "sampleSize": null,
-    "method": null
+  "walkthrough": { "url": null, "continuous": false },
+  "controlRoomScreenshot": {
+    "path": "../../public/programloom-control-room.jpg",
+    "sourceCommit": null
   },
-  "walkthrough": {
-    "path": null,
-    "continuous": false
-  },
-  "screenshots": [],
   "evidencePaths": []
 }

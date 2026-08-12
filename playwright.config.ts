@@ -10,7 +10,7 @@ export default defineConfig({
   testDir: "./e2e",
   // The help center is a generated static site and has its own config/server.
   // `npm run test:e2e:help` builds it before running the complete route matrix.
-  testIgnore: "help.spec.ts",
+  testIgnore: ["help.spec.ts", "capture-control-room.spec.ts"],
   outputDir: "test-results/playwright",
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
@@ -36,7 +36,30 @@ export default defineConfig({
         }
       : undefined,
   projects: [
-    { name: "desktop-chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
+    {
+      name: "desktop-1440x900",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+      },
+    },
+    {
+      name: "laptop-1024x768",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1024, height: 768 },
+      },
+    },
+    {
+      name: "tablet-768x1024",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 768, height: 1024 },
+      },
+    },
+    {
+      name: "mobile-390x844",
+      use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } },
+    },
   ],
 });

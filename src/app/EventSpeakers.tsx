@@ -24,6 +24,7 @@ import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
 import { sanitizeResourceHtml } from "../lib/sanitizeResource";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -501,9 +502,13 @@ function SpeakerPortal({
         </div>
       </header>
       {feedback && (
-        <div className={`form-status form-status-${feedback.kind}`}>
-          {feedback.message}
-        </div>
+        <MutationResultPanel
+          feedback={feedback}
+          nextAction={{
+            label: "Continue speaker onboarding",
+            href: `/app/events/${eventId}/speaker`,
+          }}
+        />
       )}
       <nav className="portal-tabs">
         <button
@@ -761,6 +766,13 @@ function SpeakerPortal({
             <div className="submission-empty">
               <BookOpen size={30} />
               <h2>No resources yet</h2>
+              <p>
+                Review your onboarding tasks while the organizer prepares
+                resources.
+              </p>
+              <button type="button" onClick={() => setTab("home")}>
+                Open onboarding tasks
+              </button>
             </div>
           )}
         </div>
@@ -832,6 +844,10 @@ function SpeakerPortal({
             <div className="submission-empty">
               <FileInput size={30} />
               <h2>No file requests yet</h2>
+              <p>Open onboarding tasks to continue preparing for the event.</p>
+              <button type="button" onClick={() => setTab("home")}>
+                Open onboarding tasks
+              </button>
             </div>
           )}
         </div>
@@ -1307,9 +1323,13 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
       </header>
       <EventPageGuide eventId={eventId} surface="speakers" />
       {feedback && (
-        <div className={`form-status form-status-${feedback.kind}`}>
-          {feedback.message}
-        </div>
+        <MutationResultPanel
+          feedback={feedback}
+          nextAction={{
+            label: "Review speaker content",
+            href: `/app/events/${eventId}/content`,
+          }}
+        />
       )}
       <div className="speaker-filter-row">
         <label className="speaker-status-filter">

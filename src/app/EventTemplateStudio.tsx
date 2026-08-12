@@ -488,6 +488,15 @@ export function SaveEventTemplateButton({
             aria-modal="true"
             aria-labelledby={`save-template-${eventId}`}
           >
+            <button
+              type="button"
+              className="modal-close"
+              data-dismiss
+              aria-label="Close template editor"
+              onClick={close}
+            >
+              Close
+            </button>
             <h2 id={`save-template-${eventId}`}>Save reusable template</h2>
             <p>
               Configuration is copied; proposals, people, files, delivery

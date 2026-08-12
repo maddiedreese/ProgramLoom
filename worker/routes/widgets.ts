@@ -46,6 +46,11 @@ export function widgetRemovalStatements(
   ];
 }
 
+export function renderWidgetEmbedScript(publicKey: string) {
+  const source = `https://programloom.com/embed/${encodeURIComponent(publicKey)}`;
+  return `(()=>{const s=document.currentScript;if(!s)return;const f=document.createElement("iframe");f.src=${JSON.stringify(source)};f.title=s.dataset.title||"ProgramLoom public program";f.loading="lazy";f.style.width="100%";f.style.minHeight=s.dataset.height||"720px";f.style.border="0";f.setAttribute("allow","clipboard-write");s.insertAdjacentElement("afterend",f);})();`;
+}
+
 const configSchema = z.object({
   name: z.string().trim().min(2).max(120),
   widgetType: z.enum([
@@ -374,6 +379,17 @@ router.get("/public/:publicKey", async (context) => {
   );
   return context.json({ widget: config, ...data }, 200, {
     "cache-control": "public, max-age=30, stale-while-revalidate=120",
+  });
+});
+
+router.get("/public/:publicKey/embed.js", async (context) => {
+  const db = database(context.env);
+  const { config } = await publicWidget(db, context.req.param("publicKey"));
+  return context.body(renderWidgetEmbedScript(String(config.publicKey)), 200, {
+    "content-type": "application/javascript; charset=utf-8",
+    "cache-control": "public, max-age=300, stale-while-revalidate=3600",
+    "x-content-type-options": "nosniff",
+    "access-control-allow-origin": "*",
   });
 });
 

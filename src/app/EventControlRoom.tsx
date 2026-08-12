@@ -19,6 +19,10 @@ import { useParams } from "react-router-dom";
 import { captureProductEvent } from "../lib/telemetry";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
+import {
+  EventLifecycleGuide,
+  type LifecycleStageView,
+} from "./EventLifecycleGuide";
 
 type User = { id: string; email: string; name: string };
 type Issue = {
@@ -46,6 +50,7 @@ type Overview = {
   tracks: { id: string; name: string }[];
   pagination: { page: number; pageSize: number; total: number };
   refreshedAt: string;
+  lifecycle: LifecycleStageView[];
 };
 
 const categories = [
@@ -340,34 +345,6 @@ export function EventControlRoom({ user }: { user: User }) {
               scheduling, publication, and follow-up.
             </p>
           </div>
-          <ol>
-            <li>
-              <a href={`/app/events/${eventId}/submissions`}>
-                1. Collect proposals
-              </a>
-            </li>
-            <li>
-              <a href={`/app/events/${eventId}/reviews`}>
-                2. Evaluate proposals
-              </a>
-            </li>
-            <li>
-              <a href={`/app/events/${eventId}/communications`}>
-                3. Decide & communicate
-              </a>
-            </li>
-            <li>
-              <a href={`/app/events/${eventId}/speakers`}>
-                4. Prepare speakers
-              </a>
-            </li>
-            <li>
-              <a href={`/app/events/${eventId}/agenda`}>5. Schedule</a>
-            </li>
-            <li>
-              <a href={`/app/events/${eventId}/widgets`}>6. Publish</a>
-            </li>
-          </ol>
           <div className="control-next-action">
             <strong>
               {nextIssue ? "Next highest-priority action" : "Program is clear"}
@@ -385,6 +362,7 @@ export function EventControlRoom({ user }: { user: User }) {
             )}
           </div>
         </section>
+        <EventLifecycleGuide eventId={eventId} stages={overview?.lifecycle} />
         <section
           className="control-room-summary"
           aria-label="Operational summary"
@@ -621,6 +599,12 @@ export function EventControlRoom({ user }: { user: User }) {
                 No records match the current filters. ProgramLoom will surface
                 new work here automatically.
               </span>
+              <a
+                className="button button-small"
+                href={`/app/events/${eventId}/cfp?lifecycle=collect-proposals`}
+              >
+                Collect another proposal
+              </a>
             </div>
           )}
         </section>

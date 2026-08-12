@@ -395,6 +395,11 @@ export function EventWidgets({ user }: { user: User }) {
                     >
                       iCal
                     </a>
+                    <a
+                      href={`/api/widgets/public/${widget.publicKey}/embed.js`}
+                    >
+                      JavaScript
+                    </a>
                   </div>
                   <code
                     tabIndex={0}

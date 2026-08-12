@@ -91,10 +91,20 @@
   border-color: #315c45;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 840px) {
   .VPHero .text {
     font-size: 38px;
     line-height: 1.08;
+  }
+
+  .VPNavBarMenu,
+  .VPNavBarSocialLinks,
+  .VPNavBarAppearance {
+    display: none !important;
+  }
+
+  .VPNavBarHamburger {
+    display: flex !important;
   }
 
   .VPNav button,

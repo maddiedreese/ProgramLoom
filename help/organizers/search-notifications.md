@@ -1,4 +1,9 @@
-# Search and notifications
+---
+title: Search and Command+K
+description: Find authorized records and actions quickly with Search and the keyboard command palette.
+---
+
+# Search and Command+K
 
 ProgramLoom gives organizers two ways to find work quickly: the command palette and the notification center.
 

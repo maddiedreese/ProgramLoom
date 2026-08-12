@@ -2,6 +2,11 @@ import { Hono } from "hono";
 import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
+import {
+  buildLifecycleStages,
+  lifecycleSnapshotSql,
+  type LifecycleSnapshot,
+} from "../lib/eventLifecycle";
 
 const router = new Hono<{ Bindings: Env; Variables: { requestId: string } }>();
 const organizerRoles = ["owner", "admin"] as const;
@@ -294,6 +299,16 @@ router.get("/events/:eventId", async (context) => {
     });
   const total = [...countMap.values()].reduce((sum, count) => sum + count, 0);
   const items = allItems.slice((page - 1) * pageSize, page * pageSize);
+  const lifecycleSnapshot = await db
+    .prepare(lifecycleSnapshotSql)
+    .bind(eventId)
+    .first<LifecycleSnapshot>();
+  if (!lifecycleSnapshot)
+    throw new HttpError(
+      503,
+      "lifecycle_unavailable",
+      "The event lifecycle could not be derived.",
+    );
   return context.json({
     event,
     role: access.role,
@@ -305,6 +320,7 @@ router.get("/events/:eventId", async (context) => {
     tracks: tracksResult.results,
     pagination: { page, pageSize, total },
     refreshedAt: new Date().toISOString(),
+    lifecycle: buildLifecycleStages(lifecycleSnapshot, eventId),
   });
 });
 

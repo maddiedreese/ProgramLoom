@@ -91,6 +91,30 @@ describe("ProgramLoom Worker", () => {
     expect(await response.text()).toContain("application shell");
   });
 
+  it("returns an uncached plain 404 for stale versioned assets, never application HTML", async () => {
+    const response = await app.request(
+      "/assets/stale-release.js",
+      {},
+      {
+        ...env,
+        ASSETS: {
+          fetch: () =>
+            Promise.resolve(
+              new Response("<html>application shell</html>", {
+                headers: { "content-type": "text/html; charset=utf-8" },
+              }),
+            ),
+        },
+      },
+    );
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toBe(
+      "no-cache, no-store, must-revalidate",
+    );
+    expect(response.headers.get("content-type")).toContain("text/plain");
+    expect(await response.text()).toBe("Asset not found.");
+  });
+
   it.each([
     "/app/events/event-1/control-room",
     "/c/example/event/cfp",

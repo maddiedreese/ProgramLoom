@@ -22,19 +22,19 @@ const guides: Partial<
   submissions: {
     stage: "Step 1 · Collect proposals",
     explanation:
-      "Triage incoming ideas here. Assign reviewers before choosing an outcome; staging an outcome does not send email.",
+      "Triage incoming proposals here. Assign reviewers before staging a decision; staging a decision does not communicate it.",
     nextLabel: "Assign and track reviews",
     nextPath: "/reviews",
   },
   reviews: {
-    stage: "Step 2 · Evaluate proposals",
+    stage: "Step 2 · Review proposals",
     explanation:
       "Choose who evaluates each proposal, collect their scorecards, and use the completed evidence to make a decision.",
     nextLabel: "Prepare decisions and messages",
     nextPath: "/communications",
   },
   communications: {
-    stage: "Step 3 · Decide and communicate",
+    stage: "Step 3 · Make decisions",
     explanation:
       "Staging records the organizer's decision without contacting anyone. Preview recipients and content here before sending.",
     nextLabel: "Prepare accepted speakers",
@@ -48,28 +48,28 @@ const guides: Partial<
     nextPath: "/content",
   },
   content: {
-    stage: "Step 4 · Prepare speakers",
+    stage: "Step 5 · Approve content",
     explanation:
       "Review uploaded files and session content. Only approved work can move safely into the public program.",
     nextLabel: "Schedule approved sessions",
     nextPath: "/agenda",
   },
   agenda: {
-    stage: "Step 5 · Schedule",
+    stage: "Step 6 · Build the agenda",
     explanation:
-      "Place approved sessions into rooms and times, resolve collisions, then publish the schedule for attendees.",
+      "Create agenda placements for approved sessions, resolve conflicts, then publish the agenda for attendees.",
     nextLabel: "Manage calendar invitations",
     nextPath: "/calendar",
   },
   calendar: {
-    stage: "Step 5 · Schedule",
+    stage: "Step 6 · Build the agenda",
     explanation:
-      "Send participant invitations and update the same calendar event when time, room, or session details change.",
+      "Send participant-addressed calendar invitations and update the same invitation when time, room, or session details change.",
     nextLabel: "Open public attendee views",
     nextPath: "/widgets",
   },
   widgets: {
-    stage: "Step 6 · Publish",
+    stage: "Step 7 · Publish the program",
     explanation:
       "Configure the five live attendee views. Changes follow the approved, published agenda without rebuilding embeds.",
     nextLabel: "Return to the Control Room",

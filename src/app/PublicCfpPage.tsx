@@ -16,6 +16,7 @@ import {
   useState,
 } from "react";
 import { useLocation, useParams } from "react-router-dom";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type PublicForm = {
   name: string;
@@ -570,12 +571,14 @@ export function PublicCfpPage() {
           </div>
         </section>
         {feedback && (
-          <div
-            id="cfp-feedback"
-            className={`form-status form-status-${feedback.kind}`}
-            role={feedback.kind === "error" ? "alert" : "status"}
-          >
-            {feedback.message}
+          <div id="cfp-feedback">
+            <MutationResultPanel
+              feedback={feedback}
+              nextAction={{
+                label: "Review your proposals",
+                href: `${window.location.pathname}#your-proposals-title`,
+              }}
+            />
           </div>
         )}
         {signedIn && ownedSubmissions.length > 0 && (

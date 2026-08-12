@@ -96,7 +96,7 @@ describe("SubmissionWorkspaceGrid", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Open call for proposals" }),
-    ).toHaveAttribute("href", "/app/events/event-1");
+    ).toHaveAttribute("href", "/app/events/event-1/cfp");
   });
 
   it("exposes custom fields as configurable columns and combined filters", async () => {

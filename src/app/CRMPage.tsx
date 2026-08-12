@@ -2640,7 +2640,7 @@ function InterestModal({
         <fieldset>
           <legend>4 · Managers</legend>
           <p>
-            Workspace owners and admins can review submissions and the
+            Workspace owners and admins can review proposals and the
             automatically created Identified pipeline cards.
           </p>
         </fieldset>

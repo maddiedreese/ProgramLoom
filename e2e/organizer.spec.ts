@@ -120,6 +120,55 @@ test.describe("authenticated organizer operations", () => {
     await expect(bell).toBeFocused();
   });
 
+  test("every lifecycle primary action opens its filtered workspace", async ({
+    page,
+  }) => {
+    await page.goto(`/app/events/${eventId}/control-room`);
+    const expected = [
+      [
+        "Collect proposals",
+        "Manage CFP",
+        "/cfp",
+        "lifecycle=collect-proposals",
+      ],
+      ["Review proposals", "Assign reviewers", "/reviews", "status=incomplete"],
+      ["Make decisions", "Stage decision", "/submissions", "decision=none"],
+      [
+        "Prepare speakers",
+        "Prepare speakers",
+        "/speakers",
+        "status=incomplete",
+      ],
+      ["Approve content", "Approve content", "/content", "status=in_review"],
+      ["Build the agenda", "Schedule session", "/agenda", "status=unplaced"],
+      [
+        "Publish the program",
+        "Publish agenda",
+        "/agenda",
+        "status=unpublished",
+      ],
+    ] as const;
+
+    for (const [stage, action, path, query] of expected) {
+      const item = page
+        .getByRole("listitem")
+        .filter({ has: page.getByRole("heading", { name: stage }) });
+      const link = item.getByRole("link", {
+        name: `Primary action: ${action}`,
+      });
+      await expect(link).toBeVisible();
+      await link.focus();
+      await expect(link).toBeFocused();
+      const href = await link.getAttribute("href");
+      expect(href).toContain(`/app/events/${eventId}${path}`);
+      expect(href).toContain(query);
+      const response = await page.goto(href!);
+      expect(response?.ok()).toBeTruthy();
+      await expect(page).toHaveURL(new RegExp(query.replace("=", "=")));
+      await page.goto(`/app/events/${eventId}/control-room`);
+    }
+  });
+
   test("required workflow controls are explicit and reachable", async ({
     page,
   }) => {

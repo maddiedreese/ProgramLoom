@@ -4,10 +4,10 @@ ProgramLoom shows organizers exactly what is blocking their program, gives them 
 
 The **Control Room** shows what is keeping the program from being ready and takes the organizer directly to the work that resolves it.
 
-- [Visit ProgramLoom](https://programloom.com)
-- [Open the application](https://app.programloom.com)
-- [Read the help center](https://programloom.com/help/)
-- [Browse open calls for proposals](https://app.programloom.com/cfp)
+- Marketing: [programloom.com](https://programloom.com)
+- Application: [app.programloom.com](https://app.programloom.com)
+- Help center: [programloom.com/help](https://programloom.com/help/)
+- Public CFP directory: [app.programloom.com/cfp](https://app.programloom.com/cfp)
 
 ![ProgramLoom Control Room showing an event team's next actions](public/programloom-control-room.jpg)
 
@@ -65,6 +65,10 @@ npm run docs:dev
 ```
 
 Do not commit environment files, authentication state, private links, provider payloads, or production evidence.
+
+### Environment variables
+
+Start from `.env.example`; it contains names and safe local defaults, never secret values. Configure `APP_BASE_URL`, `APP_DOMAIN`, `EMAIL_FROM`, and `EMAIL_REPLY_TO` for the public application. PostHog and Turnstile public keys are optional client configuration. Keep `SESSION_SECRET`, `ENCRYPTION_KEY`, `DEVELOPER_SECRET_KEY`, Airtable credentials, Resend credentials, and `TURNSTILE_SECRET_KEY` server-only in `.dev.vars` locally or encrypted Worker secrets in production.
 
 ## Verify a change
 

@@ -130,31 +130,145 @@ function LoadingRoute({ label }: { label: string }) {
   );
 }
 
-function EscapeDismissController() {
+export function ModalAccessibilityController() {
   useEffect(() => {
-    function dismiss(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      const layers = [
-        ...document.querySelectorAll<HTMLElement>(
-          '[role="dialog"], .detail-backdrop, .modal-backdrop, .crm-modal-backdrop',
+    let activeDialog: HTMLElement | undefined;
+    let initiatingControl: HTMLElement | undefined;
+    let lastControl: HTMLElement | undefined;
+    const background = new Map<
+      HTMLElement,
+      { inert: boolean; ariaHidden: string | null }
+    >();
+
+    const focusable = (dialog: HTMLElement) =>
+      [
+        ...dialog.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
         ),
-      ].filter((layer) => layer.getClientRects().length > 0);
-      const layer = layers.at(-1);
-      const close = layer?.querySelector<HTMLButtonElement>(
-        'button[aria-label="Close"], button[aria-label^="Close "], button[data-dismiss]',
-      );
-      if (!close) return;
-      event.preventDefault();
-      close.click();
+      ].filter((element) => element.getClientRects().length > 0);
+
+    function restoreBackground() {
+      for (const [element, previous] of background) {
+        element.inert = previous.inert;
+        if (previous.ariaHidden === null)
+          element.removeAttribute("aria-hidden");
+        else element.setAttribute("aria-hidden", previous.ariaHidden);
+      }
+      background.clear();
     }
-    document.addEventListener("keydown", dismiss);
-    return () => document.removeEventListener("keydown", dismiss);
+
+    function isolate(dialog: HTMLElement) {
+      let branch: HTMLElement = dialog;
+      while (branch.parentElement && branch.parentElement !== document.body) {
+        const parent = branch.parentElement;
+        for (const sibling of [...parent.children]) {
+          if (!(sibling instanceof HTMLElement) || sibling === branch) continue;
+          if (!background.has(sibling))
+            background.set(sibling, {
+              inert: sibling.inert,
+              ariaHidden: sibling.getAttribute("aria-hidden"),
+            });
+          sibling.inert = true;
+          sibling.setAttribute("aria-hidden", "true");
+        }
+        branch = parent;
+      }
+    }
+
+    function visibleDialog() {
+      return [
+        ...document.querySelectorAll<HTMLElement>(
+          '[role="dialog"][aria-modal="true"]',
+        ),
+      ]
+        .filter((dialog) => dialog.getClientRects().length > 0)
+        .at(-1);
+    }
+
+    function synchronize() {
+      const dialog = visibleDialog();
+      if (dialog === activeDialog) return;
+      const restore = initiatingControl;
+      restoreBackground();
+      activeDialog = dialog;
+      if (!dialog) {
+        initiatingControl = undefined;
+        if (restore?.isConnected) restore.focus({ preventScroll: true });
+        return;
+      }
+      initiatingControl =
+        lastControl ?? (document.activeElement as HTMLElement);
+      isolate(dialog);
+      window.requestAnimationFrame(() => {
+        if (activeDialog !== dialog || dialog.contains(document.activeElement))
+          return;
+        const target =
+          dialog.querySelector<HTMLElement>("[autofocus]") ??
+          focusable(dialog)[0] ??
+          dialog;
+        if (target === dialog && !dialog.hasAttribute("tabindex"))
+          dialog.tabIndex = -1;
+        target.focus({ preventScroll: true });
+      });
+    }
+
+    function remember(event: Event) {
+      const control = (
+        event.target as HTMLElement | null
+      )?.closest<HTMLElement>("button, a[href], [role=button]");
+      if (control && !activeDialog) lastControl = control;
+    }
+
+    function keyboard(event: KeyboardEvent) {
+      const dialog = activeDialog;
+      if (!dialog) return;
+      if (event.key === "Escape") {
+        const close = dialog.querySelector<HTMLButtonElement>(
+          'button[aria-label="Close"], button[aria-label^="Close "], button[data-dismiss]',
+        );
+        if (!close) return;
+        event.preventDefault();
+        close.click();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const controls = focusable(dialog);
+      if (!controls.length) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = controls[0];
+      const last = controls.at(-1)!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    const observer = new MutationObserver(synchronize);
+    observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("pointerdown", remember, true);
+    document.addEventListener("click", remember, true);
+    document.addEventListener("keydown", keyboard);
+    synchronize();
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("pointerdown", remember, true);
+      document.removeEventListener("click", remember, true);
+      document.removeEventListener("keydown", keyboard);
+      restoreBackground();
+    };
   }, []);
   return null;
 }
 
 const EVENT_PAGE_TITLES: Record<string, string> = {
   "control-room": "Control Room",
+  cfp: "Call for proposals",
   submissions: "Proposals",
   reviews: "Reviews",
   speakers: "Speakers",
@@ -441,41 +555,56 @@ function MarketingPage() {
       </header>
       <main id="main-content">
         <section className="hero">
-          <div className="eyebrow">
-            <Sparkles size={15} /> Speaker programs, without the spreadsheet
-            maze
+          <div className="hero-message">
+            <div className="eyebrow">
+              <Sparkles size={15} /> Speaker programs, without the spreadsheet
+              maze
+            </div>
+            <h1>Turn session ideas into a schedule people can trust.</h1>
+            <p className="hero-copy">
+              ProgramLoom shows organizers exactly what is blocking their
+              program, gives them the tools to resolve it, and carries every
+              accepted proposal safely through communication, onboarding,
+              scheduling, publication, and follow-up.
+            </p>
+            <p className="hero-lifecycle">
+              Collect proposals, review them, make decisions, prepare speakers,
+              approve content, build the agenda, and publish the program from
+              one connected record.
+            </p>
+            <div className="hero-actions">
+              <a
+                className="button button-large"
+                href={applicationHref("/register")}
+              >
+                Create your first event. <ArrowRight size={18} />
+              </a>
+              <a className="text-link" href={applicationHref("/app")}>
+                Open ProgramLoom.
+              </a>
+              <a className="text-link" href="/help/">
+                Read the help center.
+              </a>
+            </div>
+            <div className="proof-row" aria-label="What ProgramLoom provides">
+              <span>
+                <Check size={16} /> One connected workflow
+              </span>
+              <span>
+                <Check size={16} /> Clear next actions
+              </span>
+              <span>
+                <Check size={16} /> Free and open source
+              </span>
+            </div>
           </div>
-          <h1>Turn session ideas into a schedule people can trust.</h1>
-          <p className="hero-copy">
-            ProgramLoom gives event teams one understandable place to collect
-            proposals, coordinate reviews, notify submitters, prepare speakers,
-            build the schedule, and publish it for attendees.
-          </p>
-          <div className="hero-actions">
-            <a
-              className="button button-large"
-              href={applicationHref("/register")}
-            >
-              Create your event <ArrowRight size={18} />
-            </a>
-            <a className="text-link" href="#walkthrough">
-              See how ProgramLoom works
-            </a>
-            <a className="text-link" href="/help/">
-              Read the help center
-            </a>
-          </div>
-          <div className="proof-row" aria-label="What ProgramLoom provides">
-            <span>
-              <Check size={16} /> One connected workflow
-            </span>
-            <span>
-              <Check size={16} /> Clear next actions
-            </span>
-            <span>
-              <Check size={16} /> Free and open source
-            </span>
-          </div>
+          <figure className="hero-control-room">
+            <img
+              src="/programloom-control-room.jpg?v=programloom-summit-2027"
+              alt="ProgramLoom Control Room showing live program blockers and next actions"
+            />
+            <figcaption>Control Room · persisted program readiness</figcaption>
+          </figure>
         </section>
         <section
           id="walkthrough"
@@ -494,7 +623,7 @@ function MarketingPage() {
               Finish the work and the blocker clears.
             </p>
             <p className="decision-distinction">
-              <strong>Choosing an outcome does not send an email.</strong> You
+              <strong>Staging a decision does not communicate it.</strong> You
               first stage the decision, then review the recipients and message
               in Communications before choosing Send decision.
             </p>
@@ -805,11 +934,16 @@ function PublicCfpAlias() {
   );
 }
 
+function EventDefaultRedirect() {
+  const { eventId } = useParams();
+  return <Navigate replace to={`/app/events/${eventId}/control-room`} />;
+}
+
 export function App() {
   return (
     <>
       <DocumentMetadata />
-      <EscapeDismissController />
+      <ModalAccessibilityController />
       <Suspense fallback={<LoadingRoute label="Loading ProgramLoom…" />}>
         <Routes>
           <Route path="/" element={<MarketingPage />} />
@@ -851,6 +985,10 @@ export function App() {
           />
           <Route
             path="/app/events/:eventId"
+            element={<EventDefaultRedirect />}
+          />
+          <Route
+            path="/app/events/:eventId/cfp"
             element={<AuthenticatedPage page="event" />}
           />
           <Route

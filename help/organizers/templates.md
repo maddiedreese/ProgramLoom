@@ -1,4 +1,9 @@
-# Reuse events and templates
+---
+title: Event templates and duplication
+description: Reuse event configuration safely without copying operational records, people, or secrets.
+---
+
+# Event templates and duplication
 
 Templates save the parts of a program you want to repeat without carrying over private people or historical work.
 

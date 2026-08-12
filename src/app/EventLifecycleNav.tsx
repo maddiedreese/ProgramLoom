@@ -39,7 +39,7 @@ const organizerItems: Array<{
   {
     id: "cfp",
     label: "Call for proposals",
-    path: "",
+    path: "/cfp",
     icon: FileInput,
     stage: "1 · Collect proposals",
   },
@@ -55,14 +55,14 @@ const organizerItems: Array<{
     label: "Reviews",
     path: "/reviews",
     icon: CheckCircle2,
-    stage: "2 · Evaluate proposals",
+    stage: "2 · Review proposals",
   },
   {
     id: "communications",
     label: "Communications Center",
     path: "/communications",
     icon: Mail,
-    stage: "3 · Decide & communicate",
+    stage: "3 · Make decisions",
   },
   {
     id: "speakers",
@@ -76,28 +76,28 @@ const organizerItems: Array<{
     label: "Content & files",
     path: "/content",
     icon: Files,
-    stage: "4 · Prepare speakers",
+    stage: "5 · Approve content",
   },
   {
     id: "agenda",
     label: "Agenda",
     path: "/agenda",
     icon: CalendarClock,
-    stage: "5 · Schedule",
+    stage: "6 · Build the agenda",
   },
   {
     id: "calendar",
     label: "Calendar invitations",
     path: "/calendar",
     icon: CalendarClock,
-    stage: "5 · Schedule",
+    stage: "6 · Build the agenda",
   },
   {
     id: "widgets",
     label: "Public widgets",
     path: "/widgets",
     icon: PanelsTopLeft,
-    stage: "6 · Publish",
+    stage: "7 · Publish the program",
   },
 ];
 

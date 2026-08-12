@@ -7,7 +7,7 @@ describe("EventPageGuide", () => {
   it("explains where the current workspace fits and names the next action", () => {
     render(<EventPageGuide eventId="event-1" surface="communications" />);
 
-    expect(screen.getByText("Step 3 · Decide and communicate")).toBeVisible();
+    expect(screen.getByText("Step 3 · Make decisions")).toBeVisible();
     expect(
       screen.getByText(
         /staging records the organizer's decision without contacting anyone/i,

@@ -20,6 +20,7 @@ import {
   EventTemplateStudio,
   SaveEventTemplateButton,
 } from "./EventTemplateStudio";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type User = { id: string; email: string; name: string };
 type Organization = {
@@ -423,12 +424,15 @@ export function Dashboard({ user }: { user: User }) {
           )}
         </header>
         {feedback && (
-          <div
-            className={`form-status form-status-${feedback.kind}`}
-            role={feedback.kind === "error" ? "alert" : "status"}
-          >
-            {feedback.message}
-          </div>
+          <MutationResultPanel
+            feedback={feedback}
+            nextAction={{
+              label: selected ? "Open Control Room" : "View events",
+              href: selected
+                ? `/app/events/${selected.id}/control-room`
+                : "/app",
+            }}
+          />
         )}
         {!canOrganize && currentSubmissions.length > 0 && (
           <section aria-labelledby="my-proposals-title">

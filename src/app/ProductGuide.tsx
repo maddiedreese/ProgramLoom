@@ -2,28 +2,32 @@ import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 
 const stages = [
   [
-    "1. Create and configure",
-    "Create an event from a starter or organization template. Set dates, timezone, rooms, tracks, formats, workflows, communications, and widget configuration without copying private history.",
-  ],
-  [
-    "2. Collect proposals",
+    "1. Collect proposals",
     "Build and publish a CFP with custom and conditional fields. Submitters can save drafts when enabled; final submission creates a durable proposal and real confirmation delivery.",
   ],
   [
-    "3. Route and review",
+    "2. Review proposals",
     "Use the submission workspace to search, filter, save views, and act in bulk. Routing rules assign eligible reviewer pools by form, track, format, tag, or custom answer while respecting capacity and conflicts.",
   ],
   [
-    "4. Decide and communicate",
-    "Stage decision records the intended outcome and sends nothing. Preview real recipients and the rendered message in the Communications Center before choosing Send decision.",
+    "3. Make decisions",
+    "Stage decision records the intended decision without communicating it. Preview real recipients and rendered content in Communications before choosing Send decision.",
   ],
   [
-    "5. Prepare speakers",
-    "Accepted proposals connect to speakers, sessions, portal access, onboarding tasks, files, resources, content approval, notifications, communications, and audit history.",
+    "4. Prepare speakers",
+    "Communicated acceptances activate connected speaker and session records. Invitations and onboarding tasks then prepare each speaker.",
   ],
   [
-    "6. Schedule and publish",
-    "Place sessions by drag, touch, or keyboard form across List, Day, Week, Track, and Room views. Resolve conflicts, maintain calendar identity, then publish five anonymous attendee views.",
+    "5. Approve content",
+    "Content requests collect headshots, decks, and session material. Organizers review revisions and approve the content that can enter the public program.",
+  ],
+  [
+    "6. Build the agenda",
+    "An agenda placement assigns an approved session to a time and room. Organizers resolve conflicts and send separate participant-addressed calendar invitations.",
+  ],
+  [
+    "7. Publish the program",
+    "Publish agenda makes approved placements public across the agenda, session directory, speaker directory, speaker gallery, and itinerary.",
   ],
 ];
 

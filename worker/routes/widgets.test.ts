@@ -2,10 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   publicAgendaSessionEligibility,
   publicSpeakerAgendaJoin,
+  renderWidgetEmbedScript,
   widgetRemovalStatements,
 } from "./widgets";
 
 describe("widget deletion", () => {
+  it("renders a safe JavaScript embed without document injection", () => {
+    const script = renderWidgetEmbedScript("agenda-safe-key");
+    expect(script).toContain("document.currentScript");
+    expect(script).toContain('createElement("iframe")');
+    expect(script).toContain("https://programloom.com/embed/agenda-safe-key");
+    expect(script).not.toContain("document.write");
+    expect(script).not.toContain("innerHTML");
+  });
+
   it("limits public speaker data to the published, non-cancelled program", () => {
     expect(publicSpeakerAgendaJoin).toContain("status='published'");
     expect(publicSpeakerAgendaJoin).toContain("cancelled_at IS NULL");

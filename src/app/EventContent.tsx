@@ -27,6 +27,7 @@ import { Navigate, useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -618,14 +619,14 @@ export function EventContent({ user }: { user: User }) {
         </header>
         <EventPageGuide eventId={eventId} surface="content" />
         {feedback && !selectedFile && (
-          <div
-            ref={feedbackRef}
-            className={`form-status form-status-${feedback.kind}`}
-            role={feedback.kind === "error" ? "alert" : "status"}
-            tabIndex={-1}
-          >
-            {feedback.message}
-          </div>
+          <MutationResultPanel
+            feedback={feedback}
+            focusRef={feedbackRef}
+            nextAction={{
+              label: "Schedule approved sessions",
+              href: `/app/events/${eventId}/agenda?status=unplaced`,
+            }}
+          />
         )}
         <nav className="content-tabs" aria-label="Content workspace">
           <button
@@ -1213,14 +1214,14 @@ export function EventContent({ user }: { user: User }) {
               </button>
             </header>
             {feedback && (
-              <div
-                ref={feedbackRef}
-                className={`form-status form-status-${feedback.kind}`}
-                role={feedback.kind === "error" ? "alert" : "status"}
-                tabIndex={-1}
-              >
-                {feedback.message}
-              </div>
+              <MutationResultPanel
+                feedback={feedback}
+                focusRef={feedbackRef}
+                nextAction={{
+                  label: "Return to content queue",
+                  href: `/app/events/${eventId}/content`,
+                }}
+              />
             )}
             <section className="revision-list">
               <h3>

@@ -280,7 +280,7 @@ async function searchEntities(
             result(
               "cfp_form",
               row,
-              `/app/events/${row.eventId}?form=${row.id}`,
+              `/app/events/${row.eventId}/cfp?form=${row.id}`,
             ),
         )
       : Promise.resolve([]),
@@ -710,7 +710,7 @@ async function resolveEntity(
       [id, ...organizerEvents],
     );
     return item
-      ? result(type, item, `/app/events/${item.eventId}?form=${item.id}`)
+      ? result(type, item, `/app/events/${item.eventId}/cfp?form=${item.id}`)
       : null;
   }
   if (type === "submission") {

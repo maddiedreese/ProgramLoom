@@ -34,7 +34,7 @@ An invalid move does not partly save. Change the room or time, review the result
 
 ## Send calendar invitations
 
-Choose **Send calendar invitation** after a session has a placement. Later changes to the title, date, time, timezone, room, location, description, speaker list, or event details update the existing calendar event rather than creating a new one.
+Choose **Send calendar invitation** after a session has an agenda placement. Later changes to the title, date, time, timezone, room, location, description, speaker list, or event details update the existing participant-addressed calendar invitation rather than creating a new one.
 
 Cancelling a session sends a cancellation and removes it from public views. Rescheduling after cancellation is an explicit organizer action.
 

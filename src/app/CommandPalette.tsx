@@ -89,6 +89,7 @@ export function CommandPalette() {
   const [data, setData] = useState<Response>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+  const [retry, setRetry] = useState(0);
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLElement>(null);
@@ -181,7 +182,7 @@ export function CommandPalette() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [eventId, open, organizationId, query]);
+  }, [eventId, open, organizationId, query, retry]);
 
   const displayedResults = query ? (data?.results ?? []) : (data?.recent ?? []);
   const grouped = useMemo(
@@ -343,7 +344,13 @@ export function CommandPalette() {
               </p>
               {error && (
                 <div className="command-state error" role="alert">
-                  {error} Try again or close search to keep working.
+                  <span>{error} Retry or close search to keep working.</span>
+                  <button
+                    type="button"
+                    onClick={() => setRetry((value) => value + 1)}
+                  >
+                    Retry search
+                  </button>
                 </div>
               )}
               {!error && !loading && query && !displayedResults.length && (
@@ -353,6 +360,9 @@ export function CommandPalette() {
                   <span>
                     Try a title, person, organization, or record type.
                   </span>
+                  <button type="button" onClick={() => setQuery("")}>
+                    Clear search
+                  </button>
                 </div>
               )}
               {!query && grouped.length > 0 && (

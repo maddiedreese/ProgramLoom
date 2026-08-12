@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { expectAccessible, expectNoHorizontalOverflow } from "./accessibility";
 
+const widgetKeys = (process.env.PROGRAMLOOM_E2E_WIDGET_KEYS ?? "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+
 for (const route of [
   "/",
   "/guide",
@@ -178,4 +183,155 @@ test("mobile navigation and documentation links retain reliable touch targets", 
       [],
     );
   }
+});
+
+test("public routes reflow at 320 CSS pixels, zoom to 200%, and honor reduced motion", async ({
+  page,
+}, testInfo) => {
+  if (testInfo.project.name !== "desktop-1440x900") {
+    expect(page.viewportSize()).toBeTruthy();
+    return;
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", {
+      name: "Turn session ideas into a schedule people can trust.",
+    }),
+  ).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.style.zoom = "2";
+  });
+  await expectNoHorizontalOverflow(page);
+  await expect(
+    page.getByRole("link", { name: /Create your first event/i }),
+  ).toBeVisible();
+
+  await page.setViewportSize({ width: 320, height: 844 });
+  for (const route of ["/", "/guide", "/developers", "/login", "/cfp"]) {
+    await page.goto(route);
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page);
+    const moving = await page.locator("*").evaluateAll(
+      (elements) =>
+        elements.filter((element) => {
+          const style = getComputedStyle(element);
+          return (
+            style.animationName !== "none" &&
+            style.animationIterationCount === "infinite"
+          );
+        }).length,
+    );
+    expect(moving).toBe(0);
+  }
+});
+
+test.describe("five production public widgets", () => {
+  test.skip(
+    widgetKeys.length !== 5,
+    "Set PROGRAMLOOM_E2E_WIDGET_KEYS to the five production widget keys.",
+  );
+
+  test("all widget types expose complete public program records", async ({
+    page,
+    request,
+  }) => {
+    const seen = new Set<string>();
+    for (const key of widgetKeys) {
+      const response = await request.get(`/api/widgets/public/${key}`);
+      expect(response.ok()).toBeTruthy();
+      const payload = await response.json();
+      expect(payload.event.name).toBe("ProgramLoom Summit 2027");
+      seen.add(payload.widget.widgetType);
+      expect(payload.sessions.length).toBeGreaterThanOrEqual(12);
+      expect(payload.speakers.length).toBeGreaterThanOrEqual(15);
+      expect(
+        payload.sessions.every(
+          (session: Record<string, unknown>) =>
+            session.format && Array.isArray(session.speakerIds),
+        ),
+      ).toBe(true);
+      expect(
+        payload.agenda.every(
+          (item: Record<string, unknown>) =>
+            item.startsAt && item.endsAt && item.roomName && item.trackName,
+        ),
+      ).toBe(true);
+      const surnames = payload.speakers.map(
+        (speaker: { lastName: string }) => speaker.lastName,
+      );
+      expect(surnames).toEqual(
+        [...surnames].sort((left, right) => left.localeCompare(right)),
+      );
+      expect(
+        payload.speakers.every(
+          (speaker: Record<string, unknown>) =>
+            speaker.firstName &&
+            speaker.lastName &&
+            speaker.jobTitle &&
+            speaker.company &&
+            speaker.bio &&
+            "headshotUrl" in speaker,
+        ),
+      ).toBe(true);
+
+      const html = await page.goto(`/embed/${key}`);
+      expect(html?.ok()).toBeTruthy();
+      await expect(page.getByText("ProgramLoom Summit 2027")).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await expectAccessible(page);
+    }
+    expect([...seen].sort()).toEqual(
+      ["agenda", "gallery", "itinerary", "sessions", "speakers"].sort(),
+    );
+  });
+
+  test("machine-readable and embed outputs have valid content contracts", async ({
+    request,
+  }) => {
+    const key = widgetKeys[0];
+    const [json, xml, ics, javascript] = await Promise.all([
+      request.get(`/api/widgets/public/${key}/feed.json`),
+      request.get(`/api/widgets/public/${key}/feed.xml`),
+      request.get(`/api/widgets/public/${key}/agenda.ics`),
+      request.get(`/api/widgets/public/${key}/embed.js`),
+    ]);
+    expect(json.ok()).toBeTruthy();
+    expect(json.headers()["content-type"]).toContain("application/json");
+    expect((await json.json()).event.name).toBe("ProgramLoom Summit 2027");
+    expect(xml.ok()).toBeTruthy();
+    expect(xml.headers()["content-type"]).toContain("application/xml");
+    expect(await xml.text()).toContain("<programloom>");
+    expect(ics.ok()).toBeTruthy();
+    expect(ics.headers()["content-type"]).toContain("text/calendar");
+    const calendar = await ics.text();
+    expect(calendar).toContain("BEGIN:VCALENDAR");
+    expect(calendar).toContain("END:VCALENDAR");
+    expect(javascript.ok()).toBeTruthy();
+    expect(javascript.headers()["content-type"]).toContain(
+      "application/javascript",
+    );
+    expect(await javascript.text()).toContain('createElement("iframe")');
+  });
+
+  test("itinerary add, persistence, removal, and export stay visible", async ({
+    page,
+  }) => {
+    const key = widgetKeys.find((value) => value.startsWith("itinerary-"))!;
+    await page.goto(`/embed/${key}`);
+    const add = page.getByRole("button", { name: /^Add / }).first();
+    await expect(add).toBeVisible();
+    const label = await add.getAttribute("aria-label");
+    await add.click();
+    await page.reload();
+    const remove = page.getByRole("button", {
+      name: label!.replace(/^Add /, "Remove "),
+    });
+    await expect(remove).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Export my ICS" }),
+    ).toBeEnabled();
+    await remove.click();
+    await expect(page.getByRole("button", { name: label! })).toBeVisible();
+  });
 });

@@ -305,7 +305,7 @@ export async function sendDecision(
         errorCode: "provider_rejected_request",
       }),
     );
-    throw new Error("The decision email could not be sent.");
+    throw new Error("The decision communication could not be sent.");
   }
   const result = (await response.json()) as { id?: string };
   return result.id ?? "accepted";

@@ -1,3 +1,8 @@
+---
+title: Invite your team
+description: Understand organizer, reviewer, and speaker access and invite each person safely.
+---
+
 # Invite your team
 
 ProgramLoom keeps each organization and event separate and checks access on every saved action.

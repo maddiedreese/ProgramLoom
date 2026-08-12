@@ -23,6 +23,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
+import { EventLifecycleGuide } from "./EventLifecycleGuide";
 import { useParams } from "react-router-dom";
 
 type User = { id: string; email: string; name: string };
@@ -632,6 +633,7 @@ export function EventWorkspace({ user }: { user: User }) {
           )}
         </header>
         <EventPageGuide eventId={eventId} surface="cfp" />
+        <EventLifecycleGuide eventId={eventId} compact />
         {feedback && (
           <div
             className={`form-status form-status-${feedback.kind}`}

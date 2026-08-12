@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { expectAccessible, expectNoHorizontalOverflow } from "./accessibility";
 
-for (const route of [
+const HELP_ROUTES = [
   "/help/",
   "/help/getting-started",
   "/help/glossary",
@@ -10,20 +10,28 @@ for (const route of [
   "/help/organizers/reviewing",
   "/help/organizers/decisions",
   "/help/organizers/speakers",
+  "/help/organizers/onboarding",
   "/help/organizers/content",
   "/help/organizers/communications",
   "/help/organizers/schedule",
+  "/help/organizers/calendar",
   "/help/organizers/publish",
   "/help/organizers/search-notifications",
+  "/help/organizers/notifications",
   "/help/organizers/templates",
   "/help/organizers/crm",
   "/help/organizers/team-access",
   "/help/organizers/integrations",
+  "/help/organizers/airtable",
+  "/help/organizers/developer-platform",
+  "/help/organizers/settings",
   "/help/reviewers",
   "/help/speakers",
   "/help/attendees",
   "/help/troubleshooting",
-]) {
+] as const;
+
+for (const route of HELP_ROUTES) {
   test(`${route} is responsive and accessible`, async ({ page }) => {
     const response = await page.goto(route);
     expect(response?.ok()).toBeTruthy();
@@ -57,7 +65,10 @@ test("help-center primary actions have readable contrast and touch targets", asy
       logo.evaluate((image) => (image as HTMLImageElement).naturalWidth),
     )
     .toBeGreaterThan(0);
-  for (const name of ["Create your first event", "Open ProgramLoom"]) {
+  for (const name of [
+    "Create your first event",
+    "Open ProgramLoom (sign-in required)",
+  ]) {
     const action = page.getByRole("link", { name, exact: true });
     await expect(action).toBeVisible();
     const style = await action.evaluate((element) => {
@@ -100,6 +111,69 @@ test("help-center primary actions have readable contrast and touch targets", asy
       );
     expect(undersizedControls).toEqual([]);
   }
+});
+
+test("anonymous help crawler finds no broken links, redirects, or incomplete metadata", async ({
+  request,
+}) => {
+  const origin = new URL(test.info().project.use.baseURL as string).origin;
+  const pending = ["/help/"];
+  const visited = new Set<string>();
+  const failures: string[] = [];
+
+  while (pending.length) {
+    const route = pending.shift()!;
+    if (visited.has(route)) continue;
+    visited.add(route);
+    const response = await request.get(route, { maxRedirects: 0 });
+    if (response.status() !== 200) {
+      failures.push(`${route} returned ${response.status()}`);
+      continue;
+    }
+    const html = await response.text();
+    const expectedCanonical = `https://programloom.com${route === "/help/" ? route : route.replace(/\/$/, "")}`;
+    const canonical = html.match(
+      /<link[^>]+rel="canonical"[^>]+href="([^"]+)"/i,
+    )?.[1];
+    const title = html.match(/<title>([^<]+)<\/title>/i)?.[1]?.trim();
+    const description = html.match(
+      /<meta[^>]+name="description"[^>]+content="([^"]+)"/i,
+    )?.[1];
+    if (canonical !== expectedCanonical)
+      failures.push(`${route} canonical is ${canonical ?? "missing"}`);
+    if (!title || !title.includes("ProgramLoom"))
+      failures.push(`${route} title is missing or incorrect`);
+    if (!description?.trim()) failures.push(`${route} description is missing`);
+
+    for (const match of html.matchAll(
+      /<a\b([^>]*?)href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/gi,
+    )) {
+      const href = match[2];
+      const label = match[4]
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (href.startsWith("/help/")) {
+        const child = href.split("#")[0].replace(/\.html$/, "");
+        if (!visited.has(child)) pending.push(child);
+      }
+      if (
+        /^https:\/\/app\.programloom\.com\/app/.test(href) &&
+        !/sign-in required/i.test(label)
+      )
+        failures.push(
+          `${route} links to authenticated app without a label: ${label}`,
+        );
+      if (href.startsWith(origin)) {
+        const child = new URL(href).pathname;
+        if (child.startsWith("/help/") && !visited.has(child))
+          pending.push(child);
+      }
+    }
+  }
+
+  expect(visited.size).toBeGreaterThanOrEqual(HELP_ROUTES.length);
+  expect(failures).toEqual([]);
 });
 
 test("unknown help routes stay in the help center", async ({ page }) => {

@@ -97,15 +97,26 @@ describe("ProgramLoom application", () => {
       "/cfp",
     );
     expect(
-      screen.getByRole("link", { name: /see how programloom works/i }),
-    ).toHaveAttribute("href", "#walkthrough");
+      screen.getByRole("link", { name: /create your first event/i }),
+    ).toHaveAttribute("href", "/register");
+    expect(
+      screen.getByRole("link", { name: /^open programloom/i }),
+    ).toHaveAttribute("href", "/app");
+    expect(
+      screen.getByRole("link", { name: /read the help center/i }),
+    ).toHaveAttribute("href", "/help/");
+    expect(
+      screen.getByText(
+        /programloom shows organizers exactly what is blocking/i,
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
         name: /know what is ready—and what needs attention next/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/choosing an outcome does not send an email/i),
+      screen.getByText(/staging a decision does not communicate it/i),
     ).toBeInTheDocument();
   });
 

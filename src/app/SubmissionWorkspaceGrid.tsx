@@ -1199,7 +1199,9 @@ export function SubmissionWorkspaceGrid({
                 >
                   Clear all proposal filters
                 </button>
-                <a href={`/app/events/${eventId}`}>Open call for proposals</a>
+                <a href={`/app/events/${eventId}/cfp`}>
+                  Open call for proposals
+                </a>
               </div>
             </div>
           </div>

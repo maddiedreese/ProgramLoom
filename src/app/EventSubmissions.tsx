@@ -19,6 +19,7 @@ import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
 import { SubmissionWorkspaceGrid } from "./SubmissionWorkspaceGrid";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -362,12 +363,13 @@ export function EventSubmissions({ user }: { user: User }) {
         </header>
         <EventPageGuide eventId={eventId} surface="submissions" />
         {feedback && (
-          <div
-            className={`form-status form-status-${feedback.kind}`}
-            role={feedback.kind === "error" ? "alert" : "status"}
-          >
-            {feedback.message}
-          </div>
+          <MutationResultPanel
+            feedback={feedback}
+            nextAction={{
+              label: "Preview recipients",
+              href: `/app/events/${eventId}/communications?compose=1`,
+            }}
+          />
         )}
         <SubmissionWorkspaceGrid eventId={eventId} onOpen={openSubmission} />
       </main>

@@ -16,6 +16,37 @@ const baseOverview = {
   tracks: [{ id: "track-1", name: "Systems" }],
   pagination: { page: 1, pageSize: 30, total: 1 },
   refreshedAt: "2027-01-01T12:00:00.000Z",
+  lifecycle: [
+    {
+      number: 1,
+      label: "Collect proposals",
+      state: "Complete",
+      count: 20,
+      total: 1,
+      countLabel: "20 submitted proposals",
+      blockerCount: 0,
+      primaryAction: "Manage CFP",
+      actionUrl: "/app/events/event-1/cfp?lifecycle=collect-proposals",
+    },
+    ...[
+      "Review proposals",
+      "Make decisions",
+      "Prepare speakers",
+      "Approve content",
+      "Build the agenda",
+      "Publish the program",
+    ].map((label, index) => ({
+      number: index + 2,
+      label,
+      state: "In progress",
+      count: 0,
+      total: 1,
+      countLabel: "0 of 1 complete",
+      blockerCount: 0,
+      primaryAction: "Continue",
+      actionUrl: `/app/events/event-1/workspace?lifecycle=${index + 2}`,
+    })),
+  ],
   items: [
     {
       category: "reviewer_assignment",
@@ -73,9 +104,11 @@ describe("EventControlRoom", () => {
       "/app/events/event-1/reviews?submission=submission-1",
     );
     expect(
-      screen.getByRole("link", { name: "1. Collect proposals" }),
+      screen.getByRole("heading", { name: "Collect proposals" }),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "6. Publish" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Publish the program" }),
+    ).toBeVisible();
     expect(screen.getByLabelText("Owner for Reliable systems")).toBeEnabled();
   });
 

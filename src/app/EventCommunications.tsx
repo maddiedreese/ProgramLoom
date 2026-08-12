@@ -23,6 +23,7 @@ import { captureProductEvent } from "../lib/telemetry";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type User = { id: string; email: string; name: string };
 type Template = {
@@ -556,12 +557,13 @@ export function EventCommunications({ user }: { user: User }) {
         </header>
         <EventPageGuide eventId={eventId} surface="communications" />
         {feedback && (
-          <div
-            className={`form-status form-status-${feedback.kind}`}
-            role={feedback.kind === "error" ? "alert" : "status"}
-          >
-            {feedback.message}
-          </div>
+          <MutationResultPanel
+            feedback={feedback}
+            nextAction={{
+              label: "Prepare speakers",
+              href: `/app/events/${eventId}/speakers?status=incomplete`,
+            }}
+          />
         )}
         <section
           className="communications-stats"

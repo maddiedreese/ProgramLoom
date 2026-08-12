@@ -351,7 +351,10 @@ export function NotificationCenter() {
             </header>
             {error && (
               <div className="notification-error" role="alert">
-                <CircleAlert size={17} /> {error}
+                <CircleAlert size={17} /> <span>{error}</span>
+                <button type="button" onClick={() => void load()}>
+                  Retry notifications
+                </button>
               </div>
             )}
             {settings ? (
@@ -521,6 +524,20 @@ export function NotificationCenter() {
                       <CheckCheck size={28} />
                       <strong>You’re all caught up</strong>
                       <span>No updates match these filters.</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilters({
+                            eventId: "",
+                            category: "",
+                            severity: "",
+                            read: "",
+                          });
+                          setPage(1);
+                        }}
+                      >
+                        Show all notifications
+                      </button>
                     </div>
                   )}
                   {data?.notifications.map((item) => (

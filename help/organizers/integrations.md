@@ -1,3 +1,8 @@
+---
+title: Connect other tools
+description: Connect Airtable, email delivery, product analytics, API tokens, and webhooks without blocking unrelated work.
+---
+
 # Connect other tools
 
 ProgramLoom works on its own. Connections let your team keep selected business records in Airtable, deliver email, understand broad product usage, or build approved integrations.

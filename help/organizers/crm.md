@@ -1,3 +1,8 @@
+---
+title: Manage speaker relationships
+description: Keep organization-wide speaker contacts connected to event-specific work without copying private data.
+---
+
 # Manage speaker relationships
 
 The **Speaker CRM** is your organization's shared speaker database. It is not limited to one event, even when you arrive there from an event roster.

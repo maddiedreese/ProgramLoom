@@ -1,4 +1,9 @@
-# Send and track messages
+---
+title: Communications Center
+description: Preview recipients, send staged decisions, and understand durable communication delivery states.
+---
+
+# Communications Center
 
 The **Communications** workspace is the event's shared outbox. Use it for proposal confirmations, reviewer invitations, decisions, speaker reminders, schedule notices, calendar invitations, and organizer-written messages.
 

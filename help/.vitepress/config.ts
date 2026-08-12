@@ -77,7 +77,10 @@ export default defineConfig({
       { text: "Organizers", link: "/organizers/control-room" },
       { text: "Reviewers", link: "/reviewers" },
       { text: "Speakers", link: "/speakers" },
-      { text: "Open ProgramLoom", link: "https://app.programloom.com/app" },
+      {
+        text: "Open ProgramLoom (sign-in required)",
+        link: "https://app.programloom.com/app",
+      },
     ],
     sidebar: [
       {
@@ -96,21 +99,33 @@ export default defineConfig({
           { text: "Assign and collect reviews", link: "/organizers/reviewing" },
           { text: "Make and send decisions", link: "/organizers/decisions" },
           { text: "Prepare speakers", link: "/organizers/speakers" },
+          { text: "Complete onboarding tasks", link: "/organizers/onboarding" },
           { text: "Collect and approve content", link: "/organizers/content" },
           {
             text: "Send and track messages",
             link: "/organizers/communications",
           },
           { text: "Build the schedule", link: "/organizers/schedule" },
+          { text: "Send calendar invitations", link: "/organizers/calendar" },
           { text: "Publish for attendees", link: "/organizers/publish" },
           {
             text: "Search and notifications",
             link: "/organizers/search-notifications",
           },
+          { text: "Use notifications", link: "/organizers/notifications" },
           { text: "Reuse events and templates", link: "/organizers/templates" },
           { text: "Manage speaker relationships", link: "/organizers/crm" },
           { text: "Invite your team", link: "/organizers/team-access" },
           { text: "Connect other tools", link: "/organizers/integrations" },
+          { text: "Synchronize Airtable", link: "/organizers/airtable" },
+          {
+            text: "Use API tokens and webhooks",
+            link: "/organizers/developer-platform",
+          },
+          {
+            text: "Manage account and organization settings",
+            link: "/organizers/settings",
+          },
         ],
       },
       {

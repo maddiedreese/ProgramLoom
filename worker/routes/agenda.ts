@@ -128,7 +128,7 @@ export const sessionSpeakersSchema = z.object({
 });
 
 async function eventData(db: D1Database, eventId: string) {
-  const [event, tracks, rooms, sessions, speakers, items, constraints] =
+  const [event, tracks, rooms, sessions, speakers, items, constraints, conflicts] =
     await Promise.all([
       db
         .prepare(
@@ -181,6 +181,17 @@ async function eventData(db: D1Database, eventId: string) {
         )
         .bind(eventId)
         .all(),
+      db
+        .prepare(
+          `SELECT id,agenda_item_id AS agendaItemId,conflicting_item_id AS conflictingItemId,
+                  conflict_type AS conflictType,summary,status,attempted_room_id AS attemptedRoomId,
+                  attempted_starts_at AS attemptedStartsAt,attempted_ends_at AS attemptedEndsAt
+           FROM schedule_conflict_records
+           WHERE event_id=? AND status='open'
+           ORDER BY created_at`,
+        )
+        .bind(eventId)
+        .all(),
     ]);
   return {
     event,
@@ -207,6 +218,7 @@ async function eventData(db: D1Database, eventId: string) {
         configJson: undefined,
       }),
     ),
+    conflicts: conflicts.results,
   };
 }
 

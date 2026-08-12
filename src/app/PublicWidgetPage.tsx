@@ -262,6 +262,9 @@ export function PublicWidgetPage() {
       <main className="widget-state">
         <strong>Widget unavailable</strong>
         <p>{error}</p>
+        <button type="button" onClick={() => window.location.reload()}>
+          Retry loading widget
+        </button>
       </main>
     );
   if (!data)
@@ -481,7 +484,16 @@ export function PublicWidgetPage() {
             ))}
           </div>
           {!filteredSessions.length && (
-            <WidgetEmpty label="No sessions match these filters." />
+            <WidgetEmpty
+              label="No sessions match these filters."
+              actionLabel="Clear filters"
+              onAction={() => {
+                setSearch("");
+                setTrack("");
+                setFormat("");
+                setLocation("");
+              }}
+            />
           )}
         </section>
       )}
@@ -575,7 +587,11 @@ export function PublicWidgetPage() {
             ))}
           </div>
           {!filteredSpeakers.length && (
-            <WidgetEmpty label="No speakers match this search." />
+            <WidgetEmpty
+              label="No speakers match this search."
+              actionLabel="Clear search"
+              onAction={() => setSearch("")}
+            />
           )}
         </section>
       )}
@@ -591,6 +607,10 @@ export function PublicWidgetPage() {
           itinerary={false}
           eventStartsAt={event.startsAt}
           eventEndsAt={event.endsAt}
+          onEmptyAction={() => {
+            setSearch("");
+            setTrack("");
+          }}
         />
       )}
       {widget.widgetType === "itinerary" && (
@@ -648,6 +668,7 @@ export function PublicWidgetPage() {
             itinerary
             eventStartsAt={event.startsAt}
             eventEndsAt={event.endsAt}
+            onEmptyAction={() => setShowPersonalSchedule(false)}
           />
         </>
       )}
@@ -721,7 +742,11 @@ export function PublicWidgetPage() {
             ))}
           </div>
           {!filteredSpeakers.length && (
-            <WidgetEmpty label="No speakers match this search." />
+            <WidgetEmpty
+              label="No speakers match this search."
+              actionLabel="Clear search"
+              onAction={() => setSearch("")}
+            />
           )}
         </section>
       )}
@@ -734,11 +759,22 @@ export function PublicWidgetPage() {
   );
 }
 
-function WidgetEmpty({ label }: { label: string }) {
+function WidgetEmpty({
+  label,
+  actionLabel,
+  onAction,
+}: {
+  label: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
   return (
     <div className="widget-empty">
       <Search size={20} />
       <p>{label}</p>
+      <button type="button" onClick={onAction}>
+        {actionLabel}
+      </button>
     </div>
   );
 }
@@ -754,6 +790,7 @@ function AgendaGrid({
   itinerary,
   eventStartsAt,
   eventEndsAt,
+  onEmptyAction,
 }: {
   items: AgendaItem[];
   sessions: Session[];
@@ -765,6 +802,7 @@ function AgendaGrid({
   itinerary: boolean;
   eventStartsAt: string;
   eventEndsAt: string;
+  onEmptyAction: () => void;
 }) {
   const dayOptions = eventDayOptions(eventStartsAt, eventEndsAt, timezone);
   const days = dayOptions.map((day) => day.key);
@@ -872,6 +910,13 @@ function AgendaGrid({
               ? "No sessions match these filters on this day. Choose another day or clear the filters."
               : "No sessions are saved in your itinerary yet. Show the full program and add a session."
           }
+          actionLabel={
+            items.length ? "Show next available day" : "Show full program"
+          }
+          onAction={() => {
+            if (items.length) setSelectedDay(dayKey(items[0].startsAt, timezone));
+            else onEmptyAction();
+          }}
         />
       )}
     </section>

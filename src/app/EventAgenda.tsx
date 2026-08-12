@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type User = { id: string; email: string; name: string };
 type EventRecord = {
@@ -73,6 +74,17 @@ type AgendaItem = {
   cancelledAt: string | null;
   roomName: string | null;
   trackName: string | null;
+};
+type ScheduleConflict = {
+  id: string;
+  agendaItemId: string;
+  conflictingItemId: string;
+  conflictType: "room" | "speaker";
+  summary: string;
+  status: "open";
+  attemptedRoomId: string | null;
+  attemptedStartsAt: string;
+  attemptedEndsAt: string;
 };
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -228,6 +240,7 @@ export function EventAgenda({ user }: { user: User }) {
   const [movePreview, setMovePreview] = useState<MoveTarget>();
   const [liveMessage, setLiveMessage] = useState("");
   const [assistPreviewCount, setAssistPreviewCount] = useState<number>();
+  const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
     message: string;
@@ -242,6 +255,7 @@ export function EventAgenda({ user }: { user: User }) {
       sessions: Session[];
       speakers: Speaker[];
       items: AgendaItem[];
+      conflicts: ScheduleConflict[];
     }>(`/api/agenda/admin/events/${eventId}`);
     setEvent(result.event);
     setTracks(result.tracks);
@@ -249,6 +263,7 @@ export function EventAgenda({ user }: { user: User }) {
     setSessions(result.sessions);
     setSpeakers(result.speakers ?? []);
     setItems(result.items);
+    setConflicts(result.conflicts ?? []);
   }
   useEffect(() => {
     load()
@@ -808,14 +823,38 @@ export function EventAgenda({ user }: { user: User }) {
         </header>
         <EventPageGuide eventId={eventId} surface="agenda" />
         {feedback && (
-          <div
-            ref={feedbackRef}
-            className={`form-status form-status-${feedback.kind}`}
-            role={feedback.kind === "error" ? "alert" : "status"}
-            tabIndex={-1}
-          >
-            {feedback.message}
-          </div>
+          <MutationResultPanel
+            feedback={feedback}
+            focusRef={feedbackRef}
+            nextAction={{
+              label: "Review calendar invitations",
+              href: `/app/events/${eventId}/calendar`,
+            }}
+          />
+        )}
+        {conflicts.length > 0 && (
+          <section className="agenda-conflict-panel" aria-labelledby="agenda-conflicts-title">
+            <div>
+              <p className="kicker">Scheduling blockers</p>
+              <h2 id="agenda-conflicts-title">Resolve open conflicts</h2>
+            </div>
+            <ul>
+              {conflicts.map((conflict) => (
+                <li key={conflict.id}>
+                  <div>
+                    <strong>{conflict.conflictType} conflict</strong>
+                    <span>{conflict.summary}</span>
+                  </div>
+                  <a
+                    className="button button-small"
+                    href={`#agenda-placement-${conflict.agendaItemId}`}
+                  >
+                    Resolve conflict
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
         <p className="sr-only" aria-live="polite">
           {liveMessage}

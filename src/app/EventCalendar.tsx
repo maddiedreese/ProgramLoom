@@ -15,6 +15,7 @@ import { captureProductEvent } from "../lib/telemetry";
 import { SidebarUser } from "./SidebarUser";
 import { EventLifecycleNav } from "./EventLifecycleNav";
 import { EventPageGuide } from "./EventPageGuide";
+import { MutationResultPanel } from "./MutationResultPanel";
 
 type User = { id: string; email: string; name: string };
 type Settings = {
@@ -279,12 +280,13 @@ export function EventCalendar({ user }: { user: User }) {
         </header>
         <EventPageGuide eventId={eventId} surface="calendar" />
         {feedback && (
-          <div
-            role="status"
-            className={`form-status form-status-${feedback.kind}`}
-          >
-            {feedback.message}
-          </div>
+          <MutationResultPanel
+            feedback={feedback}
+            nextAction={{
+              label: "Review the agenda",
+              href: `/app/events/${eventId}/agenda`,
+            }}
+          />
         )}
         <section className="calendar-settings panel-card">
           <div>

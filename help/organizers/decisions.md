@@ -1,21 +1,21 @@
 ---
 title: Make and send decisions
-description: Record proposal outcomes safely, preview recipients, and send clear decision messages.
+description: Stage proposal decisions safely, preview recipients, and send clear decision communications.
 ---
 
 # Make and send decisions
 
-ProgramLoom deliberately separates choosing an outcome from telling the submitter.
+ProgramLoom deliberately separates staging a decision from communicating it to the submitter.
 
 ## 1. Stage the decision
 
 Open the proposal and choose **Stage decision**. Select accepted, waitlisted, or rejected.
 
-The proposal now shows the intended outcome. **No email is sent.** This lets the organizing team check capacity, program balance, and wording before communication begins.
+The proposal now shows the intended decision. **The decision is not communicated.** This lets the organizing team check capacity, program balance, and wording before communication begins.
 
 ## 2. Open Communications
 
-Choose **Preview recipients and send decision**, or open the event's **Communications** workspace. Select the decision message and recipient group.
+Choose **Preview recipients and send decision**, or open the event's **Communications** workspace. Select the staged decision communication and recipient group.
 
 ## 3. Preview the real message
 

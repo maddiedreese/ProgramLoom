@@ -11,7 +11,7 @@ hero:
       text: Create your first event
       link: /getting-started
     - theme: alt
-      text: Open ProgramLoom
+      text: Open ProgramLoom (sign-in required)
       link: https://app.programloom.com/app
 features:
   - title: Organizing an event?
@@ -37,7 +37,7 @@ An organizer can:
 1. invite people to submit session ideas;
 2. assign those ideas to reviewers;
 3. choose which ideas to accept;
-4. notify each submitter;
+4. send each staged decision from Communications;
 5. collect speaker details, headshots, slides, and other files;
 6. place approved sessions into rooms and times;
 7. publish a schedule for attendees; and
@@ -50,7 +50,7 @@ The **Control Room** is your home base. It answers: **What is keeping this progr
 Each item explains the problem and takes you to the place where you can resolve it. When the underlying work is finished, the item clears.
 
 ::: tip A safe decision workflow
-Choosing **Stage decision** does not email anyone. It records the outcome your team intends to send. You review the recipients and message separately in **Communications**, then choose **Send decision** when you are ready.
+**Stage decision** does not communicate anything. It records the outcome your team intends to send. Review recipients and rendered content separately in **Communications**, then choose **Send decision** when you are ready.
 :::
 
 ## Choose the guide for your role
