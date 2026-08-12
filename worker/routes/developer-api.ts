@@ -1180,15 +1180,7 @@ async function softDeleteSession(
         `UPDATE submissions SET api_deleted_at=?,status=?,updated_at=? WHERE id=?`,
       )
       .bind(deleted ? now : null, deleted ? "withdrawn" : "accepted", now, id),
-    ...(deleted
-      ? [
-          db
-            .prepare(
-              "UPDATE agenda_items SET cancelled_at=?,status='cancelled',updated_at=? WHERE submission_id=? AND cancelled_at IS NULL",
-            )
-            .bind(now, now, id),
-        ]
-      : []),
+    ...(deleted ? [cancelledSessionAgendaStatement(db, id, now)] : []),
     auditStatement(db, {
       organizationId: token.organizationId,
       eventId: String(before.eventId),
@@ -1220,6 +1212,18 @@ async function softDeleteSession(
     status: deleted ? "withdrawn" : "accepted",
     updatedAt: now,
   };
+}
+
+export function cancelledSessionAgendaStatement(
+  db: D1Database,
+  submissionId: string,
+  cancelledAt: string,
+) {
+  return db
+    .prepare(
+      "UPDATE agenda_items SET cancelled_at=?,status='draft',version=version+1,updated_at=? WHERE submission_id=? AND cancelled_at IS NULL",
+    )
+    .bind(cancelledAt, cancelledAt, submissionId);
 }
 
 router.delete("/sessions/:sessionId", async (context) => {

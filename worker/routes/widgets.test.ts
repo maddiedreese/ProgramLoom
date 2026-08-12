@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { widgetRemovalStatements } from "./widgets";
+import {
+  publicAgendaSessionEligibility,
+  publicSpeakerAgendaJoin,
+  widgetRemovalStatements,
+} from "./widgets";
 
 describe("widget deletion", () => {
+  it("limits public speaker data to the published, non-cancelled program", () => {
+    expect(publicSpeakerAgendaJoin).toContain("status='published'");
+    expect(publicSpeakerAgendaJoin).toContain("cancelled_at IS NULL");
+    expect(publicSpeakerAgendaJoin).toContain("submission_id=s.id");
+    expect(publicSpeakerAgendaJoin).toContain("event_id=s.event_id");
+  });
+
+  it("excludes withdrawn sessions from public agenda payloads", () => {
+    expect(publicAgendaSessionEligibility).toContain("s.status='accepted'");
+    expect(publicAgendaSessionEligibility).toContain("cs.status='approved'");
+    expect(publicAgendaSessionEligibility).toContain("a.submission_id IS NULL");
+  });
   it("scopes the delete and retains an audited before state", () => {
     const prepared: Array<{ sql: string; bindings: unknown[] }> = [];
     const db = {

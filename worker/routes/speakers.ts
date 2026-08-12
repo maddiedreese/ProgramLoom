@@ -38,6 +38,17 @@ export function allowedUploadTypesForPurpose(
     : generalFileContentTypes;
 }
 
+export function submittedTaskAssignmentStatement(
+  db: D1Database,
+  input: { taskId: string; speakerId: string; responseJson: string },
+) {
+  return db
+    .prepare(
+      "UPDATE speaker_task_assignments SET status='submitted',response_json=?,completed_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE task_id=? AND speaker_id=?",
+    )
+    .bind(input.responseJson, input.taskId, input.speakerId);
+}
+
 export async function assignAllFileTargets(db: D1Database, eventId: string) {
   return db
     .prepare(
@@ -642,15 +653,14 @@ router.post("/events/:eventId/files/:fileId/upload", async (context) => {
     ];
     if (request.taskId)
       statements.push(
-        db
-          .prepare(
-            "UPDATE speaker_task_assignments SET status='submitted',response_json=?,updated_at=CURRENT_TIMESTAMP WHERE task_id=? AND speaker_id=?",
-          )
-          .bind(
-            JSON.stringify({ fileId: context.req.param("fileId"), version }),
-            request.taskId,
-            profile.id,
-          ),
+        submittedTaskAssignmentStatement(db, {
+          responseJson: JSON.stringify({
+            fileId: context.req.param("fileId"),
+            version,
+          }),
+          taskId: request.taskId,
+          speakerId: profile.id,
+        }),
       );
     await db.batch(statements);
   } catch (error) {

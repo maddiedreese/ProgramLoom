@@ -61,6 +61,19 @@ export function eventActivationStatement(db: D1Database, eventId: string) {
     .bind(eventId);
 }
 
+type AgendaSqlAlias = "agenda_items" | "a" | "leftItem" | "rightItem";
+
+export function agendaPublicationEligibilitySql(alias: AgendaSqlAlias) {
+  return `(${alias}.submission_id IS NULL OR EXISTS (
+    SELECT 1 FROM submissions eligibleSubmission
+    JOIN session_content_state eligibleContent
+      ON eligibleContent.submission_id=eligibleSubmission.id AND eligibleContent.status='approved'
+    WHERE eligibleSubmission.id=${alias}.submission_id
+      AND eligibleSubmission.event_id=${alias}.event_id
+      AND eligibleSubmission.status='accepted'
+  ))`;
+}
+
 export function requiresExplicitReschedule(
   cancelledAt: string | null,
   reschedule: boolean,
@@ -1233,7 +1246,9 @@ router.post("/admin/events/:eventId/publish", async (context) => {
   const db = database(context.env);
   const missing = await db
     .prepare(
-      "SELECT COUNT(*) AS count FROM agenda_items WHERE event_id=? AND cancelled_at IS NULL AND (starts_at IS NULL OR ends_at IS NULL OR room_id IS NULL)",
+      `SELECT COUNT(*) AS count FROM agenda_items WHERE event_id=? AND cancelled_at IS NULL
+       AND ${agendaPublicationEligibilitySql("agenda_items")}
+       AND (starts_at IS NULL OR ends_at IS NULL OR room_id IS NULL)`,
     )
     .bind(eventId)
     .first<{ count: number }>();
@@ -1243,11 +1258,24 @@ router.post("/admin/events/:eventId/publish", async (context) => {
     )
     .bind(eventId)
     .first<{ count: number }>();
+  const publishable = await db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM agenda_items WHERE event_id=? AND cancelled_at IS NULL
+       AND ${agendaPublicationEligibilitySql("agenda_items")}`,
+    )
+    .bind(eventId)
+    .first<{ count: number }>();
   if (!total?.count)
     throw new HttpError(
       400,
       "agenda_empty",
       "Add at least one item before publishing.",
+    );
+  if (!publishable?.count)
+    throw new HttpError(
+      409,
+      "agenda_no_publishable_items",
+      "Approve at least one accepted session before publishing the agenda.",
     );
   if (missing?.count)
     throw new HttpError(
@@ -1257,13 +1285,13 @@ router.post("/admin/events/:eventId/publish", async (context) => {
     );
   const roomConflict = await db
     .prepare(
-      "SELECT leftItem.id FROM agenda_items leftItem JOIN agenda_items rightItem ON rightItem.event_id=leftItem.event_id AND rightItem.id>leftItem.id AND rightItem.cancelled_at IS NULL AND rightItem.room_id=leftItem.room_id AND rightItem.starts_at<leftItem.ends_at AND rightItem.ends_at>leftItem.starts_at WHERE leftItem.event_id=? AND leftItem.cancelled_at IS NULL LIMIT 1",
+      `SELECT leftItem.id FROM agenda_items leftItem JOIN agenda_items rightItem ON rightItem.event_id=leftItem.event_id AND rightItem.id>leftItem.id AND rightItem.cancelled_at IS NULL AND rightItem.room_id=leftItem.room_id AND rightItem.starts_at<leftItem.ends_at AND rightItem.ends_at>leftItem.starts_at WHERE leftItem.event_id=? AND leftItem.cancelled_at IS NULL AND ${agendaPublicationEligibilitySql("leftItem")} AND ${agendaPublicationEligibilitySql("rightItem")} LIMIT 1`,
     )
     .bind(eventId)
     .first();
   const speakerConflict = await db
     .prepare(
-      "SELECT leftItem.id FROM agenda_items leftItem JOIN agenda_items rightItem ON rightItem.event_id=leftItem.event_id AND rightItem.id>leftItem.id AND rightItem.cancelled_at IS NULL AND rightItem.starts_at<leftItem.ends_at AND rightItem.ends_at>leftItem.starts_at JOIN session_speakers leftSpeaker ON leftSpeaker.submission_id=leftItem.submission_id JOIN session_speakers rightSpeaker ON rightSpeaker.submission_id=rightItem.submission_id AND rightSpeaker.speaker_id=leftSpeaker.speaker_id WHERE leftItem.event_id=? AND leftItem.cancelled_at IS NULL LIMIT 1",
+      `SELECT leftItem.id FROM agenda_items leftItem JOIN agenda_items rightItem ON rightItem.event_id=leftItem.event_id AND rightItem.id>leftItem.id AND rightItem.cancelled_at IS NULL AND rightItem.starts_at<leftItem.ends_at AND rightItem.ends_at>leftItem.starts_at JOIN session_speakers leftSpeaker ON leftSpeaker.submission_id=leftItem.submission_id JOIN session_speakers rightSpeaker ON rightSpeaker.submission_id=rightItem.submission_id AND rightSpeaker.speaker_id=leftSpeaker.speaker_id WHERE leftItem.event_id=? AND leftItem.cancelled_at IS NULL AND ${agendaPublicationEligibilitySql("leftItem")} AND ${agendaPublicationEligibilitySql("rightItem")} LIMIT 1`,
     )
     .bind(eventId)
     .first();
@@ -1278,20 +1306,22 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       `SELECT DISTINCT sp.user_id userId FROM agenda_items a
        JOIN session_speakers ss ON ss.submission_id=a.submission_id
        JOIN speaker_profiles sp ON sp.id=ss.speaker_id
-       WHERE a.event_id=? AND a.cancelled_at IS NULL AND sp.user_id IS NOT NULL LIMIT 500`,
+       WHERE a.event_id=? AND a.cancelled_at IS NULL AND ${agendaPublicationEligibilitySql("a")} AND sp.user_id IS NOT NULL LIMIT 500`,
     )
     .bind(eventId)
     .all<{ userId: string }>();
   const items = await db
     .prepare(
-      "SELECT id FROM agenda_items WHERE event_id=? AND cancelled_at IS NULL ORDER BY id LIMIT 1000",
+      `SELECT id FROM agenda_items WHERE event_id=? AND cancelled_at IS NULL
+       AND ${agendaPublicationEligibilitySql("agenda_items")} ORDER BY id LIMIT 1000`,
     )
     .bind(eventId)
     .all<{ id: string }>();
   await db.batch([
     db
       .prepare(
-        "UPDATE agenda_items SET status='published',version=version+1,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND cancelled_at IS NULL",
+        `UPDATE agenda_items SET status='published',version=version+1,updated_at=CURRENT_TIMESTAMP
+         WHERE event_id=? AND cancelled_at IS NULL AND ${agendaPublicationEligibilitySql("agenda_items")}`,
       )
       .bind(eventId),
     auditStatement(db, {
@@ -1301,7 +1331,11 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       action: "agenda.published",
       entityType: "event",
       entityId: eventId,
-      after: { itemCount: total.count, eventStatus: "active" },
+      after: {
+        itemCount: publishable.count,
+        excludedItemCount: total.count - publishable.count,
+        eventStatus: "active",
+      },
       requestId: context.get("requestId"),
     }),
     ...publishedAgendaItemAuditStatements(
@@ -1353,7 +1387,11 @@ router.post("/admin/events/:eventId/publish", async (context) => {
       });
     }
   }
-  return context.json({ published: total.count, calendarFailures });
+  return context.json({
+    published: publishable.count,
+    excluded: total.count - publishable.count,
+    calendarFailures,
+  });
 });
 
 export default router;

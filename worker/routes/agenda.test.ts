@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  agendaPublicationEligibilitySql,
   directPlacementSchema,
   eventActivationStatement,
   publishedAgendaItemAuditStatements,
@@ -8,6 +9,15 @@ import {
 } from "./agenda";
 
 describe("agenda publication audits", () => {
+  it("publishes breaks plus accepted sessions with approved content only", () => {
+    const predicate = agendaPublicationEligibilitySql("agenda_items");
+    expect(predicate).toContain("agenda_items.submission_id IS NULL");
+    expect(predicate).toContain("eligibleSubmission.status='accepted'");
+    expect(predicate).toContain(
+      "eligibleSubmission.event_id=agenda_items.event_id",
+    );
+    expect(predicate).toContain("eligibleContent.status='approved'");
+  });
   it("validates a bounded atomic direct placement payload", () => {
     expect(
       directPlacementSchema.parse({

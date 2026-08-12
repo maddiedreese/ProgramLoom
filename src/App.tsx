@@ -175,6 +175,10 @@ export function titleForPath(pathname: string) {
   if (pathname === "/invite") return "Accept your invitation — ProgramLoom";
   if (pathname === "/guide") return "How ProgramLoom works";
   if (pathname === "/developers") return "Developer platform — ProgramLoom";
+  if (pathname === "/oauth/authorize")
+    return "Authorize application — ProgramLoom";
+  if (pathname === "/action/submission-edit")
+    return "Edit proposal — ProgramLoom";
   if (pathname === "/privacy") return "Privacy notice — ProgramLoom";
   if (pathname === "/terms") return "Terms of service — ProgramLoom";
   if (
@@ -190,6 +194,9 @@ export function titleForPath(pathname: string) {
   if (pathname === "/app/team") return "Team — ProgramLoom";
   if (pathname === "/app/crm") return "Speaker CRM — ProgramLoom";
   if (pathname === "/app/settings") return "Developer settings — ProgramLoom";
+
+  if (/^\/app\/events\/[^/]+\/submissions\/[^/]+$/.test(pathname))
+    return "Proposal details — ProgramLoom";
 
   const eventRoute = pathname.match(/^\/app\/events\/[^/]+(?:\/([^/]+))?$/);
   if (eventRoute) {

@@ -86,3 +86,46 @@ test("shared calls to action retain readable spacing and contrast", async ({
   expect(largeStyle.height).toBeGreaterThanOrEqual(51);
   expect(largeStyle.paddingInline).toBeGreaterThanOrEqual(19);
 });
+
+test("mobile navigation and documentation links retain reliable touch targets", async ({
+  page,
+}, testInfo) => {
+  test.skip(!testInfo.project.name.includes("mobile"), "Mobile contract only.");
+  const routes = [
+    { path: "/", selector: ".brand, a.text-link, .marketing-footer a" },
+    {
+      path: "/guide",
+      selector: ".wordmark, .product-guide > header a, .product-guide > footer a",
+    },
+    {
+      path: "/developers",
+      selector:
+        ".wordmark, .docs-layout > aside a, .developer-docs > footer a",
+    },
+  ];
+
+  for (const route of routes) {
+    await page.goto(route.path);
+    const undersized = await page.locator(route.selector).evaluateAll((items) =>
+      items
+        .map((item) => {
+          const bounds = item.getBoundingClientRect();
+          return {
+            label:
+              item.getAttribute("aria-label") ?? item.textContent?.trim() ?? "",
+            width: bounds.width,
+            height: bounds.height,
+          };
+        })
+        .filter(
+          (item) =>
+            item.width > 0 &&
+            item.height > 0 &&
+            (item.width < 44 || item.height < 44),
+        ),
+    );
+    expect(undersized, `${route.path} has undersized touch targets`).toEqual(
+      [],
+    );
+  }
+});

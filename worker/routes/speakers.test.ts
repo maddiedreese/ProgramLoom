@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { allowedUploadTypesForPurpose, assignAllFileTargets } from "./speakers";
+import {
+  allowedUploadTypesForPurpose,
+  assignAllFileTargets,
+  submittedTaskAssignmentStatement,
+} from "./speakers";
 
 describe("speaker file-request assignment", () => {
   it("keeps slide decks out of headshot version history", () => {
@@ -40,5 +44,29 @@ describe("speaker file-request assignment", () => {
     expect(observed.sql).toContain("MIN(s.id) AS submissionId");
     expect(observed.bindings).toEqual(["event-1"]);
     expect(result.results).toHaveLength(1);
+  });
+
+  it("clears an old completion timestamp when replacement work is submitted", () => {
+    const observed: { sql?: string; bindings?: unknown[] } = {};
+    const db = {
+      prepare(sql: string) {
+        observed.sql = sql;
+        return {
+          bind(...bindings: unknown[]) {
+            observed.bindings = bindings;
+            return this;
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    submittedTaskAssignmentStatement(db, {
+      taskId: "task-1",
+      speakerId: "speaker-1",
+      responseJson: '{"version":2}',
+    });
+
+    expect(observed.sql).toContain("completed_at=NULL");
+    expect(observed.bindings).toEqual(['{"version":2}', "task-1", "speaker-1"]);
   });
 });

@@ -9653,4 +9653,43 @@ input {
   .button-large {
     min-height: 51px;
   }
+  select,
+  .wordmark,
+  .brand,
+  .skip-link:focus,
+  .event-card a,
+  .event-page-guide a,
+  .control-room-story ol a,
+  .agenda-move-card a,
+  .widget-links a,
+  a.text-link,
+  .docs-layout > aside a,
+  .product-guide > header a,
+  .product-guide > footer a,
+  .developer-docs > header a,
+  .developer-docs > footer a,
+  .widget-header > a,
+  .legal-footer a,
+  .marketing-footer a {
+    min-height: 44px;
+  }
+  .wordmark,
+  .brand,
+  .event-card a,
+  .event-page-guide a,
+  .control-room-story ol a,
+  .agenda-move-card a,
+  .widget-links a,
+  a.text-link,
+  .docs-layout > aside a,
+  .product-guide > header a,
+  .product-guide > footer a,
+  .developer-docs > header a,
+  .developer-docs > footer a,
+  .widget-header > a,
+  .legal-footer a,
+  .marketing-footer a {
+    display: inline-flex;
+    align-items: center;
+  }
 }

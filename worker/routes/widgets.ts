@@ -13,6 +13,11 @@ type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const organizerRoles = ["owner", "admin"] as const;
 
+export const publicSpeakerAgendaJoin =
+  "JOIN agenda_items publishedAgenda ON publishedAgenda.submission_id=s.id AND publishedAgenda.event_id=s.event_id AND publishedAgenda.status='published' AND publishedAgenda.cancelled_at IS NULL";
+export const publicAgendaSessionEligibility =
+  "(a.submission_id IS NULL OR (s.status='accepted' AND cs.status='approved'))";
+
 export function widgetRemovalStatements(
   db: D1Database,
   input: {
@@ -87,7 +92,13 @@ async function widgetData(db: D1Database, eventId: string) {
       .first(),
     db
       .prepare(
-        "SELECT id,name,slug,color,description FROM tracks WHERE event_id=? ORDER BY position,name",
+        `SELECT DISTINCT t.id,t.name,t.slug,t.color,t.description,t.position
+         FROM tracks t JOIN agenda_items a ON a.track_id=t.id
+         LEFT JOIN submissions s ON s.id=a.submission_id AND s.event_id=a.event_id
+         LEFT JOIN session_content_state cs ON cs.submission_id=a.submission_id
+         WHERE t.event_id=? AND a.status='published' AND a.cancelled_at IS NULL
+           AND ${publicAgendaSessionEligibility}
+         ORDER BY t.position,t.name`,
       )
       .bind(eventId)
       .all(),
@@ -110,7 +121,7 @@ async function widgetData(db: D1Database, eventId: string) {
       .all(),
     db
       .prepare(
-        `SELECT DISTINCT sp.id,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.headshot_key AS headshotKey,sp.social_json AS socialJson FROM speaker_profiles sp JOIN session_speakers ss ON ss.speaker_id=sp.id JOIN submissions s ON s.id=ss.submission_id JOIN session_content_state cs ON cs.submission_id=s.id AND cs.status='approved' WHERE s.event_id=? AND s.status='accepted' ORDER BY sp.last_name,sp.first_name`,
+        `SELECT DISTINCT sp.id,sp.first_name AS firstName,sp.last_name AS lastName,sp.pronouns,sp.job_title AS jobTitle,sp.company,sp.bio,sp.headshot_key AS headshotKey,sp.social_json AS socialJson FROM speaker_profiles sp JOIN session_speakers ss ON ss.speaker_id=sp.id JOIN submissions s ON s.id=ss.submission_id JOIN session_content_state cs ON cs.submission_id=s.id AND cs.status='approved' ${publicSpeakerAgendaJoin} WHERE s.event_id=? AND s.status='accepted' ORDER BY sp.last_name,sp.first_name`,
       )
       .bind(eventId)
       .all(),
@@ -121,10 +132,10 @@ async function widgetData(db: D1Database, eventId: string) {
                 CASE WHEN a.submission_id IS NOT NULL THEN s.abstract ELSE a.description END AS description,
                 a.starts_at AS startsAt,a.ends_at AS endsAt,a.status,r.id AS roomId,r.name AS roomName,t.name AS trackName,t.color AS trackColor
          FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id
-         LEFT JOIN submissions s ON s.id=a.submission_id
+         LEFT JOIN submissions s ON s.id=a.submission_id AND s.event_id=a.event_id
          LEFT JOIN session_content_state cs ON cs.submission_id=a.submission_id
          WHERE a.event_id=? AND a.status='published' AND a.cancelled_at IS NULL
-           AND (a.submission_id IS NULL OR cs.status='approved')
+           AND ${publicAgendaSessionEligibility}
          ORDER BY a.starts_at,title`,
       )
       .bind(eventId)
@@ -377,7 +388,12 @@ router.get(
       );
     const speaker = await database(context.env)
       .prepare(
-        "SELECT sp.headshot_key AS headshotKey FROM speaker_profiles sp JOIN session_speakers ss ON ss.speaker_id=sp.id JOIN submissions s ON s.id=ss.submission_id WHERE sp.id=? AND s.event_id=? AND s.status='accepted' LIMIT 1",
+        `SELECT sp.headshot_key AS headshotKey FROM speaker_profiles sp
+         JOIN session_speakers ss ON ss.speaker_id=sp.id
+         JOIN submissions s ON s.id=ss.submission_id
+         JOIN session_content_state cs ON cs.submission_id=s.id AND cs.status='approved'
+         ${publicSpeakerAgendaJoin}
+         WHERE sp.id=? AND s.event_id=? AND s.status='accepted' LIMIT 1`,
       )
       .bind(context.req.param("speakerId"), context.req.param("eventId"))
       .first<{ headshotKey: string | null }>();

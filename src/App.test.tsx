@@ -20,6 +20,15 @@ describe("ProgramLoom application", () => {
     expect(titleForPath("/app/events/event-1/communications")).toBe(
       "Communications Center — ProgramLoom",
     );
+    expect(titleForPath("/app/events/event-1/submissions/submission-1")).toBe(
+      "Proposal details — ProgramLoom",
+    );
+    expect(titleForPath("/oauth/authorize")).toBe(
+      "Authorize application — ProgramLoom",
+    );
+    expect(titleForPath("/action/submission-edit")).toBe(
+      "Edit proposal — ProgramLoom",
+    );
     expect(titleForPath("/not-a-real-page")).toBe(
       "Page not found — ProgramLoom",
     );

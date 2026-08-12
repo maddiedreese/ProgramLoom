@@ -27,6 +27,19 @@ type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const organizerRoles = ["owner", "admin"] as const;
 
+export function demoteAgendaForUnapprovedContentStatement(
+  db: D1Database,
+  submissionId: string,
+  eventId: string,
+) {
+  return db
+    .prepare(
+      `UPDATE agenda_items SET status='draft',version=version+1,updated_at=CURRENT_TIMESTAMP
+       WHERE submission_id=? AND event_id=? AND cancelled_at IS NULL AND status='published'`,
+    )
+    .bind(submissionId, eventId);
+}
+
 const sessionSchema = z.object({
   title: z.string().trim().min(2).max(300),
   abstract: z.string().trim().max(20_000),
@@ -54,9 +67,7 @@ const remixSchema = z.object({
   objective: z.enum(["clarity", "concise", "tone"]).default("clarity"),
 });
 
-export function uniqueCurrentExportRows<T extends { id: string }>(
-  rows: T[],
-) {
+export function uniqueCurrentExportRows<T extends { id: string }>(rows: T[]) {
   const seen = new Set<string>();
   return rows.filter((row) => {
     if (seen.has(row.id)) return false;
@@ -277,6 +288,14 @@ router.patch(
           .bind(input.title, input.abstract, current.id, eventId),
       );
     }
+    if (
+      !contentChanged &&
+      current.contentStatus !== input.contentStatus &&
+      input.contentStatus !== "approved"
+    )
+      statements.push(
+        demoteAgendaForUnapprovedContentStatement(db, current.id, eventId),
+      );
     statements.push(
       db
         .prepare(

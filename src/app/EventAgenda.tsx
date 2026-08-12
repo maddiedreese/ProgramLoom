@@ -282,13 +282,19 @@ export function EventAgenda({ user }: { user: User }) {
     });
   }, [view, selectedDay, trackFilter, roomFilter]);
 
-  async function act(operation: () => Promise<unknown>, message: string) {
+  async function act<T>(
+    operation: () => Promise<T>,
+    message: string | ((result: T) => string),
+  ) {
     setBusy(true);
     setFeedback(undefined);
     try {
-      await operation();
+      const result = await operation();
       await load();
-      setFeedback({ kind: "success", message });
+      setFeedback({
+        kind: "success",
+        message: typeof message === "function" ? message(result) : message,
+      });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -624,11 +630,22 @@ export function EventAgenda({ user }: { user: User }) {
   async function publish() {
     await act(
       () =>
-        api(`/api/agenda/admin/events/${eventId}/publish`, {
-          method: "POST",
-          body: "{}",
-        }),
-      "Agenda published and the event is active. Public views now use this schedule; next, verify the five attendee widgets.",
+        api<{ published: number; excluded: number; calendarFailures: number }>(
+          `/api/agenda/admin/events/${eventId}/publish`,
+          {
+            method: "POST",
+            body: "{}",
+          },
+        ),
+      (result) => {
+        const excluded = result.excluded
+          ? ` ${result.excluded} unapproved ${result.excluded === 1 ? "item remains" : "items remain"} private and in draft.`
+          : "";
+        const calendar = result.calendarFailures
+          ? ` ${result.calendarFailures} calendar ${result.calendarFailures === 1 ? "update needs" : "updates need"} attention.`
+          : "";
+        return `${result.published} approved ${result.published === 1 ? "item is" : "items are"} now public.${excluded}${calendar} Next, verify the five attendee widgets.`;
+      },
     );
   }
 
