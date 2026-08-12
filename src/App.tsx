@@ -815,12 +815,14 @@ function EntryPage({ mode }: { mode: "login" | "register" }) {
               <input autoComplete="email" name="email" type="email" required />
             </label>
             {turnstileSiteKey && (
-              <Turnstile
-                siteKey={turnstileSiteKey}
-                onSuccess={setTurnstileToken}
-                onExpire={() => setTurnstileToken(undefined)}
-                options={{ theme: "light" }}
-              />
+              <div className="turnstile-slot" data-visual-dynamic>
+                <Turnstile
+                  siteKey={turnstileSiteKey}
+                  onSuccess={setTurnstileToken}
+                  onExpire={() => setTurnstileToken(undefined)}
+                  options={{ theme: "light" }}
+                />
+              </div>
             )}
             {status && (
               <div

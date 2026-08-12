@@ -28,11 +28,15 @@ for (const [name, route] of [
     await expect(page.locator("body")).toBeVisible();
     await expect(page.getByText("Loading ProgramLoom…")).toHaveCount(0);
     if (!snapshotProject(testInfo.project.name)) return;
-    await expect(page).toHaveScreenshot(`${name}-${testInfo.project.name}.png`, {
-      animations: "disabled",
-      fullPage: true,
-      caret: "hide",
-    });
+    await expect(page).toHaveScreenshot(
+      `${name}-${testInfo.project.name}.png`,
+      {
+        animations: "disabled",
+        fullPage: true,
+        caret: "hide",
+        mask: [page.locator("[data-visual-dynamic]")],
+      },
+    );
   });
 }
 
