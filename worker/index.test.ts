@@ -58,7 +58,47 @@ describe("ProgramLoom Worker", () => {
     );
     expect(response.status).toBe(404);
     expect(await response.text()).toBe("help not found");
-    expect(requestedPaths).toEqual(["/help/not-real", "/help/404.html"]);
+    expect(requestedPaths).toEqual([
+      "/help/not-real",
+      "/help/not-real.html",
+      "/help/404.html",
+    ]);
+  });
+
+  it("serves generated help pages through clean human-facing URLs", async () => {
+    const requestedPaths: string[] = [];
+    const response = await app.request(
+      "/help/getting-started",
+      {},
+      {
+        ...env,
+        ASSETS: {
+          fetch: (request: Request) => {
+            const path = new URL(request.url).pathname;
+            requestedPaths.push(path);
+            return Promise.resolve(
+              path === "/help/getting-started.html"
+                ? new Response("getting started", {
+                    headers: { "content-type": "text/html" },
+                  })
+                : new Response("missing", { status: 404 }),
+            );
+          },
+        },
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("getting started");
+    expect(requestedPaths).toEqual([
+      "/help/getting-started",
+      "/help/getting-started.html",
+    ]);
+  });
+
+  it("normalizes the help entry point to its canonical trailing slash", async () => {
+    const response = await app.request("/help", {}, env);
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe("/help/");
   });
 
   it("does not serve the application shell for a missing hashed asset", async () => {

@@ -8,6 +8,9 @@ const externalServer = process.env.PROGRAMLOOM_E2E_EXTERNAL_SERVER === "1";
 
 export default defineConfig({
   testDir: "./e2e",
+  // The help center is a generated static site and has its own config/server.
+  // `npm run test:e2e:help` builds it before running the complete route matrix.
+  testIgnore: "help.spec.ts",
   outputDir: "test-results/playwright",
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),

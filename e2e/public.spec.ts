@@ -39,3 +39,38 @@ test("developer machine-readable references are public and versioned", async ({
     info: { name: "ProgramLoom v1" },
   });
 });
+
+test("shared calls to action retain readable spacing and contrast", async ({
+  page,
+}) => {
+  await page.goto("/guide");
+  const guideButton = page.getByRole("link", { name: "Open ProgramLoom" });
+  await expect(guideButton).toBeVisible();
+  const guideStyle = await guideButton.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      color: style.color,
+      height: element.getBoundingClientRect().height,
+      paddingInline: Number.parseFloat(style.paddingInlineStart),
+    };
+  });
+  expect(guideStyle.color).toBe("rgb(255, 255, 255)");
+  expect(guideStyle.height).toBeGreaterThanOrEqual(38);
+  expect(guideStyle.paddingInline).toBeGreaterThanOrEqual(14);
+
+  const largeButton = page.getByRole("link", {
+    name: "Understand the workflow",
+  });
+  await expect(largeButton).toBeVisible();
+  const largeStyle = await largeButton.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      color: style.color,
+      height: element.getBoundingClientRect().height,
+      paddingInline: Number.parseFloat(style.paddingInlineStart),
+    };
+  });
+  expect(largeStyle.color).toBe("rgb(255, 255, 255)");
+  expect(largeStyle.height).toBeGreaterThanOrEqual(51);
+  expect(largeStyle.paddingInline).toBeGreaterThanOrEqual(19);
+});

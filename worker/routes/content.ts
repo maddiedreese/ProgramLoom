@@ -6,6 +6,10 @@ import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
 import { randomToken, sha256 } from "../lib/crypto";
+import {
+  collapseRepeatedFullName,
+  normalizeStoredNameParts,
+} from "../lib/humanNames";
 import { syncAgendaCalendarInvitations } from "../lib/calendarLifecycle";
 import {
   enqueueCommunication,
@@ -49,6 +53,17 @@ const exportSchema = z.object({
 const remixSchema = z.object({
   objective: z.enum(["clarity", "concise", "tone"]).default("clarity"),
 });
+
+export function uniqueCurrentExportRows<T extends { r2Key: string }>(
+  rows: T[],
+) {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    if (seen.has(row.r2Key)) return false;
+    seen.add(row.r2Key);
+    return true;
+  });
+}
 
 router.get("/admin/events/:eventId", async (context) => {
   const eventId = context.req.param("eventId");
@@ -107,12 +122,15 @@ router.get("/admin/events/:eventId", async (context) => {
           `SELECT f.id,f.task_id AS taskId,f.submission_id AS submissionId,
                   s.title AS sessionTitle,f.speaker_id AS speakerId,
                   sp.first_name||' '||sp.last_name AS speakerName,f.purpose,f.status,
-                  fv.filename,fv.size_bytes AS sizeBytes,fv.created_at AS uploadedAt,
+                  CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.filename,fv.filename) ELSE fv.filename END AS filename,
+                  CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.size_bytes,fv.size_bytes) ELSE fv.size_bytes END AS sizeBytes,
+                  CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.created_at,fv.created_at) ELSE fv.created_at END AS uploadedAt,
                   (SELECT COUNT(*) FROM file_versions allv WHERE allv.file_id=f.id) AS versionCount
            FROM files f
            JOIN speaker_profiles sp ON sp.id=f.speaker_id
            LEFT JOIN submissions s ON s.id=f.submission_id
            LEFT JOIN file_versions fv ON fv.id=f.current_version_id
+           LEFT JOIN file_versions hfv ON hfv.file_id=f.id AND hfv.r2_key=sp.headshot_key
            WHERE f.event_id=? ORDER BY COALESCE(fv.created_at,f.created_at) DESC`,
         )
         .bind(eventId)
@@ -129,6 +147,7 @@ router.get("/admin/events/:eventId", async (context) => {
     sessions: sessions.results,
     speakers: speakers.results.map((speaker: Record<string, unknown>) => ({
       ...speaker,
+      ...normalizeStoredNameParts(speaker.firstName, speaker.lastName),
       logistics: speaker.logisticsJson
         ? JSON.parse(String(speaker.logisticsJson))
         : {},
@@ -138,8 +157,16 @@ router.get("/admin/events/:eventId", async (context) => {
         ? `/api/widgets/public/events/${eventId}/speakers/${speaker.id}/headshot`
         : null,
     })),
-    assignments: assignments.results,
-    files: files.results,
+    assignments: assignments.results.map(
+      (assignment: Record<string, unknown>) => ({
+        ...assignment,
+        speakerName: collapseRepeatedFullName(String(assignment.speakerName)),
+      }),
+    ),
+    files: files.results.map((file: Record<string, unknown>) => ({
+      ...file,
+      speakerName: collapseRepeatedFullName(String(file.speakerName)),
+    })),
     exports: exports.results,
   });
 });
@@ -803,10 +830,15 @@ router.post(
     const placeholders = input.fileIds.map(() => "?").join(",");
     const rows = await db
       .prepare(
-        `SELECT f.id,fv.r2_key AS r2Key,fv.filename,fv.size_bytes AS sizeBytes,
+        `SELECT f.id,f.purpose,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.r2_key,sp.headshot_key,fv.r2_key) ELSE fv.r2_key END AS r2Key,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.filename,'speaker-headshot') ELSE fv.filename END AS filename,
+              CASE WHEN f.purpose='Speaker headshot' THEN COALESCE(hfv.size_bytes,fv.size_bytes) ELSE fv.size_bytes END AS sizeBytes,
               s.title AS sessionTitle,sp.first_name||' '||sp.last_name AS speakerName
-       FROM files f JOIN file_versions fv ON fv.id=f.current_version_id
-       JOIN speaker_profiles sp ON sp.id=f.speaker_id LEFT JOIN submissions s ON s.id=f.submission_id
+       FROM files f JOIN speaker_profiles sp ON sp.id=f.speaker_id
+       LEFT JOIN file_versions fv ON fv.id=f.current_version_id
+       LEFT JOIN file_versions hfv ON hfv.file_id=f.id AND hfv.r2_key=sp.headshot_key
+       LEFT JOIN submissions s ON s.id=f.submission_id
        WHERE f.event_id=? AND f.id IN (${placeholders})`,
       )
       .bind(eventId, ...input.fileIds)
@@ -817,6 +849,7 @@ router.post(
         sizeBytes: number;
         sessionTitle: string | null;
         speakerName: string;
+        purpose: string;
       }>();
     if (rows.results.length !== new Set(input.fileIds).size)
       throw new HttpError(
@@ -824,7 +857,8 @@ router.post(
         "invalid_files",
         "Every selected file must be uploaded in this event.",
       );
-    const total = rows.results.reduce(
+    const exportRows = uniqueCurrentExportRows(rows.results);
+    const total = exportRows.reduce(
       (sum, row) => sum + Number(row.sizeBytes),
       0,
     );
@@ -849,7 +883,7 @@ router.post(
       .run();
     try {
       const entries: Record<string, Uint8Array> = {};
-      for (const row of rows.results) {
+      for (const row of exportRows) {
         const object = await context.env.FILES.get(row.r2Key);
         if (!object)
           throw new Error(`${row.filename} is missing from storage.`);
@@ -882,7 +916,8 @@ router.post(
             id: exportId,
             status: "ready",
             grouping: input.grouping,
-            fileCount: rows.results.length,
+            fileCount: exportRows.length,
+            duplicateSelectionCount: rows.results.length - exportRows.length,
             sizeBytes: archive.byteLength,
             downloadUrl: `/api/content/admin/events/${eventId}/exports/${exportId}/download`,
           },

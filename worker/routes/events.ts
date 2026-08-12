@@ -14,6 +14,7 @@ import {
   enqueueCommunication,
   prepareCommunicationStatement,
 } from "../lib/communications";
+import { humanNameParts } from "../lib/humanNames";
 import { syncAgendaCalendarInvitations } from "../lib/calendarLifecycle";
 import { renderSimpleTransactionalEmail } from "../lib/email";
 import {
@@ -786,6 +787,15 @@ router.patch(
       )
       .bind(...fields.map(([, value]) => value), formId)
       .run();
+    const activatedEvent =
+      input.published === true
+        ? await db
+            .prepare(
+              "UPDATE events SET status='active',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='draft'",
+            )
+            .bind(eventId)
+            .run()
+        : null;
     await auditStatement(db, {
       organizationId: access.organizationId,
       eventId,
@@ -801,6 +811,18 @@ router.patch(
       after: input,
       requestId: context.get("requestId"),
     }).run();
+    if (activatedEvent?.meta.changes)
+      await auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "event.activated_by_cfp_publication",
+        entityType: "event",
+        entityId: eventId,
+        before: { status: "draft" },
+        after: { status: "active", reason: "cfp_published" },
+        requestId: context.get("requestId"),
+      }).run();
     const form = await db
       .prepare(`${formSelect()} WHERE f.id = ? GROUP BY f.id`)
       .bind(formId)
@@ -1687,7 +1709,7 @@ router.post(
             speakerId = existingSpeaker?.id ?? crypto.randomUUID();
             speakerByEmail.set(email, speakerId);
           }
-          const nameParts = participant.name.trim().split(/\s+/);
+          const nameParts = humanNameParts(participant.name);
           deliveryStatements.push(
             db
               .prepare(
@@ -1697,8 +1719,8 @@ router.post(
                 speakerId,
                 event.organizationId,
                 email,
-                nameParts[0] || participant.name,
-                nameParts.slice(1).join(" ") || "—",
+                nameParts.firstName,
+                nameParts.lastName,
                 participant.organization,
               ),
             db

@@ -26,8 +26,7 @@ import developerApiRoutes from "./routes/developer-api";
 import developerOauthRoutes, { oauthMetadata } from "./routes/developer-oauth";
 import {
   cleanupNotificationRetention,
-  createOverdueTaskNotifications,
-  dispatchNotificationEmails,
+  createOverdueTaskNotificationsAndDispatchEmails,
 } from "./lib/notifications";
 import {
   beginAirtableReconciliation,
@@ -216,6 +215,8 @@ app.get("/embed/:publicKey", async (context) => {
   });
 });
 
+app.get("/help", (context) => context.redirect("/help/", 308));
+
 app.get("/assets/*", async (context) => {
   const asset = await context.env.ASSETS.fetch(context.req.raw);
   if (!asset.ok || asset.headers.get("content-type")?.includes("text/html")) {
@@ -243,7 +244,24 @@ app.notFound(async (context) => {
       404,
     );
   }
-  const asset = await context.env.ASSETS.fetch(context.req.raw);
+  let asset = await context.env.ASSETS.fetch(context.req.raw);
+  if (context.req.path.startsWith("/help/") && !asset.ok) {
+    const path = context.req.path;
+    const cleanHelpAssetPath = path.endsWith("/")
+      ? `${path}index.html`
+      : /\.[a-z0-9]+$/i.test(path)
+        ? null
+        : `${path}.html`;
+    if (cleanHelpAssetPath) {
+      const cleanHelpAssetUrl = new URL(cleanHelpAssetPath, context.req.url);
+      const cleanHelpAsset = await context.env.ASSETS.fetch(
+        new Request(cleanHelpAssetUrl, {
+          headers: context.req.raw.headers,
+        }),
+      );
+      if (cleanHelpAsset.ok) asset = cleanHelpAsset;
+    }
+  }
   if (context.req.path.startsWith("/help/") && !asset.ok) {
     const helpNotFoundUrl = new URL("/help/404.html", context.req.url);
     const helpNotFound = await context.env.ASSETS.fetch(
@@ -372,13 +390,8 @@ const worker: ExportedHandler<Env, ProgramLoomJob> = {
       ),
     );
     context.waitUntil(
-      observeOperation("notification_email_dispatch", () =>
-        dispatchNotificationEmails(env),
-      ),
-    );
-    context.waitUntil(
-      observeOperation("overdue_task_notifications", () =>
-        createOverdueTaskNotifications(env),
+      observeOperation("overdue_task_notifications_and_email_dispatch", () =>
+        createOverdueTaskNotificationsAndDispatchEmails(env),
       ),
     );
     if (event.cron === "0 3 * * *") {

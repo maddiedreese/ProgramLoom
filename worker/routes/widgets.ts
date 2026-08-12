@@ -4,6 +4,10 @@ import { z } from "zod";
 import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
+import {
+  collapseRepeatedFullName,
+  normalizeStoredNameParts,
+} from "../lib/humanNames";
 
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -137,11 +141,12 @@ async function widgetData(db: D1Database, eventId: string) {
         ? String(session.speakerIds).split(",")
         : [],
       speakerNames: session.speakerNames
-        ? String(session.speakerNames).split(",")
+        ? String(session.speakerNames).split(",").map(collapseRepeatedFullName)
         : [],
     })),
     speakers: speakers.results.map((speaker: Record<string, unknown>) => ({
       ...speaker,
+      ...normalizeStoredNameParts(speaker.firstName, speaker.lastName),
       social: JSON.parse(String(speaker.socialJson ?? "{}")),
       socialJson: undefined,
       headshotUrl: speaker.headshotKey

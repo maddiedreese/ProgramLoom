@@ -4,6 +4,10 @@ import { z } from "zod";
 import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
 import { database, HttpError, requireEventRole } from "../lib/authz";
+import {
+  collapseRepeatedFullName,
+  normalizeStoredNameParts,
+} from "../lib/humanNames";
 import { syncAgendaCalendarInvitations } from "../lib/calendarLifecycle";
 import {
   logOperationalEvent,
@@ -169,14 +173,17 @@ async function eventData(db: D1Database, eventId: string) {
     event,
     tracks: tracks.results,
     rooms: rooms.results,
-    speakers: speakers.results,
+    speakers: speakers.results.map((speaker: Record<string, unknown>) => ({
+      ...speaker,
+      ...normalizeStoredNameParts(speaker.firstName, speaker.lastName),
+    })),
     sessions: sessions.results.map((session: Record<string, unknown>) => ({
       ...session,
       speakerIds: session.speakerIds
         ? String(session.speakerIds).split(",")
         : [],
       speakerNames: session.speakerNames
-        ? String(session.speakerNames).split(",")
+        ? String(session.speakerNames).split(",").map(collapseRepeatedFullName)
         : [],
     })),
     items: items.results,

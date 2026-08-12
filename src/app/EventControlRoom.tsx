@@ -110,7 +110,6 @@ const categories = [
 const resolvable = new Set([
   "submissions_new",
   "review_conflicts",
-  "schedule_conflicts",
   "integration_failures",
 ]);
 
@@ -607,9 +606,7 @@ export function EventControlRoom({ user }: { user: User }) {
                             ? "Mark triaged"
                             : issue.category === "integration_failures"
                               ? "Acknowledge"
-                              : issue.category === "schedule_conflicts"
-                                ? "Resolve conflict"
-                                : "Resolve"}
+                              : "Resolve"}
                         </button>
                       )}
                   </div>

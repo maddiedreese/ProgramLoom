@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateScorecard,
   parseAiAssessmentResponse,
+  reviewResultsCsv,
   safeReviewSpreadsheetText,
 } from "./reviews";
 
@@ -41,6 +42,22 @@ describe("review scorecard evaluation", () => {
       '\'=HYPERLINK("bad")',
     );
     expect(safeReviewSpreadsheetText("Normal title")).toBe("Normal title");
+  });
+
+  it("exports durable progress, score, and recommendation evidence", () => {
+    const csv = reviewResultsCsv([
+      {
+        title: "Taming CI",
+        assignmentCount: 2,
+        completedCount: 2,
+        aggregateScore: 3.25,
+        recommendations: "approve; maybe",
+      },
+    ]);
+    expect(csv).toContain('"Review status"');
+    expect(csv).toContain('"Recommendations"');
+    expect(csv).toContain('"Complete"');
+    expect(csv).toContain('"approve; maybe"');
   });
 
   it("computes a weighted mean across numeric and scored select fields", () => {

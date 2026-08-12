@@ -105,7 +105,14 @@ export async function dispatchNotificationEmails(env: Env) {
             AND np.user_id=n.recipient_user_id AND np.category=n.category),
          (SELECT email_enabled FROM notification_preferences np
           WHERE np.organization_id=n.organization_id AND np.event_id IS NULL
-            AND np.user_id=n.recipient_user_id AND np.category=n.category),0
+            AND np.user_id=n.recipient_user_id AND np.category=n.category),
+         CASE WHEN n.notification_type='task.overdue' AND EXISTS (
+           SELECT 1 FROM speaker_profiles sp
+           JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id
+           JOIN onboarding_tasks t ON t.id=sta.task_id
+           WHERE sp.user_id=n.recipient_user_id AND t.event_id=n.event_id
+             AND (t.id||':'||sp.id)=n.entity_id
+         ) THEN 1 ELSE 0 END
        )=1
        ORDER BY n.created_at,n.id LIMIT 50`,
   ).all<{
@@ -249,4 +256,12 @@ export async function createOverdueTaskNotifications(env: Env) {
     await env.DB.batch(statements);
   }
   return { createdFor: overdue.results.length };
+}
+
+export async function createOverdueTaskNotificationsAndDispatchEmails(
+  env: Env,
+) {
+  const notifications = await createOverdueTaskNotifications(env);
+  const emails = await dispatchNotificationEmails(env);
+  return { notifications, emails };
 }
