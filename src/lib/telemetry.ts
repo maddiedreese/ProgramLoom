@@ -14,6 +14,7 @@ export function initializeTelemetry() {
         autocapture: false,
         disable_session_recording: true,
         person_profiles: "identified_only",
+        request_batching: false,
         persistence: "localStorage+cookie",
         secure_cookie: import.meta.env.PROD,
       });
