@@ -196,6 +196,36 @@ function applicationHref(path: string) {
     : `https://app.programloom.com${path}`;
 }
 
+function NotFoundPage() {
+  return (
+    <div className="public-state-shell">
+      <main className="public-state-card" id="main-content">
+        <Link to="/" className="brand" aria-label="ProgramLoom home">
+          <Wordmark />
+        </Link>
+        <p className="kicker">Page not found</p>
+        <h1>This ProgramLoom page does not exist.</h1>
+        <p>
+          The link may be out of date, or the page may have moved. Return to
+          your workspace, browse public calls for proposals, or open the help
+          center.
+        </p>
+        <div className="hero-actions">
+          <a className="button" href={applicationHref("/app")}>
+            Return to workspace
+          </a>
+          <a className="button button-ghost" href={applicationHref("/cfp")}>
+            Browse CFPs
+          </a>
+          <a className="text-link" href="/help/">
+            Open help center
+          </a>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function MarketingPage() {
   return (
     <div className="site-shell">
@@ -688,7 +718,7 @@ export function App() {
             path="/app/events/:eventId/control-room"
             element={<AuthenticatedPage page="control-room" />}
           />
-          <Route path="*" element={<MarketingPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </>

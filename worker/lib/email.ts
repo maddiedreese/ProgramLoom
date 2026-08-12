@@ -246,13 +246,12 @@ export async function sendSubmissionConfirmation(
     }),
   });
   if (!response.ok) {
-    const detail = await response.text();
     console.error(
       JSON.stringify({
         level: "error",
         service: "resend",
         status: response.status,
-        detail: detail.slice(0, 500),
+        errorCode: "provider_rejected_request",
       }),
     );
     throw new Error("The confirmation email could not be sent.");
@@ -298,13 +297,12 @@ export async function sendDecision(
     }),
   });
   if (!response.ok) {
-    const detail = await response.text();
     console.error(
       JSON.stringify({
         level: "error",
         service: "resend",
         status: response.status,
-        detail: detail.slice(0, 500),
+        errorCode: "provider_rejected_request",
       }),
     );
     throw new Error("The decision email could not be sent.");
@@ -345,13 +343,12 @@ export async function sendCrmOutreach(
     }),
   });
   if (!response.ok) {
-    const detail = await response.text();
     console.error(
       JSON.stringify({
         level: "error",
         service: "resend",
         status: response.status,
-        detail: detail.slice(0, 500),
+        errorCode: "provider_rejected_request",
       }),
     );
     throw new Error("The outreach email could not be sent.");
@@ -397,14 +394,13 @@ export async function sendDeliverablesReminder(
     }),
   });
   if (!response.ok) {
-    const detail = await response.text();
     console.error(
       JSON.stringify({
         level: "error",
         service: "resend",
         operation: "deliverables_reminder",
         status: response.status,
-        detail: detail.slice(0, 500),
+        errorCode: "provider_rejected_request",
       }),
     );
     throw new Error("The deliverables reminder could not be sent.");

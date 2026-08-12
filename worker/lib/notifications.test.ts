@@ -36,5 +36,7 @@ describe("scheduled speaker reminders", () => {
     ]);
     expect(taskQuery).toContain("datetime('now','+24 hours')");
     expect(taskQuery).toContain("due_soon");
+    expect(taskQuery).toContain("communication_messages cm");
+    expect(taskQuery).toContain("cm.status IN ('prepared','failed')");
   });
 });

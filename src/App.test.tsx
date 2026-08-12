@@ -1,10 +1,13 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("ProgramLoom application", () => {
   it("presents the core program workflow", () => {
@@ -118,5 +121,26 @@ describe("ProgramLoom application", () => {
       "href",
       "/c/devflow-programs/devflow-conf-2027/main-call-for-proposals",
     );
+  });
+
+  it("explains unknown routes instead of silently showing the marketing page", () => {
+    render(
+      <MemoryRouter initialEntries={["/app/events/missing/unrecognized"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.getByRole("heading", {
+        name: /this programloom page does not exist/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /return to workspace/i }),
+    ).toHaveAttribute("href", "/app");
+    expect(
+      screen.queryByRole("heading", {
+        name: /turn session ideas into a schedule people can trust/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 });

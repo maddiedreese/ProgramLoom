@@ -48,6 +48,7 @@ import {
   processDeveloperWebhook,
   queueDeveloperWebhookAudits,
 } from "./lib/developerPlatform";
+import { safeOperationalError } from "./lib/operations";
 
 type Variables = { requestId: string };
 
@@ -76,8 +77,7 @@ app.use("/api/*", async (context, next) => {
         level: "error",
         service: "airtable_outbox",
         requestId: context.get("requestId"),
-        message:
-          error instanceof Error ? error.message : "Outbox dispatch failed.",
+        message: safeOperationalError(error),
       }),
     );
   }
@@ -89,8 +89,7 @@ app.use("/api/*", async (context, next) => {
         level: "error",
         service: "developer_webhook_outbox",
         requestId: context.get("requestId"),
-        message:
-          error instanceof Error ? error.message : "Webhook queueing failed.",
+        message: safeOperationalError(error),
       }),
     );
   }
@@ -315,7 +314,7 @@ app.onError((error, context) => {
       requestId: context.get("requestId"),
       method: context.req.method,
       path: context.req.path,
-      message: error.message,
+      message: safeOperationalError(error),
     }),
   );
   return context.json(
@@ -429,8 +428,7 @@ function logOperationalError(error: unknown, fields: Record<string, string>) {
       level: "error",
       service: "programloom",
       ...fields,
-      message:
-        error instanceof Error ? error.message : "Operational task failed.",
+      message: safeOperationalError(error),
     }),
   );
 }

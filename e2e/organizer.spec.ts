@@ -25,9 +25,17 @@ test.describe("authenticated organizer operations", () => {
       },
       { path: "submissions", heading: "Find and move proposals forward." },
       {
+        path: "reviews",
+        heading: "Assign reviewers and complete evaluations.",
+      },
+      { path: "speakers", heading: "Get every speaker ready." },
+      { path: "content", heading: "Review what speakers submit." },
+      { path: "agenda", heading: "Schedule sessions without conflicts." },
+      {
         path: "calendar",
         heading: "Send invitations that update instead of duplicate.",
       },
+      { path: "widgets", heading: "Publish a complete attendee experience." },
     ];
 
     for (const surface of surfaces) {
@@ -41,6 +49,19 @@ test.describe("authenticated organizer operations", () => {
       await expectNoHorizontalOverflow(page);
       await expectAccessible(page);
     }
+
+    const dashboardResponse = await page.goto("/app");
+    expect(dashboardResponse?.ok()).toBeTruthy();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page);
+
+    const crmResponse = await page.goto("/app/crm");
+    expect(crmResponse?.ok()).toBeTruthy();
+    await expect(
+      page.getByRole("heading", { name: "Speaker CRM overview", level: 1 }),
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectAccessible(page);
   });
 
   test("command palette and notifications are keyboard operable", async ({

@@ -24,7 +24,11 @@ const generalFileContentTypes = [
   "image/jpeg",
   "image/webp",
 ] as const;
-const imageFileContentTypes = ["image/png", "image/jpeg", "image/webp"] as const;
+const imageFileContentTypes = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+] as const;
 
 export function allowedUploadTypesForPurpose(
   purpose: string,
@@ -1648,8 +1652,9 @@ router.post(
     const versionId = context.req.param("versionId");
     const version = await db
       .prepare(
-        `SELECT f.current_version_id AS currentVersionId,f.status,
-                fv.id,fv.filename,fv.version_number AS versionNumber
+        `SELECT f.current_version_id AS currentVersionId,f.status,f.purpose,
+                f.speaker_id AS speakerId,fv.id,fv.filename,fv.r2_key AS r2Key,
+                fv.version_number AS versionNumber
          FROM files f JOIN file_versions fv ON fv.file_id=f.id
          WHERE f.id=? AND f.event_id=? AND fv.id=?`,
       )
@@ -1657,8 +1662,11 @@ router.post(
       .first<{
         currentVersionId: string | null;
         status: string;
+        purpose: string;
+        speakerId: string | null;
         id: string;
         filename: string;
+        r2Key: string;
         versionNumber: number;
       }>();
     if (!version)
@@ -1672,12 +1680,22 @@ router.post(
         },
         restored: false,
       });
-    await db.batch([
+    const statements = [
       db
         .prepare(
           "UPDATE files SET current_version_id=?,status='submitted',updated_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=?",
         )
         .bind(versionId, fileId, eventId),
+    ];
+    if (version.speakerId && version.purpose.toLowerCase().includes("headshot"))
+      statements.push(
+        db
+          .prepare(
+            "UPDATE speaker_profiles SET headshot_key=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND organization_id=?",
+          )
+          .bind(version.r2Key, version.speakerId, access.organizationId),
+      );
+    statements.push(
       auditStatement(db, {
         organizationId: access.organizationId,
         eventId,
@@ -1689,12 +1707,14 @@ router.post(
         after: {
           currentVersionId: versionId,
           filename: version.filename,
+          r2Key: version.r2Key,
           versionNumber: version.versionNumber,
           status: "submitted",
         },
         requestId: context.get("requestId"),
       }),
-    ]);
+    );
+    await db.batch(statements);
     return context.json({
       file: { id: fileId, currentVersionId: versionId, status: "submitted" },
       restored: true,

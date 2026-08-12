@@ -12,6 +12,7 @@ import {
   requestHash,
 } from "../lib/developerPlatform";
 import { syncAgendaCalendarInvitations } from "../lib/calendarLifecycle";
+import { safeOperationalError } from "../lib/operations";
 
 type Variables = {
   requestId: string;
@@ -345,10 +346,7 @@ router.onError((error, context) => {
       requestId: context.get("requestId"),
       method: context.req.method,
       route: context.req.routePath || context.req.path,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Developer API request failed.",
+      message: safeOperationalError(error),
     }),
   );
   return apiError(

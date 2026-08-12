@@ -205,15 +205,25 @@ export async function createOverdueTaskNotifications(env: Env) {
     `SELECT t.id taskId,t.event_id eventId,t.organization_id organizationId,t.title,
        t.due_at dueAt,sta.speaker_id speakerId,sp.user_id speakerUserId,
        sp.email speakerEmail,TRIM(sp.first_name||' '||sp.last_name) speakerName,
-       CASE WHEN t.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'due_soon' END reminderPhase
+       CASE WHEN t.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'due_soon' END reminderPhase,
+       EXISTS (
+         SELECT 1 FROM notifications existing_notification
+         WHERE existing_notification.coalesce_key='task-'||CASE WHEN t.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'due-soon' END||':'||t.id||':'||sta.speaker_id
+           AND existing_notification.archived_at IS NULL
+       ) notificationExists
        FROM onboarding_tasks t JOIN speaker_task_assignments sta ON sta.task_id=t.id
        JOIN speaker_profiles sp ON sp.id=sta.speaker_id
+       LEFT JOIN communication_messages cm
+         ON cm.id='task-reminder:'||CASE WHEN t.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'due_soon' END||':'||t.id||':'||sta.speaker_id
        WHERE t.due_at IS NOT NULL AND t.due_at<=datetime('now','+24 hours')
        AND sta.status NOT IN ('submitted','complete')
-       AND NOT EXISTS (
-         SELECT 1 FROM notifications n
-           WHERE n.coalesce_key='task-'||CASE WHEN t.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'due-soon' END||':'||t.id||':'||sta.speaker_id
-           AND n.archived_at IS NULL
+       AND (
+         NOT EXISTS (
+           SELECT 1 FROM notifications n
+             WHERE n.coalesce_key='task-'||CASE WHEN t.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'due-soon' END||':'||t.id||':'||sta.speaker_id
+             AND n.archived_at IS NULL
+         )
+         OR (sp.user_id IS NULL AND (cm.id IS NULL OR cm.status IN ('prepared','failed')))
        ) ORDER BY t.due_at,t.id,sta.speaker_id LIMIT 50`,
   ).all<{
     taskId: string;
@@ -226,6 +236,7 @@ export async function createOverdueTaskNotifications(env: Env) {
     speakerEmail: string;
     speakerName: string;
     reminderPhase: "due_soon" | "overdue";
+    notificationExists: number;
   }>();
   for (const item of overdue.results) {
     const overdueNow = item.reminderPhase === "overdue";
@@ -267,7 +278,7 @@ export async function createOverdueTaskNotifications(env: Env) {
           coalesceKey,
         }),
       );
-    await env.DB.batch(statements);
+    if (!item.notificationExists) await env.DB.batch(statements);
     if (!item.speakerUserId) {
       const messageId = `task-reminder:${item.reminderPhase}:${item.taskId}:${item.speakerId}`;
       const actionUrl = new URL(
@@ -302,7 +313,13 @@ export async function createOverdueTaskNotifications(env: Env) {
         idempotencyKey: `task-reminder/${item.reminderPhase}/${item.taskId}/${item.speakerId}`,
         correlationId: `scheduled-task-reminder/${item.taskId}/${item.speakerId}`,
       }).run();
-      await enqueueCommunication(env, messageId);
+      try {
+        await enqueueCommunication(env, messageId);
+      } catch {
+        // enqueueCommunication persists a safe retryable state, an exhausted
+        // operational job, and an owner notification before it throws. Keep
+        // processing other reminders; the next schedule can retry this one.
+      }
     }
   }
   return { createdFor: overdue.results.length };

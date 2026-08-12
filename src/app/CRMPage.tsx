@@ -126,6 +126,11 @@ const tabs = [
   ["fields", "Fields", Settings2],
 ] as const;
 
+function tabHeading(activeTab: (typeof tabs)[number][0]) {
+  if (activeTab === "dashboard") return "Speaker CRM overview";
+  return tabs.find(([id]) => id === activeTab)?.[1] ?? "Speaker CRM";
+}
+
 async function api<T>(path: string, init?: RequestInit) {
   const response = await fetch(path, {
     credentials: "same-origin",
@@ -535,7 +540,7 @@ export function CRMPage({ user }: { user: User }) {
         <header className="crm-heading">
           <div>
             <p className="kicker">Organization-wide speaker database</p>
-            <h1>{tabs.find(([id]) => id === activeTab)?.[1]}</h1>
+            <h1>{tabHeading(activeTab)}</h1>
             <p>
               {selectedOrganization?.name} · one durable contact record across
               every event. Event links only choose where to add a speaker; they

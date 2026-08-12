@@ -111,7 +111,6 @@ router.get("/", zValidator("query", searchSchema), async (context) => {
       level: "info",
       service: "organizer_search",
       requestId: context.get("requestId"),
-      userId: user.id,
       eventScopeCount: scopes.length,
       resultCount: ranked.length,
       queryLength: input.q.length,

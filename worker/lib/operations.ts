@@ -192,6 +192,12 @@ export function logOperationalEvent(
 export function safeOperationalError(error: unknown) {
   const message = error instanceof Error ? error.message : "Operation failed.";
   return message
+    .replace(/https?:\/\/[^\s)\]}]+/gi, "[url]")
     .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, "[email]")
+    .replace(
+      /\b(bearer|token|secret|api[ _-]?key|authorization)\s*[:=]\s*[^\s,;]+/gi,
+      "$1=[redacted]",
+    )
+    .replace(/\b(?:sk|re|phc)_[A-Za-z0-9._-]{12,}\b/g, "[credential]")
     .slice(0, 500);
 }

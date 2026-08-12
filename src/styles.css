@@ -2018,10 +2018,23 @@ input {
   color: var(--moss-dark);
 }
 @media (max-width: 760px) {
+  button,
+  [role="button"],
+  .button,
+  .button-small {
+    min-height: 44px;
+  }
+  .button-large {
+    min-height: 51px;
+  }
   .workspace-shell {
-    grid-template-columns: 1fr;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
   }
   .workspace-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     position: static;
     height: auto;
     padding: 16px 20px;
@@ -2037,6 +2050,9 @@ input {
     display: none;
   }
   .workspace-main {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding: 30px 20px 70px;
   }
   .workspace-header {
@@ -3310,6 +3326,16 @@ input {
   .control-issue-actions select {
     max-width: none;
     width: 100%;
+  }
+}
+@media (max-width: 560px) {
+  .agenda-placement {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .agenda-placement > *,
+  .agenda-placement > div {
+    min-width: 0;
+    grid-column: 1;
   }
 }
 .event-heading {
@@ -9472,9 +9498,13 @@ input {
 }
 @media (max-width: 760px) {
   .crm-shell {
-    grid-template-columns: 1fr;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
   }
   .crm-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     position: static;
     height: auto;
     padding: 14px 17px;
@@ -9494,8 +9524,12 @@ input {
   }
   .crm-nav button {
     flex: 0 0 auto;
+    min-height: 44px;
   }
   .crm-main {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding: 27px 17px 65px;
   }
   .crm-heading {
@@ -9591,5 +9625,20 @@ input {
   }
   .interest-public-card {
     padding: 20px 16px;
+  }
+}
+
+/* Keep the mobile interaction contract last so component-specific rules do
+   not shrink pointer, touch, keyboard, or automation targets below WCAG's
+   recommended 44px size. */
+@media (max-width: 760px) {
+  button[class],
+  button:not([class]),
+  [role="button"][role="button"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .button-large {
+    min-height: 51px;
   }
 }

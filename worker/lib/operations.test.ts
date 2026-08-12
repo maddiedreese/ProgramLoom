@@ -31,5 +31,12 @@ describe("operational foundations", () => {
     expect(
       safeOperationalError(new Error("Delivery to person@example.com failed")),
     ).toBe("Delivery to [email] failed");
+    expect(
+      safeOperationalError(
+        new Error(
+          "POST https://provider.example/send?recipient=person@example.com token=private-value",
+        ),
+      ),
+    ).toBe("POST [url] token=[redacted]");
   });
 });

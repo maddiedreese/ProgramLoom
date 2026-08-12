@@ -10,6 +10,7 @@ import {
 import { randomToken, sha256 } from "../lib/crypto";
 import { renderSimpleTransactionalEmail } from "../lib/email";
 import { eventManagerNotificationStatement } from "../lib/notifications";
+import { safeOperationalError } from "../lib/operations";
 import { runReviewRouting } from "../lib/reviewRouting";
 import { verifyTurnstile } from "../lib/turnstile";
 
@@ -955,10 +956,7 @@ router.post(
             requestId: context.get("requestId"),
             eventId: form.eventId,
             submissionId,
-            message:
-              error instanceof Error
-                ? error.message
-                : "Automatic routing failed.",
+            message: safeOperationalError(error),
           }),
         );
       }

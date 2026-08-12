@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env";
 import { auditStatement } from "../lib/audit";
+import { safeOperationalError } from "../lib/operations";
 import {
   database,
   HttpError,
@@ -309,8 +310,7 @@ router.post(
           requestId: context.get("requestId"),
           organizationId,
           operationId,
-          message:
-            error instanceof Error ? error.message : "Event creation failed.",
+          message: safeOperationalError(error),
         }),
       );
       throw new HttpError(

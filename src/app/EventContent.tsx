@@ -1231,7 +1231,7 @@ export function EventContent({ user }: { user: User }) {
                   <div>
                     <strong>
                       Version {version.versionNumber}{" "}
-                      {version.isCurrent && <em>Latest</em>}
+                      {version.isCurrent && <em>Current</em>}
                     </strong>
                     <span>
                       {version.uploadedByName} · {version.filename}

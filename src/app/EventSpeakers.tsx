@@ -822,7 +822,8 @@ function SpeakerPortal({
                   <small>
                     {file.purpose.toLowerCase().includes("headshot")
                       ? "PNG, JPEG, or WebP image"
-                      : "PDF, PowerPoint, ZIP, PNG, JPEG, or WebP"} · 25 MB max
+                      : "PDF, PowerPoint, ZIP, PNG, JPEG, or WebP"}{" "}
+                    · 25 MB max
                   </small>
                 </div>
               </article>
@@ -866,7 +867,7 @@ function SpeakerPortal({
                   <div>
                     <strong>
                       Version {version.versionNumber}{" "}
-                      {version.isCurrent && <em>Latest</em>}
+                      {version.isCurrent && <em>Current</em>}
                     </strong>
                     <span>{version.uploadedByName}</span>
                     <small>
