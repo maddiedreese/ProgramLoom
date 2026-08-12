@@ -63,6 +63,12 @@ type CurrentSubmission = {
   coSubmitters: Submitter[];
   locked: boolean;
 };
+type OwnedSubmission = {
+  id: string;
+  title: string;
+  status: string;
+  updatedAt: string;
+};
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -124,6 +130,9 @@ export function PublicCfpPage() {
   const [submissionId, setSubmissionId] = useState<string>();
   const [coSubmitters, setCoSubmitters] = useState<Submitter[]>([]);
   const [status, setStatus] = useState<string>();
+  const [ownedSubmissions, setOwnedSubmissions] = useState<OwnedSubmission[]>(
+    [],
+  );
   const [locked, setLocked] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string>();
   const [signedIn, setSignedIn] = useState(false);
@@ -170,11 +179,13 @@ export function PublicCfpPage() {
       fields: Field[];
       conditions: Condition[];
       currentSubmission?: CurrentSubmission;
+      ownedSubmissions?: OwnedSubmission[];
     }>(definitionPath)
       .then(async (result) => {
         setForm(result.form);
         setFields(result.fields);
         setConditions(result.conditions);
+        setOwnedSubmissions(result.ownedSubmissions ?? []);
         const token =
           new URLSearchParams(window.location.hash.slice(1)).get("edit") ??
           undefined;
@@ -313,9 +324,40 @@ export function PublicCfpPage() {
 
   async function save(event: FormEvent, action: "draft" | "submit") {
     event.preventDefault();
-    setBusy(true);
     setFeedback(undefined);
     setFieldErrors({});
+    if (action === "submit") {
+      const errors: Record<string, string> = {};
+      if (submitter.name.trim().length < 2)
+        errors["submitter-name"] = "Enter your full name.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submitter.email.trim()))
+        errors["submitter-email"] = "Enter a valid email address.";
+      for (const field of fields.filter(
+        (candidate) => isVisible(candidate) && isRequired(candidate),
+      )) {
+        const value = answers[field.fieldKey];
+        if (
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          value === false ||
+          (Array.isArray(value) && value.length === 0)
+        )
+          errors[field.fieldKey] = `${field.label} is required.`;
+      }
+      if (Object.keys(errors).length) {
+        setFieldErrors(errors);
+        setFeedback({
+          kind: "error",
+          message: "Complete the highlighted fields before submitting.",
+        });
+        window.requestAnimationFrame(() => {
+          document.getElementById(Object.keys(errors)[0])?.focus();
+        });
+        return;
+      }
+    }
+    setBusy(true);
     try {
       const result = await api<{
         submission: { id: string; status: string };
@@ -339,6 +381,17 @@ export function PublicCfpPage() {
       setEditToken(result.editToken);
       setSubmissionId(result.submission.id);
       setStatus(result.submission.status);
+      setOwnedSubmissions((current) => [
+        {
+          id: result.submission.id,
+          title: String(
+            answers.session_title ?? answers.title ?? "Untitled draft",
+          ),
+          status: result.submission.status,
+          updatedAt: new Date().toISOString(),
+        },
+        ...current.filter((proposal) => proposal.id !== result.submission.id),
+      ]);
       window.history.replaceState(
         null,
         "",
@@ -525,6 +578,48 @@ export function PublicCfpPage() {
             {feedback.message}
           </div>
         )}
+        {signedIn && ownedSubmissions.length > 0 && (
+          <section
+            className="public-submission-next"
+            aria-labelledby="your-proposals-title"
+          >
+            <div>
+              <strong id="your-proposals-title">Your proposals</strong>
+              <span>
+                Open any saved draft or submitted proposal. Each proposal is
+                kept separately.
+              </span>
+            </div>
+            <div className="public-proposal-links">
+              {ownedSubmissions.map((proposal) => (
+                <a
+                  key={proposal.id}
+                  className={proposal.id === submissionId ? "active" : ""}
+                  aria-current={
+                    proposal.id === submissionId ? "page" : undefined
+                  }
+                  href={`${window.location.pathname}?submission=${encodeURIComponent(proposal.id)}`}
+                >
+                  <strong>{proposal.title || "Untitled draft"}</strong>
+                  <span>
+                    {proposal.status === "draft" ? "Draft" : "Submitted"} ·
+                    updated{" "}
+                    {new Intl.DateTimeFormat("en-US", {
+                      dateStyle: "medium",
+                    }).format(new Date(proposal.updatedAt))}
+                  </span>
+                </a>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={startAnotherProposal}
+            >
+              Start a separate proposal
+            </button>
+          </section>
+        )}
         {status === "pending" && !locked && (
           <section
             className="public-submission-next"
@@ -603,6 +698,13 @@ export function PublicCfpPage() {
                 <label>
                   Full name
                   <input
+                    id="submitter-name"
+                    aria-describedby={
+                      fieldErrors["submitter-name"]
+                        ? "submitter-name-error"
+                        : undefined
+                    }
+                    aria-invalid={Boolean(fieldErrors["submitter-name"])}
                     value={submitter.name}
                     onChange={(event) =>
                       setSubmitter((current) => ({
@@ -612,10 +714,22 @@ export function PublicCfpPage() {
                     }
                     required
                   />
+                  {fieldErrors["submitter-name"] && (
+                    <span id="submitter-name-error" className="field-error">
+                      {fieldErrors["submitter-name"]}
+                    </span>
+                  )}
                 </label>
                 <label>
                   Email address
                   <input
+                    id="submitter-email"
+                    aria-describedby={
+                      fieldErrors["submitter-email"]
+                        ? "submitter-email-error"
+                        : undefined
+                    }
+                    aria-invalid={Boolean(fieldErrors["submitter-email"])}
                     type="email"
                     value={submitter.email}
                     onChange={(event) =>
@@ -626,6 +740,11 @@ export function PublicCfpPage() {
                     }
                     required
                   />
+                  {fieldErrors["submitter-email"] && (
+                    <span id="submitter-email-error" className="field-error">
+                      {fieldErrors["submitter-email"]}
+                    </span>
+                  )}
                 </label>
                 <label className="wide">
                   Organization <small>Optional</small>

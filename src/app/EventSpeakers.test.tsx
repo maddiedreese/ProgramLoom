@@ -173,6 +173,7 @@ describe("speaker workspace", () => {
                   sessionCount: 1,
                   taskCount: 1,
                   completedTaskCount: 1,
+                  submittedTaskCount: 1,
                   fileRequestCount: 1,
                   approvedFileCount: 1,
                 },
@@ -238,6 +239,12 @@ describe("speaker workspace", () => {
       "href",
       `/app/crm?action=import-speakers&eventId=${eventId}`,
     );
+    expect(
+      screen.getByRole("link", { name: "Invite speaker" }),
+    ).toHaveAttribute(
+      "href",
+      `/app/events/${eventId}/communications?category=speaker_invitation`,
+    );
     expect(screen.getByRole("link", { name: "Add speaker" })).toHaveAttribute(
       "href",
       `/app/crm?action=add-speaker&eventId=${eventId}`,
@@ -255,6 +262,19 @@ describe("speaker workspace", () => {
       "src",
       `/api/speakers/admin/events/${eventId}/speakers/speaker-1/headshot`,
     );
+    expect(screen.getByText("Builds reliable programs.")).toBeVisible();
+    expect(screen.getByLabelText("Search speakers")).toBeVisible();
+    expect(screen.getAllByText("1/1").length).toBeGreaterThan(0);
+    expect(screen.getByText("tasks submitted or approved")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Search speakers"), {
+      target: { value: "someone else" },
+    });
+    expect(
+      screen.queryByText("Builds reliable programs."),
+    ).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Search speakers"), {
+      target: { value: "Priya" },
+    });
     expect(screen.getByText("Builds reliable programs.")).toBeVisible();
     expect(screen.getByLabelText("Filter speaker status")).toBeVisible();
     expect(screen.getByRole("button", { name: "Delete task" })).toBeVisible();

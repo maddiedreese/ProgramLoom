@@ -816,6 +816,7 @@ export function EventContent({ user }: { user: User }) {
                     <FileArchive size={22} />
                     <button
                       className="file-main"
+                      aria-label={`Open versions and comments for ${file.purpose} — ${file.sessionTitle || "General event file"} — ${file.speakerName}`}
                       onClick={() => openFile(file)}
                     >
                       <strong>{file.filename}</strong>
@@ -833,6 +834,7 @@ export function EventContent({ user }: { user: User }) {
                         · {file.versionCount}{" "}
                         {file.versionCount === 1 ? "version" : "versions"}
                       </small>
+                      <span className="text-link">Versions & comments</span>
                     </button>
                     <button
                       className="button button-small button-ghost"

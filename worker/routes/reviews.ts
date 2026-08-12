@@ -103,6 +103,57 @@ const aiOverrideSchema = z.object({
 });
 const aiModel = "@cf/meta/llama-3.1-8b-instruct-fast";
 
+export function parseAiAssessmentResponse(response: unknown) {
+  const candidates: unknown[] = [response];
+  if (response && typeof response === "object") {
+    const record = response as Record<string, unknown>;
+    candidates.unshift(record.response, record.result, record.output_text);
+    if (record.result && typeof record.result === "object") {
+      const result = record.result as Record<string, unknown>;
+      candidates.unshift(result.response, result.output_text, result.text);
+    }
+  }
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) continue;
+    if (typeof candidate === "object") {
+      const record = candidate as Record<string, unknown>;
+      if (Object.hasOwn(record, "score") && Object.hasOwn(record, "reasoning"))
+        return record;
+    }
+    const source =
+      typeof candidate === "string" ? candidate : JSON.stringify(candidate);
+    const normalized = source
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    const attempts = [normalized];
+    const firstBrace = normalized.indexOf("{");
+    const lastBrace = normalized.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace)
+      attempts.push(normalized.slice(firstBrace, lastBrace + 1));
+    for (const attempt of attempts) {
+      try {
+        const parsed = JSON.parse(attempt) as unknown;
+        if (typeof parsed === "string") {
+          const nested = JSON.parse(parsed) as unknown;
+          if (nested && typeof nested === "object")
+            return nested as Record<string, unknown>;
+        }
+        if (parsed && typeof parsed === "object")
+          return parsed as Record<string, unknown>;
+      } catch {
+        // Try the next bounded representation. No raw model output is logged.
+      }
+    }
+  }
+  throw new HttpError(
+    503,
+    "ai_invalid_response",
+    "The AI assessment could not be parsed. Try again.",
+  );
+}
+
 type RoundRecord = {
   id: string;
   eventId: string;
@@ -1340,27 +1391,7 @@ router.post(
       ],
       max_tokens: 900,
     });
-    const raw =
-      typeof response === "string"
-        ? response
-        : "response" in response
-          ? String(response.response)
-          : JSON.stringify(response);
-    let parsed: {
-      score?: unknown;
-      reasoning?: unknown;
-      strengths?: unknown;
-      risks?: unknown;
-    };
-    try {
-      parsed = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, ""));
-    } catch {
-      throw new HttpError(
-        503,
-        "ai_invalid_response",
-        "The AI assessment could not be parsed. Try again.",
-      );
-    }
+    const parsed = parseAiAssessmentResponse(response);
     const score = Number(parsed.score);
     if (
       !Number.isFinite(score) ||

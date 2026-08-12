@@ -141,7 +141,7 @@ describe("agenda calendar lifecycle controls", () => {
 
     expect(
       await screen.findByRole("button", {
-        name: "Build schedule automatically",
+        name: "Open assisted scheduling options",
       }),
     ).toBeVisible();
 
@@ -155,7 +155,9 @@ describe("agenda calendar lifecycle controls", () => {
       screen.getByRole("columnheader", { name: "Main stage" }),
     ).toBeVisible();
     expect(
-      await screen.findByRole("button", { name: "Apply suggested schedule" }),
+      await screen.findByRole("button", {
+        name: /Build schedule automatically/,
+      }),
     ).toBeDisabled();
 
     fireEvent.click(

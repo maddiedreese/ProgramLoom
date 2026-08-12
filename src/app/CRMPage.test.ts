@@ -24,6 +24,7 @@ describe("CRM segment availability", () => {
   it("defaults explicit selections to an exact curated segment", () => {
     expect(defaultCrmSegmentType(3)).toBe("curated");
     expect(defaultCrmSegmentType(0)).toBe("dynamic");
+    expect(defaultCrmSegmentType(3, true)).toBe("dynamic");
   });
 
   it("preserves valid selections across live refreshes", () => {

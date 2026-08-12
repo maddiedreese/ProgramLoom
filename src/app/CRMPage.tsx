@@ -34,6 +34,7 @@ import {
   type FormEvent,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { captureProductEvent } from "../lib/telemetry";
@@ -200,8 +201,15 @@ export function resolveHandoffContacts<T extends { id: string }>(
   return contacts.filter((contact) => selected.has(contact.id));
 }
 
-export function defaultCrmSegmentType(selectedCount: number) {
-  return selectedCount > 0 ? "curated" : "dynamic";
+export function defaultCrmSegmentType(
+  selectedCount: number,
+  hasActiveFilter = false,
+) {
+  return hasActiveFilter
+    ? "dynamic"
+    : selectedCount > 0
+      ? "curated"
+      : "dynamic";
 }
 
 export function duplicateContactIds(duplicates: Array<{ id: string }>) {
@@ -283,6 +291,7 @@ export function CRMPage({ user }: { user: User }) {
   const [feedback, setFeedback] = useState<Feedback>();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const directoryRequest = useRef(0);
   const selectedOrganization = organizations.find(
     (item) => item.id === organizationId,
   );
@@ -317,6 +326,7 @@ export function CRMPage({ user }: { user: User }) {
 
   async function loadDirectory(nextFilter = filter) {
     if (!organizationId) return;
+    const request = ++directoryRequest.current;
     const query = new URLSearchParams();
     if (nextFilter.search) query.set("search", nextFilter.search);
     nextFilter.companies.forEach((value) => query.append("company", value));
@@ -325,6 +335,7 @@ export function CRMPage({ user }: { user: User }) {
     const result = await api<{ contacts: Contact[]; facets: typeof facets }>(
       `/api/crm/organizations/${organizationId}/contacts?${query}`,
     );
+    if (request !== directoryRequest.current) return;
     setContacts(result.contacts);
     setFacets(result.facets);
     if (
@@ -457,6 +468,13 @@ export function CRMPage({ user }: { user: User }) {
     try {
       await action();
       await loadAll();
+      if (
+        filter.search ||
+        filter.companies.length ||
+        filter.jobTitles.length ||
+        filter.tags.length
+      )
+        await loadDirectory(filter);
       setFeedback({ kind: "success", message });
       return true;
     } catch (error) {
@@ -516,11 +534,12 @@ export function CRMPage({ user }: { user: User }) {
       <main className="crm-main">
         <header className="crm-heading">
           <div>
-            <p className="kicker">Cross-event intelligence</p>
+            <p className="kicker">Organization-wide speaker database</p>
             <h1>{tabs.find(([id]) => id === activeTab)?.[1]}</h1>
             <p>
-              {selectedOrganization?.name} · persistent speaker relationships
-              across every program.
+              {selectedOrganization?.name} · one durable contact record across
+              every event. Event links only choose where to add a speaker; they
+              never narrow this organization-wide database.
             </p>
           </div>
           {activeTab === "directory" && (
@@ -732,8 +751,15 @@ export function CRMPage({ user }: { user: User }) {
                   }),
                 "Contact enrolled in the sourcing pipeline.",
               )
-            )
+            ) {
+              if (addSpeakerEventId) {
+                window.location.assign(
+                  `/app/events/${addSpeakerEventId}/speakers`,
+                );
+                return;
+              }
               setModal(undefined);
+            }
           }}
         />
       )}
@@ -1126,11 +1152,13 @@ function DirectoryPanel({
               </select>
             </label>
             <button
+              type="button"
+              aria-label="Clear every directory filter"
               onClick={() =>
                 setFilter({ companies: [], jobTitles: [], tags: [] })
               }
             >
-              Clear all
+              Clear all filters
             </button>
           </div>
         </div>
@@ -1264,6 +1292,7 @@ function DirectoryPanel({
                 <td>
                   <button
                     className="contact-link"
+                    aria-label={`Open contact profile for ${contact.firstName} ${contact.lastName}`}
                     onClick={() => openContact(contact.id)}
                   >
                     <span className="contact-avatar">
@@ -2064,7 +2093,13 @@ function SegmentModal({
   close: () => void;
   save: (payload: Record<string, unknown>) => void;
 }) {
-  const defaultType = defaultCrmSegmentType(selected.length);
+  const hasActiveFilter = Boolean(
+    filter.search ||
+    filter.companies.length ||
+    filter.jobTitles.length ||
+    filter.tags.length,
+  );
+  const defaultType = defaultCrmSegmentType(selected.length, hasActiveFilter);
   return (
     <Modal title="Save this audience" subtitle="Reusable segment" close={close}>
       <form

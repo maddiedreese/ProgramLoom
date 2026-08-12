@@ -518,7 +518,30 @@ router.get(`${route}`, async (context) => {
         locked: boolean;
       }
     | undefined;
+  let ownedSubmissions: Array<{
+    id: string;
+    title: string;
+    status: string;
+    updatedAt: string;
+  }> = [];
   if (authenticatedUser) {
+    const ownedRows = await db
+      .prepare(
+        `SELECT s.id,s.title,s.status,s.updated_at AS updatedAt
+         FROM submissions s
+         JOIN submission_people p ON p.submission_id=s.id AND p.role='primary'
+         WHERE s.form_id=? AND (p.user_id=? OR p.email=? COLLATE NOCASE)
+         ORDER BY s.updated_at DESC,s.id
+         LIMIT 100`,
+      )
+      .bind(form.id, authenticatedUser.id, authenticatedUser.email)
+      .all<{
+        id: string;
+        title: string;
+        status: string;
+        updatedAt: string;
+      }>();
+    ownedSubmissions = ownedRows.results;
     const requestedSubmissionId = context.req.query("submission") ?? null;
     const owned = await db
       .prepare(
@@ -585,6 +608,7 @@ router.get(`${route}`, async (context) => {
     },
     ...definition,
     currentSubmission,
+    ownedSubmissions,
   });
 });
 

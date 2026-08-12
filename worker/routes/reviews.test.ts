@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { evaluateScorecard, safeReviewSpreadsheetText } from "./reviews";
+import {
+  evaluateScorecard,
+  parseAiAssessmentResponse,
+  safeReviewSpreadsheetText,
+} from "./reviews";
 
 const fields = [
   {
@@ -66,5 +70,27 @@ describe("review scorecard evaluation", () => {
     expect(evaluateScorecard(fields, { quality: 4 }, true).errors).toEqual({
       fit: "Program fit is required.",
     });
+  });
+
+  it("parses structured, fenced, nested, and explanatory AI responses", () => {
+    const assessment = {
+      score: 82,
+      reasoning: "The proposal connects its CI evidence to concrete outcomes.",
+      strengths: ["Specific"],
+      risks: ["Timing"],
+    };
+    expect(parseAiAssessmentResponse(assessment)).toMatchObject(assessment);
+    expect(
+      parseAiAssessmentResponse({
+        response: `\`\`\`json\n${JSON.stringify(assessment)}\n\`\`\``,
+      }),
+    ).toMatchObject(assessment);
+    expect(
+      parseAiAssessmentResponse({
+        result: {
+          response: `Assessment follows: ${JSON.stringify(assessment)}`,
+        },
+      }),
+    ).toMatchObject(assessment);
   });
 });

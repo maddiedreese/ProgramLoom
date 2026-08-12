@@ -113,6 +113,24 @@ function formatDay(value: string, timeZone: string) {
     day: "numeric",
   }).format(new Date(value));
 }
+function eventDayOptions(startsAt: string, endsAt: string, timeZone: string) {
+  const options: Array<{ key: string; value: string }> = [];
+  const end = new Date(endsAt).getTime();
+  for (
+    let cursor = new Date(startsAt).getTime();
+    cursor <= end && options.length < 31;
+    cursor += 86_400_000
+  ) {
+    const value = new Date(cursor).toISOString();
+    const key = dayKey(value, timeZone);
+    if (!options.some((option) => option.key === key))
+      options.push({ key, value });
+  }
+  const endKey = dayKey(endsAt, timeZone);
+  if (!options.some((option) => option.key === endKey))
+    options.push({ key: endKey, value: endsAt });
+  return options;
+}
 function icalStamp(value: string) {
   return new Date(value)
     .toISOString()
@@ -230,11 +248,14 @@ export function PublicWidgetPage() {
     const link = document.createElement("a");
     link.href = url;
     link.download = `${data.event.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-itinerary.ics`;
-    link.click();
-    URL.revokeObjectURL(url);
+    link.hidden = true;
+    document.body.append(link);
     setExportFeedback(
       `ICS exported with ${items.length} ${items.length === 1 ? "session" : "sessions"}. Your saved itinerary is unchanged.`,
     );
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
   }
   if (error)
     return (
@@ -568,6 +589,8 @@ export function PublicWidgetPage() {
           show={show}
           toggle={toggle}
           itinerary={false}
+          eventStartsAt={event.startsAt}
+          eventEndsAt={event.endsAt}
         />
       )}
       {widget.widgetType === "itinerary" && (
@@ -583,7 +606,17 @@ export function PublicWidgetPage() {
                 type="button"
                 className={showPersonalSchedule ? "active" : ""}
                 aria-pressed={showPersonalSchedule}
-                onClick={() => setShowPersonalSchedule((current) => !current)}
+                onClick={() =>
+                  setShowPersonalSchedule((current) => {
+                    if (!current) {
+                      setSearch("");
+                      setTrack("");
+                      setFormat("");
+                      setLocation("");
+                    }
+                    return !current;
+                  })
+                }
                 disabled={!saved.length}
               >
                 {showPersonalSchedule
@@ -603,7 +636,7 @@ export function PublicWidgetPage() {
           <AgendaGrid
             items={
               showPersonalSchedule
-                ? filteredAgenda.filter((item) => saved.includes(item.id))
+                ? data.agenda.filter((item) => saved.includes(item.id))
                 : filteredAgenda
             }
             sessions={data.sessions}
@@ -613,6 +646,8 @@ export function PublicWidgetPage() {
             show={show}
             toggle={toggle}
             itinerary
+            eventStartsAt={event.startsAt}
+            eventEndsAt={event.endsAt}
           />
         </>
       )}
@@ -717,6 +752,8 @@ function AgendaGrid({
   show,
   toggle,
   itinerary,
+  eventStartsAt,
+  eventEndsAt,
 }: {
   items: AgendaItem[];
   sessions: Session[];
@@ -726,11 +763,18 @@ function AgendaGrid({
   show: (field: string) => boolean;
   toggle: (id: string) => void;
   itinerary: boolean;
+  eventStartsAt: string;
+  eventEndsAt: string;
 }) {
-  const days = [
-    ...new Set(items.map((item) => dayKey(item.startsAt, timezone))),
-  ];
-  const [selectedDay, setSelectedDay] = useState(days[0] ?? "");
+  const dayOptions = eventDayOptions(eventStartsAt, eventEndsAt, timezone);
+  const days = dayOptions.map((day) => day.key);
+  const [selectedDay, setSelectedDay] = useState(
+    days.find((day) =>
+      items.some((item) => dayKey(item.startsAt, timezone) === day),
+    ) ??
+      days[0] ??
+      "",
+  );
   useEffect(() => {
     if (!days.includes(selectedDay)) setSelectedDay(days[0] ?? "");
   }, [days, selectedDay]);
@@ -740,10 +784,6 @@ function AgendaGrid({
   const rooms = [
     ...new Set(current.map((item) => item.roomName || "Location TBA")),
   ];
-  if (!items.length)
-    return (
-      <WidgetEmpty label="No published agenda items match these filters." />
-    );
   return (
     <section
       className="agenda-widget"
@@ -763,63 +803,77 @@ function AgendaGrid({
             {formatDay(
               current.find((item) => dayKey(item.startsAt, timezone) === day)
                 ?.startsAt ??
-                items.find((item) => dayKey(item.startsAt, timezone) === day)!
-                  .startsAt,
+                dayOptions.find((option) => option.key === day)!.value,
               timezone,
             )}
           </button>
         ))}
       </div>
-      <div className="agenda-grid-scroll">
-        <table className="agenda-grid">
-          <thead>
-            <tr>
-              <th scope="col">Time</th>
-              {rooms.map((room) => (
-                <th scope="col" key={room}>
-                  {room}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[...new Set(current.map((item) => item.startsAt))].map((start) => (
-              <tr key={start}>
-                <th scope="row">{formatClock(start, timezone)}</th>
-                {rooms.map((room) => {
-                  const item = current.find(
-                    (candidate) =>
-                      candidate.startsAt === start &&
-                      (candidate.roomName || "Location TBA") === room,
-                  );
-                  return (
-                    <td key={room}>
-                      {item ? (
-                        <AgendaCard
-                          item={item}
-                          session={sessions.find(
-                            (session) => session.id === item.submissionId,
-                          )}
-                          speakers={speakers}
-                          saved={saved}
-                          show={show}
-                          toggle={toggle}
-                          itinerary={itinerary}
-                          timezone={timezone}
-                        />
-                      ) : (
-                        <span className="agenda-grid-empty" aria-hidden="true">
-                          —
-                        </span>
-                      )}
-                    </td>
-                  );
-                })}
+      {current.length ? (
+        <div className="agenda-grid-scroll">
+          <table className="agenda-grid">
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                {rooms.map((room) => (
+                  <th scope="col" key={room}>
+                    {room}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {[...new Set(current.map((item) => item.startsAt))].map(
+                (start) => (
+                  <tr key={start}>
+                    <th scope="row">{formatClock(start, timezone)}</th>
+                    {rooms.map((room) => {
+                      const item = current.find(
+                        (candidate) =>
+                          candidate.startsAt === start &&
+                          (candidate.roomName || "Location TBA") === room,
+                      );
+                      return (
+                        <td key={room}>
+                          {item ? (
+                            <AgendaCard
+                              item={item}
+                              session={sessions.find(
+                                (session) => session.id === item.submissionId,
+                              )}
+                              speakers={speakers}
+                              saved={saved}
+                              show={show}
+                              toggle={toggle}
+                              itinerary={itinerary}
+                              timezone={timezone}
+                            />
+                          ) : (
+                            <span
+                              className="agenda-grid-empty"
+                              aria-hidden="true"
+                            >
+                              —
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <WidgetEmpty
+          label={
+            items.length
+              ? "No sessions match these filters on this day. Choose another day or clear the filters."
+              : "No sessions are saved in your itinerary yet. Show the full program and add a session."
+          }
+        />
+      )}
     </section>
   );
 }

@@ -129,6 +129,7 @@ export function EventSubmissions({ user }: { user: User }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const openingSubmissionId = useRef<string | undefined>(undefined);
+  const submissionRequest = useRef(0);
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success";
     message: string;
@@ -150,6 +151,7 @@ export function EventSubmissions({ user }: { user: User }) {
 
   async function openSubmission(id: string) {
     if (openingSubmissionId.current === id) return;
+    const request = ++submissionRequest.current;
     openingSubmissionId.current = id;
     // Make the record addressable immediately. Slow networks must not leave a
     // person (or assistive automation) on the list URL wondering whether the
@@ -164,15 +166,22 @@ export function EventSubmissions({ user }: { user: User }) {
         fields: Field[];
         people: Person[];
       }>(`/api/events/${eventId}/submissions/${id}`);
+      if (request !== submissionRequest.current) return;
       setSelected(result.submission);
       setFields(result.fields);
       setPeople(result.people);
       api<{ assessments: AiAssessment[] }>(
         `/api/reviews/events/${eventId}/submissions/${id}/ai-assessments`,
       )
-        .then((aiResult) => setAssessments(aiResult.assessments))
-        .catch(() => setAssessments([]));
+        .then((aiResult) => {
+          if (request === submissionRequest.current)
+            setAssessments(aiResult.assessments);
+        })
+        .catch(() => {
+          if (request === submissionRequest.current) setAssessments([]);
+        });
     } catch (error) {
+      if (request !== submissionRequest.current) return;
       setFeedback({
         kind: "error",
         message:
@@ -181,13 +190,22 @@ export function EventSubmissions({ user }: { user: User }) {
             : "Could not open the submission.",
       });
     } finally {
-      if (openingSubmissionId.current === id)
+      if (
+        request === submissionRequest.current &&
+        openingSubmissionId.current === id
+      )
         openingSubmissionId.current = undefined;
-      setBusy(false);
+      if (request === submissionRequest.current) setBusy(false);
     }
   }
   function closeSubmission() {
+    submissionRequest.current += 1;
+    openingSubmissionId.current = undefined;
     setSelected(undefined);
+    setFields([]);
+    setPeople([]);
+    setAssessments([]);
+    setBusy(false);
     navigate(submissionListPath(eventId, window.location.search));
   }
   useEffect(() => {

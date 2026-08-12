@@ -766,13 +766,14 @@ export function EventAgenda({ user }: { user: User }) {
           <button
             className="button button-ghost"
             type="button"
-            onClick={() =>
-              document
-                .getElementById("assisted-scheduling")
-                ?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
+            onClick={() => {
+              setFeedback(undefined);
+              const target = document.getElementById("assisted-scheduling");
+              target?.scrollIntoView({ behavior: "smooth", block: "start" });
+              target?.focus({ preventScroll: true });
+            }}
           >
-            <Sparkles size={15} /> Build schedule automatically
+            <Sparkles size={15} /> Open assisted scheduling options
           </button>
           <button
             className="button"
@@ -1357,6 +1358,7 @@ export function EventAgenda({ user }: { user: User }) {
               </label>
               <div className="assist-actions">
                 <button
+                  type="submit"
                   className="button button-ghost"
                   name="apply"
                   value="false"
@@ -1365,19 +1367,21 @@ export function EventAgenda({ user }: { user: User }) {
                   Preview conflict-free schedule
                 </button>
                 <button
+                  type="submit"
                   className="button"
                   name="apply"
                   value="true"
                   disabled={busy || !unscheduled.length}
+                  aria-label={`Build schedule automatically for ${unscheduled.length} unscheduled ${unscheduled.length === 1 ? "session" : "sessions"}`}
                 >
-                  Apply suggested schedule
+                  Build schedule automatically
                 </button>
               </div>
               {assistPreviewCount !== undefined && (
                 <p className="field-hint" role="status">
                   {assistPreviewCount} conflict-free placement
-                  {assistPreviewCount === 1 ? "" : "s"} ready. Choose Apply
-                  suggested schedule to persist{" "}
+                  {assistPreviewCount === 1 ? "" : "s"} ready. Choose Build
+                  schedule automatically to persist{" "}
                   {assistPreviewCount === 1 ? "it" : "them"}.
                 </p>
               )}

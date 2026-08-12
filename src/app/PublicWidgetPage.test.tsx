@@ -260,4 +260,37 @@ describe("public widgets", () => {
       "ICS exported with 1 session. Your saved itinerary is unchanged.",
     );
   });
+
+  it("shows a saved itinerary even when earlier filters excluded it", async () => {
+    localStorage.setItem(
+      "programloom-itinerary:agenda-test",
+      JSON.stringify(["agenda-1"]),
+    );
+    renderWidget("itinerary");
+    await screen.findByText("Reliable programs");
+    fireEvent.change(screen.getByLabelText("Search program"), {
+      target: { value: "does not match" },
+    });
+    expect(screen.queryByText("Reliable programs")).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show my schedule only" }),
+    );
+    expect(screen.getByText("Reliable programs")).toBeVisible();
+    expect(screen.getByLabelText("Search program")).toHaveValue("");
+  });
+
+  it("keeps every event day available even when one day has no sessions", async () => {
+    renderWidget("agenda", {
+      ...payload,
+      event: {
+        ...payload.event,
+        endsAt: "2027-09-16T22:00:00.000Z",
+      },
+    });
+    expect(await screen.findAllByRole("tab")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("tab", { name: /Thursday/ }));
+    expect(
+      screen.getByText(/No sessions match these filters on this day/),
+    ).toBeVisible();
+  });
 });

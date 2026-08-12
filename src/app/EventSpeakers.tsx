@@ -55,6 +55,7 @@ type Speaker = Profile & {
   sessionCount: number;
   taskCount: number;
   completedTaskCount: number;
+  submittedTaskCount: number;
   fileRequestCount: number;
   approvedFileCount: number;
 };
@@ -915,6 +916,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
   const [busy, setBusy] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [taskProgressFilter, setTaskProgressFilter] = useState("all");
+  const [speakerSearch, setSpeakerSearch] = useState("");
   async function load() {
     const result = await api<{
       speakers: Speaker[];
@@ -1232,6 +1234,9 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
   }
   const visibleSpeakers = speakers.filter(
     (speaker) =>
+      `${speaker.firstName} ${speaker.lastName} ${speaker.email} ${speaker.jobTitle ?? ""} ${speaker.company ?? ""}`
+        .toLowerCase()
+        .includes(speakerSearch.trim().toLowerCase()) &&
       (statusFilter === "all" || speaker.eventStatus === statusFilter) &&
       (taskProgressFilter === "all" ||
         (taskProgressFilter === "complete"
@@ -1257,7 +1262,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
         <div className="inline-actions">
           <a
             className="button"
-            href={`/app/events/${eventId}/communications?category=speaker_portal_invitation`}
+            href={`/app/events/${eventId}/communications?category=speaker_invitation`}
           >
             <Mail size={14} /> Invite speaker
           </a>
@@ -1288,6 +1293,15 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
         </div>
       )}
       <div className="speaker-filter-row">
+        <label className="speaker-status-filter">
+          Search speakers
+          <input
+            type="search"
+            value={speakerSearch}
+            placeholder="Name, email, role, or company"
+            onChange={(event) => setSpeakerSearch(event.target.value)}
+          />
+        </label>
         <label className="speaker-status-filter">
           Filter speaker status
           <select
@@ -1345,6 +1359,7 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             <label className="speaker-event-status">
               Program status
               <select
+                aria-label={`Program status for ${speaker.firstName} ${speaker.lastName}`}
                 value={speaker.eventStatus}
                 disabled={busy}
                 onChange={(event) =>
@@ -1360,9 +1375,9 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
             <div className="speaker-progress">
               <span>
                 <strong>
-                  {speaker.completedTaskCount}/{speaker.taskCount}
+                  {speaker.submittedTaskCount}/{speaker.taskCount}
                 </strong>{" "}
-                tasks
+                tasks submitted or approved
               </span>
               <span>
                 <strong>
