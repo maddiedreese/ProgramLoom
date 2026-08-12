@@ -10,6 +10,8 @@ describe("privacySafeProductProperties", () => {
         event_scoped: true,
         query: "speaker@example.com",
         recipientName: "Private person",
+        distinct_id: "attempted-override",
+        $process_person_profile: true,
         payload: { nested: "data" },
       }),
     ).toEqual({

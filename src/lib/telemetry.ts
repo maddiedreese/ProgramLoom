@@ -3,7 +3,7 @@ type TelemetryConfig = { key: string; host: string };
 let telemetry: TelemetryConfig | undefined;
 const anonymousIdKey = "programloom_analytics_id";
 const privateProperty =
-  /query|email|phone|name|title|message|content|recipient|token|secret|password/i;
+  /query|email|phone|name|title|message|content|recipient|token|secret|password|distinct|profile/i;
 
 function anonymousId() {
   try {
@@ -58,9 +58,9 @@ export function captureProductEvent(
       api_key: telemetry.key,
       event: name,
       properties: {
+        ...privacySafeProductProperties(properties),
         distinct_id: anonymousId(),
         $process_person_profile: false,
-        ...privacySafeProductProperties(properties),
       },
     }),
   }).catch(() => undefined);
