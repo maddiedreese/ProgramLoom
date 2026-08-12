@@ -1,25 +1,46 @@
-type PostHogClient = (typeof import("posthog-js"))["default"];
-let posthogClient: Promise<PostHogClient | undefined> | undefined;
+type TelemetryConfig = { key: string; host: string };
+
+let telemetry: TelemetryConfig | undefined;
+const anonymousIdKey = "programloom_analytics_id";
+const privateProperty =
+  /query|email|phone|name|title|message|content|recipient|token|secret|password/i;
+
+function anonymousId() {
+  try {
+    const existing = window.localStorage.getItem(anonymousIdKey);
+    if (existing) return existing;
+    const created = crypto.randomUUID();
+    window.localStorage.setItem(anonymousIdKey, created);
+    return created;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
+export function privacySafeProductProperties(
+  properties: Record<string, unknown> = {},
+) {
+  return Object.fromEntries(
+    Object.entries(properties).filter(
+      ([key, value]) =>
+        !privateProperty.test(key) &&
+        (typeof value === "string" ||
+          typeof value === "number" ||
+          typeof value === "boolean"),
+    ),
+  );
+}
 
 export function initializeTelemetry() {
-  const posthogKey = import.meta.env.VITE_POSTHOG_KEY as string;
-  const posthogHost = import.meta.env.VITE_POSTHOG_HOST as string;
-  if (posthogKey && posthogHost) {
-    posthogClient = import("posthog-js").then(({ default: posthog }) => {
-      posthog.init(posthogKey, {
-        api_host: posthogHost,
-        defaults: "2025-05-24",
-        capture_pageview: "history_change",
-        capture_pageleave: true,
-        autocapture: false,
-        disable_session_recording: true,
-        person_profiles: "identified_only",
-        request_batching: false,
-        persistence: "localStorage+cookie",
-        secure_cookie: import.meta.env.PROD,
-      });
-      return posthog;
-    });
+  const key = import.meta.env.VITE_POSTHOG_KEY as string;
+  const configuredHost = import.meta.env.VITE_POSTHOG_HOST as string;
+  if (!key || !configuredHost) return;
+  try {
+    const host = new URL(configuredHost);
+    if (host.protocol !== "https:") return;
+    telemetry = { key, host: host.href.replace(/\/$/, "") };
+  } catch {
+    telemetry = undefined;
   }
 }
 
@@ -27,8 +48,20 @@ export function captureProductEvent(
   name: string,
   properties?: Record<string, unknown>,
 ) {
-  void posthogClient?.then((posthog) => {
-    if (posthog && !posthog.has_opted_out_capturing())
-      posthog.capture(name, properties);
-  });
+  if (!telemetry || navigator.doNotTrack === "1") return;
+  void fetch(`${telemetry.host}/capture/`, {
+    method: "POST",
+    credentials: "omit",
+    keepalive: true,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      api_key: telemetry.key,
+      event: name,
+      properties: {
+        distinct_id: anonymousId(),
+        $process_person_profile: false,
+        ...privacySafeProductProperties(properties),
+      },
+    }),
+  }).catch(() => undefined);
 }
