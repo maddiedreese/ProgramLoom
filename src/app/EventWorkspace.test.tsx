@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventWorkspace, normalizeCfpDeadlines } from "./EventWorkspace";
@@ -104,5 +104,11 @@ describe("EventWorkspace", () => {
       await screen.findByText(/CFP created. Add the questions/i),
     ).toBeInTheDocument();
     expect(input).toHaveValue("");
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(7),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Create form" })).toBeEnabled(),
+    );
   });
 });
