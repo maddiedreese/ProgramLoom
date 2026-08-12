@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { assignAllFileTargets } from "./speakers";
+import { allowedUploadTypesForPurpose, assignAllFileTargets } from "./speakers";
 
 describe("speaker file-request assignment", () => {
+  it("keeps slide decks out of headshot version history", () => {
+    expect(allowedUploadTypesForPurpose("Speaker headshot")).toEqual([
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+    ]);
+    expect(allowedUploadTypesForPurpose("Upload final slides")).toContain(
+      "application/pdf",
+    );
+  });
+
   it("creates one deterministic target per accepted event speaker", async () => {
     const observed: { sql?: string; bindings?: unknown[] } = {};
     const db = {

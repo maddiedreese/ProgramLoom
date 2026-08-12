@@ -15,6 +15,24 @@ import { notificationStatement } from "../lib/operations";
 type Variables = { requestId: string };
 const router = new Hono<{ Bindings: Env; Variables: Variables }>();
 const organizerRoles = ["owner", "admin"] as const;
+const generalFileContentTypes = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-powerpoint",
+  "application/zip",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+] as const;
+const imageFileContentTypes = ["image/png", "image/jpeg", "image/webp"] as const;
+
+export function allowedUploadTypesForPurpose(
+  purpose: string,
+): readonly string[] {
+  return purpose.toLowerCase().includes("headshot")
+    ? imageFileContentTypes
+    : generalFileContentTypes;
+}
 
 export async function assignAllFileTargets(db: D1Database, eventId: string) {
   return db
@@ -499,12 +517,17 @@ router.post("/events/:eventId/files/:fileId/upload", async (context) => {
     );
   const request = await db
     .prepare(
-      `SELECT f.id,f.task_id AS taskId,e.file_uploads_enabled AS fileUploadsEnabled
+      `SELECT f.id,f.task_id AS taskId,f.purpose,e.file_uploads_enabled AS fileUploadsEnabled
        FROM files f JOIN events e ON e.id=f.event_id
        WHERE f.id=? AND f.event_id=? AND f.speaker_id=?`,
     )
     .bind(context.req.param("fileId"), eventId, profile.id)
-    .first<{ id: string; taskId?: string; fileUploadsEnabled: number }>();
+    .first<{
+      id: string;
+      taskId?: string;
+      purpose: string;
+      fileUploadsEnabled: number;
+    }>();
   if (!request)
     throw new HttpError(
       404,
@@ -527,20 +550,14 @@ router.post("/events/:eventId/files/:fileId/upload", async (context) => {
       "invalid_file_size",
       "Files must be between 1 byte and 25 MB.",
     );
-  const allowed = [
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "application/vnd.ms-powerpoint",
-    "application/zip",
-    "image/png",
-    "image/jpeg",
-    "image/webp",
-  ];
+  const allowed = allowedUploadTypesForPurpose(request.purpose);
   if (!allowed.includes(upload.type))
     throw new HttpError(
       400,
       "invalid_file_type",
-      "Upload a PDF, PowerPoint, ZIP, PNG, JPEG, or WebP file.",
+      request.purpose.toLowerCase().includes("headshot")
+        ? "Headshots must be PNG, JPEG, or WebP images. Choose the presentation request to upload slides."
+        : "Upload a PDF, PowerPoint, ZIP, PNG, JPEG, or WebP file.",
     );
   const buffer = await upload.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", buffer);

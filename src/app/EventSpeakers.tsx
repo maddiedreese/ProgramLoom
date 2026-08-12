@@ -808,7 +808,11 @@ function SpeakerPortal({
                       } for ${file.purpose}${
                         file.sessionTitle ? ` — ${file.sessionTitle}` : ""
                       }`}
-                      accept=".pdf,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+                      accept={
+                        file.purpose.toLowerCase().includes("headshot")
+                          ? ".png,.jpg,.jpeg,.webp"
+                          : ".pdf,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp"
+                      }
                       onChange={(event) => {
                         const chosen = event.target.files?.[0];
                         if (chosen) uploadFile(file, chosen);
@@ -816,7 +820,9 @@ function SpeakerPortal({
                     />
                   </label>
                   <small>
-                    PDF, PowerPoint, ZIP, PNG, JPEG, or WebP · 25 MB max
+                    {file.purpose.toLowerCase().includes("headshot")
+                      ? "PNG, JPEG, or WebP image"
+                      : "PDF, PowerPoint, ZIP, PNG, JPEG, or WebP"} · 25 MB max
                   </small>
                 </div>
               </article>
