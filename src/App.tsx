@@ -209,10 +209,121 @@ export function titleForPath(pathname: string) {
   return "Page not found — ProgramLoom";
 }
 
-function DocumentTitle() {
+const DEFAULT_DESCRIPTION =
+  "ProgramLoom shows event organizers what is blocking their program and carries every accepted proposal through review, communication, onboarding, scheduling, and publication.";
+
+export function descriptionForPath(pathname: string) {
+  if (pathname === "/") return DEFAULT_DESCRIPTION;
+  if (pathname === "/login" || pathname === "/register")
+    return "Sign in to ProgramLoom or create an organizer account to manage an event program.";
+  if (pathname === "/invite")
+    return "Accept a ProgramLoom invitation to join an event as a reviewer, speaker, or organizer.";
+  if (pathname === "/guide")
+    return "Follow a proposal from an open call through review, decision communication, speaker preparation, scheduling, and publication.";
+  if (pathname === "/developers")
+    return "Connect trusted event tools to ProgramLoom with scoped API tokens, webhooks, OAuth, query access, and an authorized MCP server.";
+  if (
+    pathname === "/cfp" ||
+    pathname.startsWith("/cfp/") ||
+    pathname.startsWith("/c/")
+  )
+    return "Browse open calls for proposals or submit and manage your session idea.";
+  if (pathname.startsWith("/embed/"))
+    return "Browse a live, accessible event program published with ProgramLoom.";
+  if (pathname.startsWith("/interest/"))
+    return "Share your speaking interests with an event organizer through a secure ProgramLoom form.";
+  if (pathname === "/privacy")
+    return "Learn what information ProgramLoom handles, why it is used, and the choices available to organizers, reviewers, speakers, and attendees.";
+  if (pathname === "/terms")
+    return "Read the terms that govern use of the hosted ProgramLoom service.";
+  if (pathname.startsWith("/app"))
+    return "Manage proposals, reviews, speakers, content, communications, schedules, and publication in ProgramLoom.";
+  return DEFAULT_DESCRIPTION;
+}
+
+export function shouldIndexPath(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname === "/guide" ||
+    pathname === "/developers" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/cfp" ||
+    pathname.startsWith("/c/") ||
+    pathname.startsWith("/interest/") ||
+    pathname.startsWith("/embed/")
+  );
+}
+
+export function canonicalUrlForPath(pathname: string, currentOrigin: string) {
+  const isLocal = /^(?:https?:\/\/)?(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(
+    currentOrigin,
+  );
+  const usesMarketingOrigin =
+    pathname === "/" ||
+    pathname === "/guide" ||
+    pathname === "/developers" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname.startsWith("/embed/");
+  const origin = isLocal
+    ? currentOrigin
+    : usesMarketingOrigin
+      ? "https://programloom.com"
+      : "https://app.programloom.com";
+  return new URL(pathname, origin).toString();
+}
+
+function setDocumentMeta(
+  attribute: "name" | "property",
+  key: string,
+  content: string,
+) {
+  let element = document.head.querySelector<HTMLMetaElement>(
+    `meta[${attribute}="${key}"]`,
+  );
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute(attribute, key);
+    document.head.append(element);
+  }
+  element.content = content;
+}
+
+function DocumentMetadata() {
   const { pathname } = useLocation();
   useEffect(() => {
-    document.title = titleForPath(pathname);
+    const normalizedPathname =
+      pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+    const title = titleForPath(normalizedPathname);
+    const description = descriptionForPath(normalizedPathname);
+    const canonicalUrl = canonicalUrlForPath(
+      normalizedPathname,
+      window.location.origin,
+    );
+    document.title = title;
+    setDocumentMeta("name", "description", description);
+    setDocumentMeta(
+      "name",
+      "robots",
+      shouldIndexPath(normalizedPathname)
+        ? "index, follow, max-image-preview:large"
+        : "noindex, nofollow",
+    );
+    setDocumentMeta("property", "og:title", title);
+    setDocumentMeta("property", "og:description", description);
+    setDocumentMeta("property", "og:url", canonicalUrl);
+    setDocumentMeta("name", "twitter:title", title);
+    setDocumentMeta("name", "twitter:description", description);
+    let canonical = document.head.querySelector<HTMLLinkElement>(
+      'link[rel="canonical"]',
+    );
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.append(canonical);
+    }
+    canonical.href = canonicalUrl;
   }, [pathname]);
   return null;
 }
@@ -697,7 +808,7 @@ function PublicCfpAlias() {
 export function App() {
   return (
     <>
-      <DocumentTitle />
+      <DocumentMetadata />
       <EscapeDismissController />
       <Suspense fallback={<LoadingRoute label="Loading ProgramLoom…" />}>
         <Routes>

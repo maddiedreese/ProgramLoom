@@ -40,6 +40,53 @@ test("developer machine-readable references are public and versioned", async ({
   });
 });
 
+test("public pages expose complete social and favicon metadata", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/");
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+    "href",
+    "/favicon.svg",
+  );
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    /\/$/,
+  );
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    "https://programloom.com/programloom-og.jpg",
+  );
+  await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute(
+    "content",
+    "1200",
+  );
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+    "content",
+    "summary_large_image",
+  );
+  const [favicon, openGraph, twitter] = await Promise.all([
+    request.get("/favicon.svg"),
+    request.get("/programloom-og.jpg"),
+    request.get("/programloom-twitter.jpg"),
+  ]);
+  expect(favicon.ok()).toBeTruthy();
+  expect(favicon.headers()["content-type"]).toContain("image/svg+xml");
+  expect(openGraph.ok()).toBeTruthy();
+  expect(openGraph.headers()["content-type"]).toContain("image/jpeg");
+  expect(twitter.ok()).toBeTruthy();
+  expect(twitter.headers()["content-type"]).toContain("image/jpeg");
+});
+
+test("private pages opt out of search indexing", async ({ page }) => {
+  const login = await page.goto("/login");
+  expect(login?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex, nofollow",
+  );
+});
+
 test("unknown browser routes render a useful recovery page", async ({
   page,
 }) => {

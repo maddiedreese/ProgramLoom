@@ -120,3 +120,23 @@ test("the AI-readable help index is public", async ({ request }) => {
   expect(response.headers()["content-type"]).toContain("text/plain");
   await expect(response.text()).resolves.toContain("# ProgramLoom Help");
 });
+
+test("help pages expose route-accurate social metadata", async ({ page }) => {
+  await page.goto("/help/getting-started");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://programloom.com/help/getting-started",
+  );
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+    "content",
+    "Create your first event | ProgramLoom Help",
+  );
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    "content",
+    "https://programloom.com/help/getting-started",
+  );
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+    "content",
+    "summary_large_image",
+  );
+});

@@ -9,9 +9,57 @@ export default defineConfig({
   cleanUrls: true,
   outDir: "../dist/client/help",
   sitemap: { hostname: "https://programloom.com/help/" },
+  transformHead({ pageData }) {
+    const cleanPath = pageData.relativePath
+      .replace(/(?:^|\/)index\.md$/, "")
+      .replace(/\.md$/, "");
+    const url = `https://programloom.com/help/${cleanPath}`;
+    const title =
+      pageData.title && pageData.title !== "ProgramLoom Help"
+        ? `${pageData.title} | ProgramLoom Help`
+        : "ProgramLoom Help";
+    const description =
+      pageData.description ||
+      "Plain-language guidance for proposals, reviews, speakers, schedules, and public event programs.";
+    return [
+      ["link", { rel: "canonical", href: url }],
+      ["meta", { property: "og:title", content: title }],
+      ["meta", { property: "og:description", content: description }],
+      ["meta", { property: "og:url", content: url }],
+      ["meta", { name: "twitter:title", content: title }],
+      ["meta", { name: "twitter:description", content: description }],
+    ];
+  },
   head: [
     ["meta", { name: "theme-color", content: "#315c45" }],
     ["link", { rel: "icon", href: "/help/favicon.svg", type: "image/svg+xml" }],
+    ["meta", { property: "og:site_name", content: "ProgramLoom" }],
+    ["meta", { property: "og:type", content: "website" }],
+    [
+      "meta",
+      {
+        property: "og:image",
+        content: "https://programloom.com/programloom-og.jpg",
+      },
+    ],
+    ["meta", { property: "og:image:width", content: "1200" }],
+    ["meta", { property: "og:image:height", content: "630" }],
+    [
+      "meta",
+      {
+        property: "og:image:alt",
+        content:
+          "Program cards, speaker profiles, messages, and a calendar connected into one organized event schedule.",
+      },
+    ],
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    [
+      "meta",
+      {
+        name: "twitter:image",
+        content: "https://programloom.com/programloom-twitter.jpg",
+      },
+    ],
   ],
   themeConfig: {
     logo: "/favicon.svg",

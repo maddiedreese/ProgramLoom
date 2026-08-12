@@ -59,7 +59,7 @@ describe("NotificationCenter", () => {
           pageSize: 25,
           total: 1,
           unread: 1,
-          globalUnread: 1,
+          globalUnread: 139,
           hasMore: false,
         });
       },
@@ -68,8 +68,9 @@ describe("NotificationCenter", () => {
     render(<NotificationCenter />);
 
     fireEvent.click(
-      await screen.findByRole("button", { name: /notifications, 1 unread/i }),
+      await screen.findByRole("button", { name: /notifications, 139 unread/i }),
     );
+    expect(screen.getByText("99+")).toBeInTheDocument();
     expect(await screen.findByText("Review completed")).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", { name: "Mark Review completed read" }),

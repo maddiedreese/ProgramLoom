@@ -2,7 +2,13 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { App, titleForPath } from "./App";
+import {
+  App,
+  canonicalUrlForPath,
+  descriptionForPath,
+  shouldIndexPath,
+  titleForPath,
+} from "./App";
 
 afterEach(() => {
   cleanup();
@@ -31,6 +37,43 @@ describe("ProgramLoom application", () => {
     );
     expect(titleForPath("/not-a-real-page")).toBe(
       "Page not found — ProgramLoom",
+    );
+    expect(descriptionForPath("/guide")).toContain("proposal");
+    expect(descriptionForPath("/interest/devflow/speakers")).toContain(
+      "speaking interests",
+    );
+    expect(shouldIndexPath("/cfp")).toBe(true);
+    expect(shouldIndexPath("/app/events/event-1/control-room")).toBe(false);
+    expect(shouldIndexPath("/login")).toBe(false);
+    expect(canonicalUrlForPath("/", "https://app.programloom.com")).toBe(
+      "https://programloom.com/",
+    );
+    expect(canonicalUrlForPath("/cfp", "https://programloom.com")).toBe(
+      "https://app.programloom.com/cfp",
+    );
+    expect(canonicalUrlForPath("/app", "http://localhost:5173")).toBe(
+      "http://localhost:5173/app",
+    );
+  });
+
+  it("updates canonical and privacy-conscious route metadata", async () => {
+    render(
+      <MemoryRouter initialEntries={["/app"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    await vi.waitFor(() => expect(document.title).toBe("Events — ProgramLoom"));
+    expect(document.querySelector('meta[name="robots"]')).toHaveAttribute(
+      "content",
+      "noindex, nofollow",
+    );
+    expect(document.querySelector('meta[property="og:title"]')).toHaveAttribute(
+      "content",
+      "Events — ProgramLoom",
+    );
+    expect(document.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      "http://localhost:3000/app",
     );
   });
 

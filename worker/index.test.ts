@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { app } from "./index";
+import { app, isIndexableClientRoute } from "./index";
 
 const env = {
   APP_ENV: "test",
@@ -34,6 +34,17 @@ describe("ProgramLoom Worker", () => {
   it("serves front-end assets for application routes", async () => {
     const response = await app.request("/register", {}, env);
     expect(await response.text()).toBe("asset");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+  });
+
+  it("keeps public pages indexable and private workspaces out of search", () => {
+    expect(isIndexableClientRoute("/")).toBe(true);
+    expect(isIndexableClientRoute("/c/example/event/cfp")).toBe(true);
+    expect(isIndexableClientRoute("/embed/public-key")).toBe(true);
+    expect(isIndexableClientRoute("/login")).toBe(false);
+    expect(isIndexableClientRoute("/app/events/event-1/control-room")).toBe(
+      false,
+    );
   });
 
   it("returns the application recovery page with a real 404 for unknown browser routes", async () => {

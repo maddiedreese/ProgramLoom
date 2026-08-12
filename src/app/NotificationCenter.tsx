@@ -290,7 +290,7 @@ export function NotificationCenter() {
         <Bell size={19} />
         {(data?.globalUnread ?? 0) > 0 && (
           <span aria-hidden="true">
-            {Math.min(data?.globalUnread ?? 0, 99)}
+            {(data?.globalUnread ?? 0) > 99 ? "99+" : (data?.globalUnread ?? 0)}
           </span>
         )}
       </button>

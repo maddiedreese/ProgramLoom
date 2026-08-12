@@ -263,6 +263,18 @@ function isKnownClientRoute(pathname: string) {
   );
 }
 
+export function isIndexableClientRoute(pathname: string) {
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return (
+    new Set(["/", "/cfp", "/privacy", "/terms", "/developers", "/guide"]).has(
+      path,
+    ) ||
+    /^\/(?:c|cfp)\/[^/]+\/[^/]+\/[^/]+$/.test(path) ||
+    /^\/interest\/[^/]+\/[^/]+$/.test(path) ||
+    /^\/embed\/[^/]+$/.test(path)
+  );
+}
+
 app.notFound(async (context) => {
   if (context.req.path.startsWith("/api/")) {
     return context.json(
@@ -313,6 +325,8 @@ app.notFound(async (context) => {
     );
     const headers = new Headers(application.headers);
     headers.set("cache-control", "no-cache, no-store, must-revalidate");
+    if (!isIndexableClientRoute(context.req.path))
+      headers.set("x-robots-tag", "noindex, nofollow");
     return new Response(application.body, {
       status: isKnownClientRoute(context.req.path) ? application.status : 404,
       headers,
@@ -322,6 +336,8 @@ app.notFound(async (context) => {
   const isHtml = headers.get("content-type")?.includes("text/html");
   if (isHtml)
     headers.set("cache-control", "no-cache, no-store, must-revalidate");
+  if (!isIndexableClientRoute(context.req.path))
+    headers.set("x-robots-tag", "noindex, nofollow");
   if (
     isHtml &&
     !context.req.path.startsWith("/help/") &&
