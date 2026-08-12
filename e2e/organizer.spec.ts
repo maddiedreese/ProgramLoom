@@ -48,6 +48,33 @@ test.describe("authenticated organizer operations", () => {
       ).toBeVisible();
       await expectNoHorizontalOverflow(page);
       await expectAccessible(page);
+      if (test.info().project.name.includes("mobile")) {
+        const undersizedSelects = await page.locator("select").evaluateAll(
+          (selects) =>
+            selects
+              .map((select) => {
+                const bounds = select.getBoundingClientRect();
+                return {
+                  name:
+                    select.getAttribute("aria-label") ??
+                    select.closest("label")?.textContent?.trim() ??
+                    "select",
+                  width: bounds.width,
+                  height: bounds.height,
+                };
+              })
+              .filter(
+                (select) =>
+                  select.width > 0 &&
+                  select.height > 0 &&
+                  (select.width < 44 || select.height < 44),
+              ),
+        );
+        expect(
+          undersizedSelects,
+          `${surface.path} has undersized mobile select controls`,
+        ).toEqual([]);
+      }
     }
 
     const dashboardResponse = await page.goto("/app");

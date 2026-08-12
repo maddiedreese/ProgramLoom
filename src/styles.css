@@ -9653,7 +9653,7 @@ input {
   .button-large {
     min-height: 51px;
   }
-  select,
+  select:not([multiple]),
   .wordmark,
   .brand,
   .skip-link:focus,
