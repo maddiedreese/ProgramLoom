@@ -40,7 +40,9 @@ test("developer machine-readable references are public and versioned", async ({
   });
 });
 
-test("unknown browser routes render a useful recovery page", async ({ page }) => {
+test("unknown browser routes render a useful recovery page", async ({
+  page,
+}) => {
   await page.goto("/not-a-real-programloom-page");
   await expect(
     page.getByRole("heading", {
@@ -92,15 +94,16 @@ test("mobile navigation and documentation links retain reliable touch targets", 
 }, testInfo) => {
   test.skip(!testInfo.project.name.includes("mobile"), "Mobile contract only.");
   const routes = [
-    { path: "/", selector: ".brand, a.text-link, .marketing-footer a" },
+    { path: "/", selector: ".brand, a.text-link, .site-shell > footer a" },
     {
       path: "/guide",
-      selector: ".wordmark, .product-guide > header a, .product-guide > footer a",
+      selector:
+        ".wordmark, .product-guide > header a, .product-guide > footer a",
     },
     {
       path: "/developers",
       selector:
-        ".wordmark, .docs-layout > aside a, .developer-docs > footer a",
+        ".wordmark, .docs-layout > aside a, .developer-docs article a, .developer-docs > footer a",
     },
   ];
 

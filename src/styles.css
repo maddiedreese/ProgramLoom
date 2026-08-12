@@ -9654,9 +9654,11 @@ input {
     min-height: 51px;
   }
   select:not([multiple]),
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
   .wordmark,
   .brand,
-  .skip-link:focus,
+  .skip-link,
   .event-card a,
   .event-page-guide a,
   .control-room-story ol a,
@@ -9668,9 +9670,10 @@ input {
   .product-guide > footer a,
   .developer-docs > header a,
   .developer-docs > footer a,
+  .developer-docs article a,
   .widget-header > a,
   .legal-footer a,
-  .marketing-footer a {
+  .site-shell > footer a {
     min-height: 44px;
   }
   .wordmark,
@@ -9686,10 +9689,12 @@ input {
   .product-guide > footer a,
   .developer-docs > header a,
   .developer-docs > footer a,
+  .developer-docs article a,
   .widget-header > a,
   .legal-footer a,
-  .marketing-footer a {
+  .site-shell > footer a {
     display: inline-flex;
     align-items: center;
+    min-width: 44px;
   }
 }

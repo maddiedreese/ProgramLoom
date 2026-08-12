@@ -49,8 +49,11 @@ test.describe("authenticated organizer operations", () => {
       await expectNoHorizontalOverflow(page);
       await expectAccessible(page);
       if (test.info().project.name.includes("mobile")) {
-        const undersizedSelects = await page.locator("select").evaluateAll(
-          (selects) =>
+        const undersizedControls = await page
+          .locator(
+            'select, input:not([type="checkbox"]):not([type="radio"]), textarea, .wordmark, .event-page-guide a',
+          )
+          .evaluateAll((selects) =>
             selects
               .map((select) => {
                 const bounds = select.getBoundingClientRect();
@@ -69,10 +72,10 @@ test.describe("authenticated organizer operations", () => {
                   select.height > 0 &&
                   (select.width < 44 || select.height < 44),
               ),
-        );
+          );
         expect(
-          undersizedSelects,
-          `${surface.path} has undersized mobile select controls`,
+          undersizedControls,
+          `${surface.path} has undersized mobile controls`,
         ).toEqual([]);
       }
     }
