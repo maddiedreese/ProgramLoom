@@ -1619,6 +1619,72 @@ router.get(
   },
 );
 
+router.post(
+  "/admin/events/:eventId/files/:fileId/versions/:versionId/restore",
+  async (context) => {
+    const eventId = context.req.param("eventId");
+    const access = await requireEventRole(context, eventId, [
+      ...organizerRoles,
+    ]);
+    const db = database(context.env);
+    const fileId = context.req.param("fileId");
+    const versionId = context.req.param("versionId");
+    const version = await db
+      .prepare(
+        `SELECT f.current_version_id AS currentVersionId,f.status,
+                fv.id,fv.filename,fv.version_number AS versionNumber
+         FROM files f JOIN file_versions fv ON fv.file_id=f.id
+         WHERE f.id=? AND f.event_id=? AND fv.id=?`,
+      )
+      .bind(fileId, eventId, versionId)
+      .first<{
+        currentVersionId: string | null;
+        status: string;
+        id: string;
+        filename: string;
+        versionNumber: number;
+      }>();
+    if (!version)
+      throw new HttpError(404, "version_not_found", "File version not found.");
+    if (version.currentVersionId === versionId)
+      return context.json({
+        file: {
+          id: fileId,
+          currentVersionId: versionId,
+          status: version.status,
+        },
+        restored: false,
+      });
+    await db.batch([
+      db
+        .prepare(
+          "UPDATE files SET current_version_id=?,status='submitted',updated_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=?",
+        )
+        .bind(versionId, fileId, eventId),
+      auditStatement(db, {
+        organizationId: access.organizationId,
+        eventId,
+        actorUserId: access.user.id,
+        action: "speaker_file.version_restored",
+        entityType: "file",
+        entityId: fileId,
+        before: { currentVersionId: version.currentVersionId },
+        after: {
+          currentVersionId: versionId,
+          filename: version.filename,
+          versionNumber: version.versionNumber,
+          status: "submitted",
+        },
+        requestId: context.get("requestId"),
+      }),
+    ]);
+    return context.json({
+      file: { id: fileId, currentVersionId: versionId, status: "submitted" },
+      restored: true,
+    });
+  },
+);
+
 async function requireOwnedFile(
   db: D1Database,
   fileId: string,

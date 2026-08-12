@@ -179,18 +179,28 @@ export function reviewResultsCsv(
     completedCount: number;
     aggregateScore: number | null;
     recommendations: string | null;
+    reviews?: Array<{
+      reviewerName: string;
+      weightedScore: number | null;
+      recommendation: string | null;
+      comment: string | null;
+      submittedAt: string | null;
+    }>;
   }>,
 ) {
-  return `\uFEFF${[
-    [
-      "Submission",
-      "Review status",
-      "Completed reviews",
-      "Assigned reviews",
-      "Aggregate score",
-      "Recommendations",
-    ],
-    ...rows.map((row) => [
+  const dataRows = rows.flatMap((row) => {
+    const reviews = row.reviews?.length
+      ? row.reviews
+      : [
+          {
+            reviewerName: "Pending assignment",
+            weightedScore: null,
+            recommendation: null,
+            comment: null,
+            submittedAt: null,
+          },
+        ];
+    return reviews.map((review, index) => [
       row.title,
       row.completedCount === 0
         ? "Not started"
@@ -201,7 +211,30 @@ export function reviewResultsCsv(
       row.assignmentCount,
       row.aggregateScore ?? "Pending",
       row.recommendations ?? "Pending",
-    ]),
+      index + 1,
+      review.reviewerName,
+      review.weightedScore ?? "Pending",
+      review.recommendation ?? "Pending",
+      review.comment ?? "",
+      review.submittedAt ?? "Pending",
+    ]);
+  });
+  return `\uFEFF${[
+    [
+      "Submission",
+      "Review status",
+      "Completed reviews",
+      "Assigned reviews",
+      "Aggregate score",
+      "Recommendations",
+      "Review number",
+      "Reviewer",
+      "Review score",
+      "Recommendation",
+      "Reviewer comment",
+      "Review submitted at",
+    ],
+    ...dataRows,
   ]
     .map((row) =>
       row
@@ -360,10 +393,66 @@ router.get("/events/:eventId", async (context) => {
     )
     .bind(eventId)
     .all();
+  const fieldsByRound = new Map<string, Record<string, unknown>[]>();
+  for (const field of scorecards.results as Record<string, unknown>[]) {
+    const roundFields = fieldsByRound.get(String(field.roundId)) ?? [];
+    roundFields.push(field);
+    fieldsByRound.set(String(field.roundId), roundFields);
+  }
+  const normalizedDetails = (
+    reviewDetails.results as Record<string, unknown>[]
+  ).map((detail) => {
+    const answers = detail.answersJson
+      ? (JSON.parse(String(detail.answersJson)) as Record<string, unknown>)
+      : {};
+    const recalculated = detail.submittedAt
+      ? evaluateScorecard(
+          fieldsByRound.get(String(detail.roundId)) ?? [],
+          answers,
+          true,
+        ).weightedScore
+      : null;
+    return {
+      ...detail,
+      roundId: String(detail.roundId),
+      submissionId: String(detail.submissionId),
+      submittedAt: detail.submittedAt ? String(detail.submittedAt) : null,
+      weightedScore:
+        recalculated ??
+        (detail.weightedScore == null ? null : Number(detail.weightedScore)),
+      answers,
+      answersJson: undefined,
+    } as Record<string, unknown> & {
+      roundId: string;
+      submissionId: string;
+      submittedAt: string | null;
+      weightedScore: number | null;
+    };
+  });
+  const scoresByResult = new Map<string, number[]>();
+  const scoresByRound = new Map<string, number[]>();
+  for (const detail of normalizedDetails) {
+    if (!detail.submittedAt || detail.weightedScore == null) continue;
+    const resultKey = `${detail.roundId}:${detail.submissionId}`;
+    const resultScores = scoresByResult.get(resultKey) ?? [];
+    resultScores.push(Number(detail.weightedScore));
+    scoresByResult.set(resultKey, resultScores);
+    const roundScores = scoresByRound.get(String(detail.roundId)) ?? [];
+    roundScores.push(Number(detail.weightedScore));
+    scoresByRound.set(String(detail.roundId), roundScores);
+  }
+  const mean = (values: number[]) =>
+    values.length
+      ? Math.round(
+          (values.reduce((sum, value) => sum + value, 0) / values.length) *
+            100,
+        ) / 100
+      : null;
   return context.json({
     rounds: rounds.results.map((round: Record<string, unknown>) => ({
       ...round,
       isBlind: Boolean(round.isBlind),
+      averageScore: mean(scoresByRound.get(String(round.id)) ?? []),
     })),
     scorecards: scorecards.results.map((field: Record<string, unknown>) => ({
       ...field,
@@ -375,16 +464,13 @@ router.get("/events/:eventId", async (context) => {
     })),
     reviewers: reviewers.results,
     reviewerPools: reviewerPools.results,
-    results: results.results,
-    reviewDetails: reviewDetails.results.map(
-      (detail: Record<string, unknown>) => ({
-        ...detail,
-        answers: detail.answersJson
-          ? JSON.parse(String(detail.answersJson))
-          : {},
-        answersJson: undefined,
-      }),
-    ),
+    results: (results.results as Record<string, unknown>[]).map((result) => ({
+      ...result,
+      aggregateScore: mean(
+        scoresByResult.get(`${result.roundId}:${result.submissionId}`) ?? [],
+      ),
+    })),
+    reviewDetails: normalizedDetails,
   });
 });
 
@@ -398,7 +484,7 @@ router.get("/events/:eventId/export", async (context) => {
   const round = await requireRound(db, eventId, roundId);
   const rows = await db
     .prepare(
-      `SELECT s.title,
+      `SELECT s.id AS submissionId,s.title,
               COUNT(DISTINCT ra.id) AS assignmentCount,
               COUNT(DISTINCT CASE WHEN rv.submitted_at IS NOT NULL THEN ra.id END) AS completedCount,
               ROUND(AVG(CASE WHEN rv.submitted_at IS NOT NULL THEN rv.weighted_score END),2) AS aggregateScore,
@@ -412,12 +498,88 @@ router.get("/events/:eventId/export", async (context) => {
     .bind(roundId)
     .all<{
       title: string;
+      submissionId: string;
       assignmentCount: number;
       completedCount: number;
       aggregateScore: number | null;
       recommendations: string | null;
     }>();
-  const csv = reviewResultsCsv(rows.results);
+  const [reviewRows, fields] = await Promise.all([
+    db
+      .prepare(
+        `SELECT ra.submission_id AS submissionId,u.name AS reviewerName,
+                rv.answers_json AS answersJson,rv.weighted_score AS weightedScore,
+                rv.recommendation,rv.comment,rv.submitted_at AS submittedAt
+         FROM review_assignments ra
+         JOIN users u ON u.id=ra.reviewer_user_id
+         LEFT JOIN reviews rv ON rv.assignment_id=ra.id
+         WHERE ra.round_id=? AND ra.recused_at IS NULL
+         ORDER BY ra.submission_id,u.name COLLATE NOCASE`,
+      )
+      .bind(roundId)
+      .all<{
+        submissionId: string;
+        reviewerName: string;
+        answersJson: string | null;
+        weightedScore: number | null;
+        recommendation: string | null;
+        comment: string | null;
+        submittedAt: string | null;
+      }>(),
+    db
+      .prepare(
+        "SELECT id,label,field_type AS fieldType,options_json AS optionsJson,min_value AS minValue,max_value AS maxValue,weight,required FROM scorecard_fields WHERE round_id=? ORDER BY position",
+      )
+      .bind(roundId)
+      .all<Record<string, unknown>>(),
+  ]);
+  const reviewsBySubmission = new Map<
+    string,
+    Array<{
+      reviewerName: string;
+      weightedScore: number | null;
+      recommendation: string | null;
+      comment: string | null;
+      submittedAt: string | null;
+    }>
+  >();
+  for (const review of reviewRows.results) {
+    const current = reviewsBySubmission.get(review.submissionId) ?? [];
+    const recalculated =
+      review.submittedAt && review.answersJson
+        ? evaluateScorecard(
+            fields.results,
+            JSON.parse(review.answersJson) as Record<string, unknown>,
+            true,
+          ).weightedScore
+        : null;
+    current.push({
+      reviewerName: review.reviewerName,
+      weightedScore: recalculated ?? review.weightedScore,
+      recommendation: review.recommendation,
+      comment: review.comment,
+      submittedAt: review.submittedAt,
+    });
+    reviewsBySubmission.set(review.submissionId, current);
+  }
+  const exportRows = rows.results.map((row) => {
+    const reviews = reviewsBySubmission.get(row.submissionId) ?? [];
+    const submittedScores = reviews
+      .filter((review) => review.submittedAt && review.weightedScore !== null)
+      .map((review) => Number(review.weightedScore));
+    return {
+      ...row,
+      aggregateScore: submittedScores.length
+        ? Math.round(
+            (submittedScores.reduce((sum, score) => sum + score, 0) /
+              submittedScores.length) *
+              100,
+          ) / 100
+        : null,
+      reviews,
+    };
+  });
+  const csv = reviewResultsCsv(exportRows);
   await auditStatement(db, {
     organizationId: access.organizationId,
     eventId,
@@ -425,7 +587,11 @@ router.get("/events/:eventId/export", async (context) => {
     action: "review_results.exported",
     entityType: "review_round",
     entityId: roundId,
-    after: { rowCount: rows.results.length, format: "csv" },
+    after: {
+      submissionCount: rows.results.length,
+      reviewRowCount: reviewRows.results.length,
+      format: "csv",
+    },
     requestId: context.get("requestId"),
   }).run();
   return new Response(csv, {

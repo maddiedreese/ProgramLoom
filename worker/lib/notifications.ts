@@ -106,7 +106,7 @@ export async function dispatchNotificationEmails(env: Env) {
          (SELECT email_enabled FROM notification_preferences np
           WHERE np.organization_id=n.organization_id AND np.event_id IS NULL
             AND np.user_id=n.recipient_user_id AND np.category=n.category),
-         CASE WHEN n.notification_type='task.overdue' AND EXISTS (
+         CASE WHEN n.notification_type IN ('task.due_soon','task.overdue') AND EXISTS (
            SELECT 1 FROM speaker_profiles sp
            JOIN speaker_task_assignments sta ON sta.speaker_id=sp.id
            JOIN onboarding_tasks t ON t.id=sta.task_id
@@ -203,13 +203,16 @@ export async function createOverdueTaskNotifications(env: Env) {
   if (!env.DB) return { createdFor: 0 };
   const overdue = await env.DB.prepare(
     `SELECT t.id taskId,t.event_id eventId,t.organization_id organizationId,t.title,
-       sta.speaker_id speakerId,sp.user_id speakerUserId
+       t.due_at dueAt,sta.speaker_id speakerId,sp.user_id speakerUserId,
+       sp.email speakerEmail,TRIM(sp.first_name||' '||sp.last_name) speakerName,
+       CASE WHEN t.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'due_soon' END reminderPhase
        FROM onboarding_tasks t JOIN speaker_task_assignments sta ON sta.task_id=t.id
        JOIN speaker_profiles sp ON sp.id=sta.speaker_id
-       WHERE t.due_at IS NOT NULL AND t.due_at<CURRENT_TIMESTAMP
+       WHERE t.due_at IS NOT NULL AND t.due_at<=datetime('now','+24 hours')
        AND sta.status NOT IN ('submitted','complete')
        AND NOT EXISTS (
-         SELECT 1 FROM notifications n WHERE n.coalesce_key='task-overdue:'||t.id||':'||sta.speaker_id
+         SELECT 1 FROM notifications n
+           WHERE n.coalesce_key='task-'||CASE WHEN t.due_at<CURRENT_TIMESTAMP THEN 'overdue' ELSE 'due-soon' END||':'||t.id||':'||sta.speaker_id
            AND n.archived_at IS NULL
        ) ORDER BY t.due_at,t.id,sta.speaker_id LIMIT 50`,
   ).all<{
@@ -217,23 +220,32 @@ export async function createOverdueTaskNotifications(env: Env) {
     eventId: string;
     organizationId: string;
     title: string;
+    dueAt: string;
     speakerId: string;
     speakerUserId: string | null;
+    speakerEmail: string;
+    speakerName: string;
+    reminderPhase: "due_soon" | "overdue";
   }>();
   for (const item of overdue.results) {
+    const overdueNow = item.reminderPhase === "overdue";
+    const notificationType = overdueNow ? "task.overdue" : "task.due_soon";
+    const coalesceKey = `task-${overdueNow ? "overdue" : "due-soon"}:${item.taskId}:${item.speakerId}`;
     const statements = [
       eventManagerNotificationStatement(env.DB, {
         organizationId: item.organizationId,
         eventId: item.eventId,
         category: "task",
-        notificationType: "task.overdue",
+        notificationType,
         severity: "warning",
-        title: "A speaker onboarding task is overdue",
+        title: overdueNow
+          ? "A speaker onboarding task is overdue"
+          : "A speaker onboarding task is due soon",
         body: item.title,
         actionUrl: `/app/events/${item.eventId}/speakers#task-${item.taskId}`,
         entityType: "speaker_task",
         entityId: `${item.taskId}:${item.speakerId}`,
-        coalesceKey: `task-overdue:${item.taskId}:${item.speakerId}`,
+        coalesceKey,
       }),
     ];
     if (item.speakerUserId)
@@ -243,17 +255,55 @@ export async function createOverdueTaskNotifications(env: Env) {
           eventId: item.eventId,
           recipientUserId: item.speakerUserId,
           category: "task",
-          notificationType: "task.overdue",
+          notificationType,
           severity: "warning",
-          title: "An onboarding task is overdue",
-          body: item.title,
+          title: overdueNow
+            ? "An onboarding task is overdue"
+            : "An onboarding task is due within 24 hours",
+          body: `${item.title} — due ${new Date(item.dueAt).toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" })} UTC`,
           actionUrl: `/app/events/${item.eventId}/speaker#task-${item.taskId}`,
           entityType: "speaker_task",
           entityId: `${item.taskId}:${item.speakerId}`,
-          coalesceKey: `task-overdue:${item.taskId}:${item.speakerId}`,
+          coalesceKey,
         }),
       );
     await env.DB.batch(statements);
+    if (!item.speakerUserId) {
+      const messageId = `task-reminder:${item.reminderPhase}:${item.taskId}:${item.speakerId}`;
+      const actionUrl = new URL(
+        `/app/events/${item.eventId}/speaker#task-${item.taskId}`,
+        env.APP_URL,
+      ).toString();
+      const rendered = renderSimpleTransactionalEmail({
+        recipientName: item.speakerName,
+        paragraphs: [
+          overdueNow
+            ? `${item.title} is overdue.`
+            : `${item.title} is due within 24 hours.`,
+        ],
+        actionLabel: "Open speaker portal",
+        actionUrl,
+      });
+      await prepareCommunicationStatement(env.DB, {
+        id: messageId,
+        organizationId: item.organizationId,
+        eventId: item.eventId,
+        category: "onboarding_reminder",
+        recipientEmail: item.speakerEmail,
+        recipientName: item.speakerName,
+        subject: overdueNow
+          ? `Overdue: ${item.title}`
+          : `Due soon: ${item.title}`,
+        bodyHtml: rendered.html,
+        bodyText: rendered.text,
+        entityType: "speaker_task",
+        entityId: `${item.taskId}:${item.speakerId}`,
+        metadata: { reminderPhase: item.reminderPhase },
+        idempotencyKey: `task-reminder/${item.reminderPhase}/${item.taskId}/${item.speakerId}`,
+        correlationId: `scheduled-task-reminder/${item.taskId}/${item.speakerId}`,
+      }).run();
+      await enqueueCommunication(env, messageId);
+    }
   }
   return { createdFor: overdue.results.length };
 }

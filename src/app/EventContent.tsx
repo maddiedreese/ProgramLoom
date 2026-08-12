@@ -109,6 +109,7 @@ type FileDetail = {
     createdAt: string;
   }>;
 };
+type FileVersion = FileDetail["versions"][number];
 type ExportRecord = {
   id: string;
   status: string;
@@ -410,6 +411,39 @@ export function EventContent({ user }: { user: User }) {
       );
       setRevisions(refreshed.revisions);
     }, `Restored version ${revision.versionNumber}.`);
+  }
+
+  async function restoreFileVersion(version: FileVersion) {
+    if (!selectedFile || version.isCurrent) return;
+    if (
+      !window.confirm(
+        `Restore version ${version.versionNumber} of ${version.filename}? It will become the current file and return to Submitted for organizer review. Newer versions remain in history.`,
+      )
+    )
+      return;
+    setBusy(true);
+    setFeedback(undefined);
+    try {
+      await api(
+        `/api/speakers/admin/events/${eventId}/files/${selectedFile.id}/versions/${version.id}/restore`,
+        { method: "POST" },
+      );
+      await Promise.all([load(), openFile(selectedFile)]);
+      setFeedback({
+        kind: "success",
+        message: `Version ${version.versionNumber} is now current and its review state is Submitted. Next, review or approve the restored file.`,
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not restore this file version.",
+      });
+    } finally {
+      setBusy(false);
+    }
   }
   async function saveSpeaker(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1212,6 +1246,15 @@ export function EventContent({ user }: { user: User }) {
                   >
                     <Download size={15} /> Download
                   </a>
+                  <button
+                    className="button button-small button-ghost"
+                    type="button"
+                    disabled={busy || version.isCurrent}
+                    onClick={() => restoreFileVersion(version)}
+                  >
+                    <RefreshCw size={14} />
+                    {version.isCurrent ? "Current version" : "Restore version"}
+                  </button>
                 </article>
               ))}
             </section>

@@ -54,13 +54,13 @@ const remixSchema = z.object({
   objective: z.enum(["clarity", "concise", "tone"]).default("clarity"),
 });
 
-export function uniqueCurrentExportRows<T extends { r2Key: string }>(
+export function uniqueCurrentExportRows<T extends { id: string }>(
   rows: T[],
 ) {
   const seen = new Set<string>();
   return rows.filter((row) => {
-    if (seen.has(row.r2Key)) return false;
-    seen.add(row.r2Key);
+    if (seen.has(row.id)) return false;
+    seen.add(row.id);
     return true;
   });
 }
@@ -889,7 +889,7 @@ router.post(
           throw new Error(`${row.filename} is missing from storage.`);
         const folder =
           input.grouping === "session"
-            ? (row.sessionTitle ?? "Unassigned session")
+            ? (row.sessionTitle ?? "Speaker materials")
             : input.grouping === "speaker"
               ? row.speakerName
               : "";

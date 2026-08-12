@@ -52,12 +52,33 @@ describe("review scorecard evaluation", () => {
         completedCount: 2,
         aggregateScore: 3.25,
         recommendations: "approve; maybe",
+        reviews: [
+          {
+            reviewerName: "Jordan Lee",
+            weightedScore: 4.25,
+            recommendation: "approve",
+            comment: "Strong fit.",
+            submittedAt: "2027-01-01T12:00:00.000Z",
+          },
+          {
+            reviewerName: "Sam Rivera",
+            weightedScore: 2.25,
+            recommendation: "maybe",
+            comment: "Needs a clearer outcome.",
+            submittedAt: "2027-01-02T12:00:00.000Z",
+          },
+        ],
       },
     ]);
     expect(csv).toContain('"Review status"');
     expect(csv).toContain('"Recommendations"');
     expect(csv).toContain('"Complete"');
     expect(csv).toContain('"approve; maybe"');
+    expect(csv).toContain('"Recommendation"');
+    expect(csv).toContain('"Jordan Lee"');
+    expect(csv).toContain('"approve"');
+    expect(csv).toContain('"Sam Rivera"');
+    expect(csv).toContain('"maybe"');
   });
 
   it("computes a weighted mean across numeric and scored select fields", () => {

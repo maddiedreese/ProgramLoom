@@ -5,9 +5,11 @@ import { createOverdueTaskNotificationsAndDispatchEmails } from "./notifications
 describe("scheduled speaker reminders", () => {
   it("creates overdue notifications before dispatching eligible emails", async () => {
     const operations: string[] = [];
+    let taskQuery = "";
     const env = {
       DB: {
         prepare(sql: string) {
+          if (sql.includes("FROM onboarding_tasks")) taskQuery = sql;
           operations.push(
             sql.includes("FROM onboarding_tasks")
               ? "find-overdue-tasks"
@@ -32,5 +34,7 @@ describe("scheduled speaker reminders", () => {
       "find-overdue-tasks",
       "find-email-notifications",
     ]);
+    expect(taskQuery).toContain("datetime('now','+24 hours')");
+    expect(taskQuery).toContain("due_soon");
   });
 });
