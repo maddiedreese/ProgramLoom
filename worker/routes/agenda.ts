@@ -128,35 +128,43 @@ export const sessionSpeakersSchema = z.object({
 });
 
 async function eventData(db: D1Database, eventId: string) {
-  const [event, tracks, rooms, sessions, speakers, items, constraints, conflicts] =
-    await Promise.all([
-      db
-        .prepare(
-          "SELECT e.id,e.name,e.timezone,e.starts_at AS startsAt,e.ends_at AS endsAt,e.status,o.name AS organizationName FROM events e JOIN organizations o ON o.id=e.organization_id WHERE e.id=?",
-        )
-        .bind(eventId)
-        .first(),
-      db
-        .prepare(
-          "SELECT id,name,slug,color,description,position FROM tracks WHERE event_id=? ORDER BY position,name",
-        )
-        .bind(eventId)
-        .all(),
-      db
-        .prepare(
-          "SELECT id,name,capacity,position FROM rooms WHERE event_id=? ORDER BY position,name",
-        )
-        .bind(eventId)
-        .all(),
-      db
-        .prepare(
-          `SELECT s.id,s.title,s.abstract,s.format,MIN(st.track_id) AS trackId,GROUP_CONCAT(DISTINCT sp.id) AS speakerIds,GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames FROM submissions s LEFT JOIN submission_tracks st ON st.submission_id=s.id LEFT JOIN session_speakers ss ON ss.submission_id=s.id LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id WHERE s.event_id=? AND s.status='accepted' GROUP BY s.id ORDER BY s.title`,
-        )
-        .bind(eventId)
-        .all(),
-      db
-        .prepare(
-          `SELECT DISTINCT sp.id,sp.first_name AS firstName,sp.last_name AS lastName,
+  const [
+    event,
+    tracks,
+    rooms,
+    sessions,
+    speakers,
+    items,
+    constraints,
+    conflicts,
+  ] = await Promise.all([
+    db
+      .prepare(
+        "SELECT e.id,e.name,e.timezone,e.starts_at AS startsAt,e.ends_at AS endsAt,e.status,o.name AS organizationName FROM events e JOIN organizations o ON o.id=e.organization_id WHERE e.id=?",
+      )
+      .bind(eventId)
+      .first(),
+    db
+      .prepare(
+        "SELECT id,name,slug,color,description,position FROM tracks WHERE event_id=? ORDER BY position,name",
+      )
+      .bind(eventId)
+      .all(),
+    db
+      .prepare(
+        "SELECT id,name,capacity,position FROM rooms WHERE event_id=? ORDER BY position,name",
+      )
+      .bind(eventId)
+      .all(),
+    db
+      .prepare(
+        `SELECT s.id,s.title,s.abstract,s.format,MIN(st.track_id) AS trackId,GROUP_CONCAT(DISTINCT sp.id) AS speakerIds,GROUP_CONCAT(DISTINCT sp.first_name||' '||sp.last_name) AS speakerNames FROM submissions s LEFT JOIN submission_tracks st ON st.submission_id=s.id LEFT JOIN session_speakers ss ON ss.submission_id=s.id LEFT JOIN speaker_profiles sp ON sp.id=ss.speaker_id WHERE s.event_id=? AND s.status='accepted' GROUP BY s.id ORDER BY s.title`,
+      )
+      .bind(eventId)
+      .all(),
+    db
+      .prepare(
+        `SELECT DISTINCT sp.id,sp.first_name AS firstName,sp.last_name AS lastName,
                   sp.job_title AS jobTitle,sp.company
            FROM speaker_profiles sp
            JOIN (
@@ -166,33 +174,33 @@ async function eventData(db: D1Database, eventId: string) {
              JOIN submissions s ON s.id=ss.submission_id WHERE s.event_id=?
            ) roster ON roster.speaker_id=sp.id
            ORDER BY sp.last_name,sp.first_name`,
-        )
-        .bind(eventId, eventId)
-        .all(),
-      db
-        .prepare(
-          `SELECT a.id,a.submission_id AS submissionId,a.track_id AS trackId,a.room_id AS roomId,a.item_type AS itemType,a.title,a.description,a.starts_at AS startsAt,a.ends_at AS endsAt,a.status,a.version,a.cancelled_at AS cancelledAt,r.name AS roomName,t.name AS trackName FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id WHERE a.event_id=? ORDER BY CASE WHEN a.cancelled_at IS NULL THEN 0 ELSE 1 END,COALESCE(a.starts_at,'9999'),a.title`,
-        )
-        .bind(eventId)
-        .all(),
-      db
-        .prepare(
-          "SELECT id,constraint_type AS constraintType,subject_id AS subjectId,config_json AS configJson,severity FROM schedule_constraints WHERE event_id=? ORDER BY created_at",
-        )
-        .bind(eventId)
-        .all(),
-      db
-        .prepare(
-          `SELECT id,agenda_item_id AS agendaItemId,conflicting_item_id AS conflictingItemId,
+      )
+      .bind(eventId, eventId)
+      .all(),
+    db
+      .prepare(
+        `SELECT a.id,a.submission_id AS submissionId,a.track_id AS trackId,a.room_id AS roomId,a.item_type AS itemType,a.title,a.description,a.starts_at AS startsAt,a.ends_at AS endsAt,a.status,a.version,a.cancelled_at AS cancelledAt,r.name AS roomName,t.name AS trackName FROM agenda_items a LEFT JOIN rooms r ON r.id=a.room_id LEFT JOIN tracks t ON t.id=a.track_id WHERE a.event_id=? ORDER BY CASE WHEN a.cancelled_at IS NULL THEN 0 ELSE 1 END,COALESCE(a.starts_at,'9999'),a.title`,
+      )
+      .bind(eventId)
+      .all(),
+    db
+      .prepare(
+        "SELECT id,constraint_type AS constraintType,subject_id AS subjectId,config_json AS configJson,severity FROM schedule_constraints WHERE event_id=? ORDER BY created_at",
+      )
+      .bind(eventId)
+      .all(),
+    db
+      .prepare(
+        `SELECT id,agenda_item_id AS agendaItemId,conflicting_item_id AS conflictingItemId,
                   conflict_type AS conflictType,summary,status,attempted_room_id AS attemptedRoomId,
                   attempted_starts_at AS attemptedStartsAt,attempted_ends_at AS attemptedEndsAt
            FROM schedule_conflict_records
            WHERE event_id=? AND status='open'
            ORDER BY created_at`,
-        )
-        .bind(eventId)
-        .all(),
-    ]);
+      )
+      .bind(eventId)
+      .all(),
+  ]);
   return {
     event,
     tracks: tracks.results,

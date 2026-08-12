@@ -833,7 +833,10 @@ export function EventAgenda({ user }: { user: User }) {
           />
         )}
         {conflicts.length > 0 && (
-          <section className="agenda-conflict-panel" aria-labelledby="agenda-conflicts-title">
+          <section
+            className="agenda-conflict-panel"
+            aria-labelledby="agenda-conflicts-title"
+          >
             <div>
               <p className="kicker">Scheduling blockers</p>
               <h2 id="agenda-conflicts-title">Resolve open conflicts</h2>
