@@ -19,7 +19,7 @@ type EventRecord = {
   startsAt: string;
   endsAt: string;
   venueName: string | null;
-  status: string;
+  status: "draft" | "active" | "archived";
 };
 type Template = {
   id: string;

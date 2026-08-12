@@ -40,7 +40,7 @@ type EventRecord = {
   endsAt: string;
   venueName: string | null;
   websiteUrl?: string | null;
-  status: string;
+  status: "draft" | "active" | "archived";
   accessRole?: string;
 };
 type Feedback = { kind: "error" | "success"; message: string };
@@ -238,6 +238,7 @@ export function Dashboard({ user }: { user: User }) {
           endsAt: zonedLocalToIso(String(form.get("endsAt")), timezone),
           venueName: form.get("venueName") || null,
           websiteUrl: form.get("websiteUrl") || null,
+          status: form.get("status"),
         }),
       });
       setEvents((current) =>
@@ -250,7 +251,9 @@ export function Dashboard({ user }: { user: User }) {
         kind: result.calendar.failed ? "error" : "success",
         message: result.calendar.failed
           ? `Event details were saved, but ${result.calendar.failed} calendar update needs attention.`
-          : `Event details were saved${result.calendar.updated ? ` and ${result.calendar.updated} calendar ${result.calendar.updated === 1 ? "invitation was" : "invitations were"} updated` : ""}. Next, open the Control Room to review readiness.`,
+          : result.event.status === "archived"
+            ? "Event details were saved and the event moved to Past programs. Its public CFP is now closed; published attendee pages remain available."
+            : `Event details were saved${result.calendar.updated ? ` and ${result.calendar.updated} calendar ${result.calendar.updated === 1 ? "invitation was" : "invitations were"} updated` : ""}. Next, open the Control Room to review readiness.`,
       });
     } catch (error) {
       setFeedback({
@@ -546,13 +549,28 @@ export function Dashboard({ user }: { user: User }) {
                 </p>
                 <div className="archived-event-links">
                   {backgroundEvents.map((item) => (
-                    <a
-                      key={item.id}
-                      href={"/app/events/" + item.id + "/control-room"}
-                    >
-                      <span>{item.name}</span>
-                      <ArrowRight size={15} />
-                    </a>
+                    <div className="archived-event-row" key={item.id}>
+                      <a href={"/app/events/" + item.id + "/control-room"}>
+                        <span>
+                          {item.name}
+                          <small>
+                            {item.status === "archived"
+                              ? "Past program"
+                              : "Draft"}
+                          </small>
+                        </span>
+                        <ArrowRight size={15} />
+                      </a>
+                      {canOrganize && (
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() => setEditingEvent(item)}
+                        >
+                          <Pencil size={14} /> Edit
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </details>
@@ -806,6 +824,20 @@ export function Dashboard({ user }: { user: User }) {
                     defaultValue={editingEvent.websiteUrl ?? ""}
                     placeholder="https://example.com"
                   />
+                </label>
+                <label className="wide">
+                  Event status
+                  <select name="status" defaultValue={editingEvent.status}>
+                    <option value="draft">Draft — still being prepared</option>
+                    <option value="active">
+                      Active — current and discoverable
+                    </option>
+                    <option value="archived">Archived — past program</option>
+                  </select>
+                  <small>
+                    Archiving closes the public CFP and moves this event to Past
+                    programs. Any published attendee agenda remains available.
+                  </small>
                 </label>
                 <div className="event-edit-actions wide">
                   <button

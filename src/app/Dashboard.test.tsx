@@ -294,6 +294,12 @@ describe("organizer onboarding", () => {
     expect(within(dialog).getByLabelText("Event name")).toHaveValue(
       "DevFlow Summit",
     );
+    expect(within(dialog).getByLabelText(/event status/i)).toHaveValue(
+      "active",
+    );
+    expect(
+      within(dialog).getByText(/archiving closes the public cfp/i),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /close event details/i }),
     ).toBeEnabled();

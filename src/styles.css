@@ -2008,6 +2008,12 @@ input {
   display: grid;
   gap: 8px;
 }
+.archived-event-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
 .archived-event-links a {
   min-height: 44px;
   padding: 10px 12px;
@@ -2022,6 +2028,17 @@ input {
   font-weight: 700;
   text-decoration: none;
 }
+.archived-event-links a small {
+  margin-top: 3px;
+  display: block;
+  color: #686d65;
+  font-size: 12px;
+  font-weight: 600;
+}
+.archived-event-row > .text-button {
+  min-width: 72px;
+  justify-content: center;
+}
 .archived-event-links a:hover {
   border-color: var(--moss);
   color: var(--moss-dark);
@@ -2035,6 +2052,11 @@ input {
   }
   .button-large {
     min-height: 51px;
+  }
+  .mobile-link-target {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
   .workspace-shell {
     width: 100%;

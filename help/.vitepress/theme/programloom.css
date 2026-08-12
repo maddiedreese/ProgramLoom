@@ -98,9 +98,15 @@
   }
 
   .VPNav button,
+  .VPNav a,
+  .VPNavBarSearch button,
   .VPLocalNav button,
-  .VPSidebar button {
+  .VPSidebar button,
+  .VPSidebar a,
+  .VPDocFooter a {
     min-width: 44px;
     min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 }

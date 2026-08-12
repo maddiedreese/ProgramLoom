@@ -77,7 +77,9 @@ test("help-center primary actions have readable contrast and touch targets", asy
 
   if ((page.viewportSize()?.width ?? 1000) <= 640) {
     const undersizedControls = await page
-      .locator(".VPNav button, .VPLocalNav button, .VPSidebar button")
+      .locator(
+        ".VPNav button, .VPNav a, .VPNavBarSearch button, .VPLocalNav button, .VPSidebar button, .VPSidebar a, .VPDocFooter a",
+      )
       .evaluateAll((controls) =>
         controls
           .map((control) => {

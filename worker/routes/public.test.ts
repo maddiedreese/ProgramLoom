@@ -3,6 +3,7 @@ import {
   cfpAvailability,
   deriveProgramMetadata,
   matches,
+  publicFormLookupStatement,
   submissionSchema,
   submissionEditingIsClosed,
   submissionCanBeSavedAsDraft,
@@ -10,6 +11,18 @@ import {
 } from "./public";
 
 describe("public CFP validation", () => {
+  it("keeps direct CFP links closed when their event is archived", () => {
+    let sql = "";
+    const db = {
+      prepare(nextSql: string) {
+        sql = nextSql;
+        return { bind: () => ({}) };
+      },
+    } as unknown as D1Database;
+
+    publicFormLookupStatement(db, "workspace", "past-event", "cfp");
+    expect(sql).toContain("e.status = 'active'");
+  });
   it("closes submission and editing at the configured CFP deadline", () => {
     const form = {
       opensAt: "2027-01-01T00:00:00.000Z",

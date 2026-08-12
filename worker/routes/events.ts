@@ -36,6 +36,7 @@ const eventPatchSchema = z
     endsAt: z.iso.datetime({ offset: true }).optional(),
     venueName: z.string().trim().max(160).nullable().optional(),
     websiteUrl: z.url().nullable().optional().or(z.literal("")),
+    status: z.enum(["draft", "active", "archived"]).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "Choose at least one event detail to update.",
@@ -73,6 +74,46 @@ export function acceptedSpeakerFileRequestStatement(
       input.eventId,
       input.speakerId,
       input.taskId,
+    );
+}
+
+export function eventChangeNeedsCalendarSync(
+  input: Record<string, unknown>,
+): boolean {
+  return ["name", "timezone", "startsAt", "endsAt", "venueName"].some((field) =>
+    Object.prototype.hasOwnProperty.call(input, field),
+  );
+}
+
+export function updateEventStatement(
+  db: D1Database,
+  event: {
+    name: string;
+    timezone: string;
+    startsAt: string;
+    endsAt: string;
+    venueName: string | null;
+    websiteUrl: string | null;
+    status: string;
+  },
+  eventId: string,
+) {
+  return db
+    .prepare(
+      `UPDATE events
+       SET name=?,timezone=?,starts_at=?,ends_at=?,venue_name=?,website_url=?,status=?,
+           updated_at=CURRENT_TIMESTAMP
+       WHERE id=?`,
+    )
+    .bind(
+      event.name,
+      event.timezone,
+      event.startsAt,
+      event.endsAt,
+      event.venueName,
+      event.websiteUrl,
+      event.status,
+      eventId,
     );
 }
 
@@ -341,22 +382,7 @@ router.patch(
       );
     }
     await db.batch([
-      db
-        .prepare(
-          `UPDATE events
-           SET name=?,timezone=?,starts_at=?,ends_at=?,venue_name=?,website_url=?,
-               updated_at=CURRENT_TIMESTAMP
-           WHERE id=?`,
-        )
-        .bind(
-          updated.name,
-          updated.timezone,
-          updated.startsAt,
-          updated.endsAt,
-          updated.venueName,
-          updated.websiteUrl,
-          eventId,
-        ),
+      updateEventStatement(db, updated, eventId),
       auditStatement(db, {
         organizationId: access.organizationId,
         eventId,
@@ -379,16 +405,18 @@ router.patch(
       }),
     ]);
 
-    const calendarItems = await db
-      .prepare(
-        `SELECT DISTINCT a.id
-         FROM agenda_items a
-         JOIN calendar_records c ON c.agenda_item_id=a.id AND c.state='active'
-         WHERE a.event_id=? AND a.cancelled_at IS NULL
-         ORDER BY a.id LIMIT 250`,
-      )
-      .bind(eventId)
-      .all<{ id: string }>();
+    const calendarItems = eventChangeNeedsCalendarSync(input)
+      ? await db
+          .prepare(
+            `SELECT DISTINCT a.id
+             FROM agenda_items a
+             JOIN calendar_records c ON c.agenda_item_id=a.id AND c.state='active'
+             WHERE a.event_id=? AND a.cancelled_at IS NULL
+             ORDER BY a.id LIMIT 250`,
+          )
+          .bind(eventId)
+          .all<{ id: string }>()
+      : { results: [] as Array<{ id: string }> };
     let calendarUpdated = 0;
     let calendarFailures = 0;
     for (const item of calendarItems.results) {

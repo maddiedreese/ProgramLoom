@@ -202,13 +202,13 @@ type ConditionRecord = {
   action: "show" | "hide" | "require";
 };
 
-async function publicForm(
+export function publicFormLookupStatement(
   db: D1Database,
   organizationSlug: string,
   eventSlug: string,
   formSlug: string,
-): Promise<FormRecord> {
-  const form = await db
+) {
+  return db
     .prepare(
       `SELECT f.id, f.event_id AS eventId, e.organization_id AS organizationId, o.name AS organizationName,
             e.name AS eventName, e.slug AS eventSlug, e.timezone, e.primary_color AS primaryColor,
@@ -216,10 +216,24 @@ async function publicForm(
             f.edit_closes_at AS editClosesAt, f.allow_drafts AS allowDrafts, f.submission_limit AS submissionLimit,
             f.confirmation_subject AS confirmationSubject, f.confirmation_body AS confirmationBody, f.published_at AS publishedAt
      FROM cfp_forms f JOIN events e ON e.id = f.event_id JOIN organizations o ON o.id = e.organization_id
-     WHERE o.slug = ? COLLATE NOCASE AND e.slug = ? COLLATE NOCASE AND f.slug = ? COLLATE NOCASE`,
+     WHERE o.slug = ? COLLATE NOCASE AND e.slug = ? COLLATE NOCASE
+       AND f.slug = ? COLLATE NOCASE AND e.status = 'active'`,
     )
-    .bind(organizationSlug, eventSlug, formSlug)
-    .first<FormRecord>();
+    .bind(organizationSlug, eventSlug, formSlug);
+}
+
+async function publicForm(
+  db: D1Database,
+  organizationSlug: string,
+  eventSlug: string,
+  formSlug: string,
+): Promise<FormRecord> {
+  const form = await publicFormLookupStatement(
+    db,
+    organizationSlug,
+    eventSlug,
+    formSlug,
+  ).first<FormRecord>();
   if (!form || !form.publishedAt)
     throw new HttpError(
       404,

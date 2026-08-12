@@ -85,7 +85,10 @@ function PrivacyNotice() {
           available profile fields in the product. For access, correction,
           export, or deletion requests, contact the event organizer first or use
           the private contact method in our{" "}
-          <a href="https://github.com/maddiedreese/SaaS/security/policy">
+          <a
+            className="mobile-link-target"
+            href="https://github.com/maddiedreese/SaaS/security/policy"
+          >
             security policy
           </a>
           .
@@ -178,7 +181,10 @@ function Terms() {
           Material changes will be posted on this page with a new effective
           date. Questions or private security reports can be submitted through
           the contact method in the project’s{" "}
-          <a href="https://github.com/maddiedreese/SaaS/security/policy">
+          <a
+            className="mobile-link-target"
+            href="https://github.com/maddiedreese/SaaS/security/policy"
+          >
             security policy
           </a>
           .
