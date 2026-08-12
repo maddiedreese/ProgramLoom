@@ -504,7 +504,7 @@ function MarketingPage() {
           </div>
           <figure>
             <img
-              src="/programloom-control-room.jpg"
+              src="/programloom-control-room.jpg?v=15f20fd6"
               alt="ProgramLoom Organizer Control Room showing live blockers and prioritized work"
               loading="eager"
             />
