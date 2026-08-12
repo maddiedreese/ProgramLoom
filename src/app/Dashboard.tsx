@@ -56,6 +56,7 @@ type MySubmission = {
   editClosesAt: string | null;
   eventName: string;
   eventSlug: string;
+  eventStatus: "draft" | "active" | "archived";
   organizationName: string;
   organizationSlug: string;
 };
@@ -89,6 +90,54 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
       result.error?.message ?? "The request could not be completed.",
     );
   return result;
+}
+
+function SubmissionCards({
+  submissions,
+  historical = false,
+}: {
+  submissions: MySubmission[];
+  historical?: boolean;
+}) {
+  return (
+    <div className="event-grid">
+      {submissions.map((submission) => (
+        <article className="event-card" key={submission.id}>
+          <div className="event-status">
+            {submission.decisionState !== "none"
+              ? submission.decisionState.replaceAll("_", " ")
+              : submission.status}
+          </div>
+          <FileInput size={20} />
+          <h3>{submission.title || "Untitled proposal"}</h3>
+          <p>
+            {submission.eventName} · {submission.formName}
+          </p>
+          <span>
+            Updated{" "}
+            {new Intl.DateTimeFormat("en-US", {
+              dateStyle: "medium",
+            }).format(new Date(submission.updatedAt))}
+          </span>
+          {historical ? (
+            <p className="proposal-history-note">
+              Kept for your records. This event is no longer accepting proposal
+              changes.
+            </p>
+          ) : (
+            <a
+              href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}?submission=${encodeURIComponent(submission.id)}`}
+            >
+              {submission.status === "draft"
+                ? "Continue proposal"
+                : "Open proposal"}{" "}
+              <ArrowRight size={15} />
+            </a>
+          )}
+        </article>
+      ))}
+    </div>
+  );
 }
 
 export function Dashboard({ user }: { user: User }) {
@@ -281,6 +330,12 @@ export function Dashboard({ user }: { user: User }) {
   const backgroundEvents = events.filter(
     (item) => !visibleEvents.some((visible) => visible.id === item.id),
   );
+  const currentSubmissions = mySubmissions.filter(
+    (submission) => submission.eventStatus === "active",
+  );
+  const pastSubmissions = mySubmissions.filter(
+    (submission) => submission.eventStatus !== "active",
+  );
   return (
     <div className="workspace-shell">
       <aside className="workspace-sidebar">
@@ -375,7 +430,7 @@ export function Dashboard({ user }: { user: User }) {
             {feedback.message}
           </div>
         )}
-        {!canOrganize && mySubmissions.length > 0 && (
+        {!canOrganize && currentSubmissions.length > 0 && (
           <section aria-labelledby="my-proposals-title">
             <div className="content-heading">
               <div>
@@ -390,36 +445,7 @@ export function Dashboard({ user }: { user: User }) {
                 </p>
               </div>
             </div>
-            <div className="event-grid">
-              {mySubmissions.map((submission) => (
-                <article className="event-card" key={submission.id}>
-                  <div className="event-status">
-                    {submission.decisionState !== "none"
-                      ? submission.decisionState.replaceAll("_", " ")
-                      : submission.status}
-                  </div>
-                  <FileInput size={20} />
-                  <h3>{submission.title || "Untitled proposal"}</h3>
-                  <p>
-                    {submission.eventName} · {submission.formName}
-                  </p>
-                  <span>
-                    Updated{" "}
-                    {new Intl.DateTimeFormat("en-US", {
-                      dateStyle: "medium",
-                    }).format(new Date(submission.updatedAt))}
-                  </span>
-                  <a
-                    href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}?submission=${encodeURIComponent(submission.id)}`}
-                  >
-                    {submission.status === "draft"
-                      ? "Continue proposal"
-                      : "Open proposal"}{" "}
-                    <ArrowRight size={15} />
-                  </a>
-                </article>
-              ))}
-            </div>
+            <SubmissionCards submissions={currentSubmissions} />
           </section>
         )}
         {!organizations.length ? (
@@ -647,7 +673,7 @@ export function Dashboard({ user }: { user: User }) {
             )}
           </section>
         )}
-        {canOrganize && mySubmissions.length > 0 && (
+        {canOrganize && currentSubmissions.length > 0 && (
           <section aria-labelledby="my-proposals-title">
             <div className="content-heading">
               <div>
@@ -659,37 +685,18 @@ export function Dashboard({ user }: { user: User }) {
                 </p>
               </div>
             </div>
-            <div className="event-grid">
-              {mySubmissions.map((submission) => (
-                <article className="event-card" key={submission.id}>
-                  <div className="event-status">
-                    {submission.decisionState !== "none"
-                      ? submission.decisionState.replaceAll("_", " ")
-                      : submission.status}
-                  </div>
-                  <FileInput size={20} />
-                  <h3>{submission.title || "Untitled proposal"}</h3>
-                  <p>
-                    {submission.eventName} · {submission.formName}
-                  </p>
-                  <span>
-                    Updated{" "}
-                    {new Intl.DateTimeFormat("en-US", {
-                      dateStyle: "medium",
-                    }).format(new Date(submission.updatedAt))}
-                  </span>
-                  <a
-                    href={`/c/${submission.organizationSlug}/${submission.eventSlug}/${submission.formSlug}?submission=${encodeURIComponent(submission.id)}`}
-                  >
-                    {submission.status === "draft"
-                      ? "Continue proposal"
-                      : "Open proposal"}{" "}
-                    <ArrowRight size={15} />
-                  </a>
-                </article>
-              ))}
-            </div>
+            <SubmissionCards submissions={currentSubmissions} />
           </section>
+        )}
+        {pastSubmissions.length > 0 && (
+          <details className="archived-events past-proposals">
+            <summary>Past proposals ({pastSubmissions.length})</summary>
+            <p>
+              Proposals from draft or archived events are kept here for your
+              records without linking to a closed call for proposals.
+            </p>
+            <SubmissionCards submissions={pastSubmissions} historical />
+          </details>
         )}
         {canOrganize && selected && (
           <section

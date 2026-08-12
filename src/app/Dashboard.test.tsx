@@ -139,6 +139,23 @@ describe("organizer onboarding", () => {
                   editClosesAt: null,
                   eventName: "Assigned Program",
                   eventSlug: "assigned-program",
+                  eventStatus: "active",
+                  organizationName: "Programs",
+                  organizationSlug: "programs",
+                },
+                {
+                  id: "submission-past",
+                  title: "A proposal from last year",
+                  status: "accepted",
+                  decisionState: "communicated_accept",
+                  submittedAt: "2026-01-01T00:00:00.000Z",
+                  updatedAt: "2026-01-02T00:00:00.000Z",
+                  formName: "Past CFP",
+                  formSlug: "past-cfp",
+                  editClosesAt: null,
+                  eventName: "Past Program",
+                  eventSlug: "past-program",
+                  eventStatus: "archived",
                   organizationName: "Programs",
                   organizationSlug: "programs",
                 },
@@ -183,6 +200,10 @@ describe("organizer onboarding", () => {
       "href",
       "/c/programs/assigned-program/community-cfp?submission=submission-1",
     );
+    expect(screen.getByText("Past proposals (1)")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /a proposal from last year/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("puts organizer events first and makes event identity visibly editable", async () => {
@@ -204,6 +225,7 @@ describe("organizer onboarding", () => {
                   formSlug: "community-cfp",
                   eventName: "Another Event",
                   eventSlug: "another-event",
+                  eventStatus: "active",
                   organizationSlug: "programs",
                 },
               ],

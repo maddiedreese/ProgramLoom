@@ -364,7 +364,7 @@ router.get("/my-submissions", async (context) => {
       `SELECT DISTINCT s.id,s.title,s.status,s.decision_state AS decisionState,
               s.submitted_at AS submittedAt,s.updated_at AS updatedAt,
               f.name AS formName,f.slug AS formSlug,f.edit_closes_at AS editClosesAt,
-              e.id AS eventId,e.name AS eventName,e.slug AS eventSlug,
+              e.id AS eventId,e.name AS eventName,e.slug AS eventSlug,e.status AS eventStatus,
               o.name AS organizationName,o.slug AS organizationSlug
        FROM submissions s
        JOIN submission_people person ON person.submission_id=s.id
