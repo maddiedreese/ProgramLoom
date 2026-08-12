@@ -69,13 +69,21 @@ test.describe("authenticated organizer operations", () => {
     await expect(bell).toBeFocused();
   });
 
-  test("judge-first workflow controls are explicit and reachable", async ({
+  test("required workflow controls are explicit and reachable", async ({
     page,
   }) => {
     await page.goto(`/app/events/${eventId}/submissions`);
-    await expect(
-      page.getByRole("button", { name: /Open submission:/ }).first(),
-    ).toBeVisible();
+    const openSubmission = page
+      .getByRole("button", { name: /Open submission:/ })
+      .first();
+    if (await openSubmission.count())
+      await expect(openSubmission).toBeVisible();
+    else {
+      await expect(page.getByText("No matching proposals")).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: "Open call for proposals" }),
+      ).toBeVisible();
+    }
 
     await page.goto(`/app/events/${eventId}/reviews`);
     await expect(

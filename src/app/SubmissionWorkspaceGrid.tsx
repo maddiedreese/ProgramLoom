@@ -1181,9 +1181,26 @@ export function SubmissionWorkspaceGrid({
             <div className="workspace-empty" role="cell">
               <strong>No matching proposals</strong>
               <span>
-                Clear filters or wait for new submissions. This view updates
-                from persisted records.
+                Clear this view to look again, or open the call for proposals to
+                publish and share the submission form.
               </span>
+              <div className="inline-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setActiveViewId("");
+                    setConfig((current) => ({
+                      ...current,
+                      filters: emptyFilters,
+                    }));
+                    setPage(1);
+                  }}
+                >
+                  Clear all proposal filters
+                </button>
+                <a href={`/app/events/${eventId}`}>Open call for proposals</a>
+              </div>
             </div>
           </div>
         )}

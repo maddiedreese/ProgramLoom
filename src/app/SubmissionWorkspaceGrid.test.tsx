@@ -75,6 +75,30 @@ const row = {
 };
 
 describe("SubmissionWorkspaceGrid", () => {
+  it("gives an empty workspace clear next actions", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input);
+      if (path.endsWith("/meta")) return Response.json(meta);
+      if (path.endsWith("/views")) return Response.json({ views: [] });
+      return Response.json({
+        submissions: [],
+        pagination: { page: 1, pageSize: 50, total: 0 },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SubmissionWorkspaceGrid eventId="event-1" onOpen={vi.fn()} />);
+
+    expect(
+      await screen.findByText("No matching proposals"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Clear all proposal filters" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open call for proposals" }),
+    ).toHaveAttribute("href", "/app/events/event-1");
+  });
+
   it("exposes custom fields as configurable columns and combined filters", async () => {
     const open = vi.fn();
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
