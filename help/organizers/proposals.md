@@ -44,7 +44,9 @@ Reviewers who are at capacity, have a conflict, have recused themselves, or woul
 
 ## Close submissions
 
-When the deadline arrives, choose **Close submissions**. Submitted proposals remain available to organizers and reviewers. Submitters can no longer create or change proposals unless an organizer reopens the form or grants an allowed edit path.
+The public form closes automatically at the exact configured deadline. Submitted proposals remain available to organizers and reviewers, while new proposals and edits are blocked.
+
+To close it earlier, choose **Close submissions now**. You can reopen it by setting a future deadline. Dates and times are shown in your local browser time and stored as an exact instant, so teams in different time zones see the same opening and closing moment.
 
 ## What to read next
 

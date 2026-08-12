@@ -31,6 +31,8 @@ The review workspace shows how many assigned reviews are complete in each round.
 
 Organizers can compare completed scorecards, comments, recommendations, and overall progress. Blind-review rules apply to reviewers, not authorized organizers.
 
+Choose **Export results** to download a spreadsheet-safe CSV. It contains the proposal aggregate and a separate row for each assigned reviewer, including that review's weighted score, recommendation, comment, and submission time.
+
 Use review evidence to make a decision, but keep the decision and its communication separate. This gives your team a chance to check the full program before anyone receives an email.
 
 ## What to read next

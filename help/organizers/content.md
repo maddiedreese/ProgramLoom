@@ -17,6 +17,8 @@ Speakers see the request in their portal and upload the real file. A replacement
 
 Open a submitted file to see its latest version, earlier versions, upload details, and conversation. Download the file when you need to inspect it outside the browser.
 
+If an earlier upload should become current again, choose **Restore version** beside it. ProgramLoom keeps every newer upload in history, makes the selected version current, and returns the file to **Submitted** so an organizer can review it again.
+
 Use comments for a specific question or revision request. Choose **Needs changes** when the speaker must act, and explain what should change.
 
 ## Approve content
@@ -27,7 +29,9 @@ An unapproved session stays off the public program even if it has a room and tim
 
 ## Remind people in bulk
 
-Filter the deliverables dashboard to incomplete or overdue work, then choose **Send bulk reminders**. ProgramLoom previews the affected group and records the queued messages in Communications.
+ProgramLoom automatically reminds a speaker when an incomplete task is due within 24 hours and again after it becomes overdue. Each reminder is durable and duplicate-safe in Communications.
+
+For an additional message, filter the deliverables dashboard to incomplete or overdue work, then choose **Send bulk reminders**. ProgramLoom previews the affected group and records the queued messages in Communications.
 
 ## What to read next
 
