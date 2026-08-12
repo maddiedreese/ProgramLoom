@@ -6,6 +6,7 @@ import {
   App,
   canonicalUrlForPath,
   descriptionForPath,
+  evaluatorPersonas,
   shouldIndexPath,
   titleForPath,
 } from "./App";
@@ -39,6 +40,8 @@ describe("ProgramLoom application", () => {
       "Page not found — ProgramLoom",
     );
     expect(descriptionForPath("/guide")).toContain("proposal");
+    expect(titleForPath("/program")).toContain("ProgramLoom Summit 2027");
+    expect(shouldIndexPath("/program")).toBe(true);
     expect(descriptionForPath("/interest/devflow/speakers")).toContain(
       "speaking interests",
     );
@@ -54,6 +57,75 @@ describe("ProgramLoom application", () => {
     expect(canonicalUrlForPath("/app", "http://localhost:5173")).toBe(
       "http://localhost:5173/app",
     );
+  });
+
+  it("keeps every evaluator persona on its documented authorization-safe route", async () => {
+    expect(evaluatorPersonas.map(({ name, path }) => ({ name, path }))).toEqual(
+      [
+        {
+          name: "Organizer",
+          path: "/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/control-room",
+        },
+        {
+          name: "Reviewer",
+          path: "/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/reviews",
+        },
+        {
+          name: "Speaker",
+          path: "/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/speaker",
+        },
+        { name: "Attendee", path: "/program" },
+      ],
+    );
+    render(
+      <MemoryRouter initialEntries={["/evaluate"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("heading", {
+        name: /choose the perspective you want to inspect/i,
+      }),
+    ).toBeVisible();
+    for (const persona of evaluatorPersonas) {
+      expect(screen.getByRole("heading", { name: persona.name })).toBeVisible();
+      expect(screen.getByText(persona.note)).toBeVisible();
+      expect(
+        screen.getByRole("link", { name: `Continue as ${persona.name}` }),
+      ).toHaveAttribute("href", persona.path);
+    }
+  });
+
+  it("publishes the exact production program outputs and live agenda", async () => {
+    render(
+      <MemoryRouter initialEntries={["/program"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "ProgramLoom Summit 2027" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Public CFP" })).toHaveAttribute(
+      "href",
+      "/c/devflow-programs/programloom-summit-2027/cfp",
+    );
+    const links = {
+      Agenda: "/embed/agenda-8b0020bb6481415f864a",
+      Speakers: "/embed/speakers-675b59dd225f4152acf3",
+      Itinerary: "/embed/itinerary-2508fc81fad24cb591fc",
+      JSON: "/api/widgets/public/agenda-8b0020bb6481415f864a/feed.json",
+      XML: "/api/widgets/public/agenda-8b0020bb6481415f864a/feed.xml",
+      ICS: "/api/widgets/public/agenda-8b0020bb6481415f864a/agenda.ics",
+      Embed: "/api/widgets/public/agenda-8b0020bb6481415f864a/embed.js",
+    };
+    for (const [label, href] of Object.entries(links))
+      expect(screen.getByRole("link", { name: label })).toHaveAttribute(
+        "href",
+        href,
+      );
+    expect(
+      screen.getByTitle("Live ProgramLoom Summit 2027 agenda"),
+    ).toHaveAttribute("src", "/embed/agenda-8b0020bb6481415f864a");
   });
 
   it("updates canonical and privacy-conscious route metadata", async () => {

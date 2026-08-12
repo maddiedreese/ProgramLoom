@@ -41,6 +41,8 @@ describe("ProgramLoom Worker", () => {
     expect(isIndexableClientRoute("/")).toBe(true);
     expect(isIndexableClientRoute("/c/example/event/cfp")).toBe(true);
     expect(isIndexableClientRoute("/embed/public-key")).toBe(true);
+    expect(isIndexableClientRoute("/program")).toBe(true);
+    expect(isIndexableClientRoute("/evaluate")).toBe(false);
     expect(isIndexableClientRoute("/login")).toBe(false);
     expect(isIndexableClientRoute("/app/events/event-1/control-room")).toBe(
       false,
@@ -114,6 +116,30 @@ describe("ProgramLoom Worker", () => {
     expect(response.headers.get("content-type")).toContain("text/plain");
     expect(await response.text()).toBe("Asset not found.");
   });
+
+  it.each(["/assets/index-current.js", "/src/main.tsx"])(
+    "preserves conditional 304 responses for reusable browser modules at %s",
+    async (path) => {
+      const response = await app.request(
+        path,
+        { headers: { "if-none-match": 'W/"current"' } },
+        {
+          ...env,
+          ASSETS: {
+            fetch: () =>
+              Promise.resolve(
+                new Response(null, {
+                  status: 304,
+                  headers: { etag: 'W/"current"' },
+                }),
+              ),
+          },
+        },
+      );
+      expect(response.status).toBe(304);
+      expect(response.headers.get("etag")).toBe('W/"current"');
+    },
+  );
 
   it.each([
     "/app/events/event-1/control-room",
@@ -262,6 +288,9 @@ describe("ProgramLoom Worker", () => {
     const application = await app.request("/register", {}, env);
     expect(application.headers.get("content-security-policy")).toContain(
       "frame-ancestors 'none'",
+    );
+    expect(application.headers.get("content-security-policy")).toContain(
+      "frame-src 'self'",
     );
     expect(application.headers.get("content-security-policy")).toContain(
       "sha256-CUFLjg0/PrsMf8xbok429Fq66aDGe3lUN/QY4rcXnT8=",

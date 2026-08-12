@@ -576,6 +576,92 @@ footer nav a,
 .turnstile-slot {
   min-height: 65px;
 }
+.persona-entry,
+.public-program-page > main {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 48px 0 72px;
+}
+.persona-entry > .brand {
+  display: inline-flex;
+  margin-bottom: 54px;
+}
+.persona-entry > h1,
+.public-program-page h1 {
+  max-width: 800px;
+  font-size: clamp(36px, 6vw, 68px);
+  line-height: 1.02;
+}
+.persona-intro,
+.public-program-page main > p {
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.6;
+}
+.persona-grid {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.persona-grid article {
+  padding: 26px;
+  display: flex;
+  min-height: 260px;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid #d5d9d0;
+  border-radius: 14px;
+  background: white;
+}
+.persona-grid article p {
+  flex: 1;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.public-program-page > header {
+  padding: 22px max(20px, calc((100% - 1180px) / 2));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #dde0d8;
+}
+.public-program-links {
+  margin: 30px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.public-program-frame {
+  width: 100%;
+  min-height: 820px;
+  border: 1px solid #d5d9d0;
+  border-radius: 14px;
+  background: white;
+}
+.marketing-live-program {
+  width: min(1180px, calc(100% - 40px));
+  margin: 80px auto;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.3fr);
+  align-items: start;
+  gap: clamp(24px, 5vw, 64px);
+}
+.marketing-live-program h2 {
+  font-size: clamp(30px, 4vw, 50px);
+}
+.marketing-live-program p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+.marketing-live-program iframe {
+  width: 100%;
+  min-height: 650px;
+  border: 1px solid #d5d9d0;
+  border-radius: 14px;
+  background: white;
+}
 label {
   display: grid;
   gap: 8px;
@@ -3095,6 +3181,62 @@ input {
   gap: 12px;
   margin: 28px 0 18px;
 }
+.control-recommendation {
+  margin: 18px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+  border: 1px solid #bbc8b8;
+  border-radius: 14px;
+  overflow: hidden;
+  background: white;
+}
+.control-recommendation-primary,
+.control-recommendation-secondary {
+  padding: clamp(18px, 3vw, 28px);
+}
+.control-recommendation-primary h2,
+.control-recommendation-primary p,
+.control-recommendation-secondary h3,
+.control-recommendation-secondary p {
+  margin-top: 0;
+}
+.control-recommendation-primary > p:not(.kicker) {
+  color: var(--muted);
+  line-height: 1.55;
+}
+.control-recommendation-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.control-recommendation-secondary {
+  border-left: 1px solid #d8ddd5;
+  background: #f5f6f1;
+}
+.control-recommendation-secondary h3 {
+  font-size: 15px;
+}
+.control-recommendation-secondary ol {
+  margin: 0;
+  padding-left: 22px;
+}
+.control-recommendation-secondary li {
+  padding: 7px 0 7px 4px;
+}
+.control-recommendation-secondary li a,
+.control-recommendation-secondary li span {
+  display: block;
+}
+.control-recommendation-secondary li a {
+  color: var(--ink);
+  font-weight: 800;
+}
+.control-recommendation-secondary li span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .control-room-story {
   margin-bottom: 18px;
   padding: clamp(18px, 3vw, 28px);
@@ -3589,6 +3731,17 @@ input {
   }
   .control-room-story {
     grid-template-columns: 1fr;
+  }
+  .control-recommendation {
+    grid-template-columns: 1fr;
+  }
+  .control-recommendation-secondary {
+    border-top: 1px solid #d8ddd5;
+    border-left: 0;
+  }
+  .control-recommendation-meta {
+    align-items: stretch;
+    flex-direction: column;
   }
   .control-room-story ol {
     grid-template-columns: 1fr;
@@ -4398,6 +4551,59 @@ input {
   gap: 18px;
   margin-top: 22px;
 }
+.cfp-section-progress {
+  padding: 18px 20px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, 0.5fr) minmax(
+      180px,
+      0.7fr
+    );
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #cbd2c7;
+  border-radius: 12px;
+  background: white;
+}
+.cfp-section-progress > div,
+.cfp-section-progress > div span {
+  display: block;
+}
+.cfp-section-progress > div span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.cfp-section-progress progress {
+  width: 100%;
+  accent-color: var(--event-color);
+}
+.cfp-section-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cfp-section-actions .button:last-child {
+  margin-left: auto;
+}
+.cfp-after-submit {
+  padding: 22px 24px;
+  border: 1px solid #cbd9ce;
+  border-radius: 12px;
+  background: #f2f7f2;
+}
+.cfp-after-submit h2 {
+  margin-top: 0;
+  font-size: 19px;
+}
+.cfp-after-submit ol {
+  margin-bottom: 0;
+  padding-left: 22px;
+  color: #525950;
+  line-height: 1.55;
+}
+.cfp-after-submit li + li {
+  margin-top: 7px;
+}
 .public-cfp-form > section,
 .public-locked {
   padding: clamp(24px, 5vw, 42px);
@@ -4569,6 +4775,16 @@ input {
   }
   .public-field-grid {
     grid-template-columns: 1fr;
+  }
+  .cfp-section-progress {
+    grid-template-columns: 1fr;
+  }
+  .cfp-section-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+  .cfp-section-actions .button {
+    width: 100%;
   }
   .public-field-grid .wide {
     grid-column: auto;
@@ -9939,6 +10155,22 @@ input {
    not shrink pointer, touch, keyboard, or automation targets below WCAG's
    recommended 44px size. */
 @media (max-width: 840px) {
+  .persona-grid,
+  .marketing-live-program {
+    grid-template-columns: 1fr;
+  }
+  .persona-entry,
+  .public-program-page > main,
+  .marketing-live-program {
+    width: min(100% - 28px, 1180px);
+  }
+  .public-program-links .button {
+    flex: 1 1 130px;
+  }
+  .public-program-frame,
+  .marketing-live-program iframe {
+    min-height: 680px;
+  }
   button[class],
   button:not([class]),
   [role="button"][role="button"] {

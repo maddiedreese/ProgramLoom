@@ -149,7 +149,9 @@ function icalText(value: string | null) {
 export function PublicWidgetPage() {
   const { publicKey = "" } = useParams();
   const [data, setData] = useState<Payload>();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(
+    () => new URLSearchParams(window.location.search).get("search") ?? "",
+  );
   const [track, setTrack] = useState("");
   const [format, setFormat] = useState("");
   const [location, setLocation] = useState("");
@@ -302,6 +304,7 @@ export function PublicWidgetPage() {
     );
   return (
     <main
+      id="main-content"
       className={`public-widget widget-${widget.widgetType} theme-${widget.config.theme}`}
       style={
         { "--widget-color": widget.config.primaryColor } as React.CSSProperties
@@ -914,7 +917,8 @@ function AgendaGrid({
             items.length ? "Show next available day" : "Show full program"
           }
           onAction={() => {
-            if (items.length) setSelectedDay(dayKey(items[0].startsAt, timezone));
+            if (items.length)
+              setSelectedDay(dayKey(items[0].startsAt, timezone));
             else onEmptyAction();
           }}
         />

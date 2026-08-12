@@ -1,10 +1,20 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventControlRoom } from "./EventControlRoom";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const baseOverview = {
   event: { id: "event-1", name: "DevFlow Conf" },
@@ -16,6 +26,15 @@ const baseOverview = {
   tracks: [{ id: "track-1", name: "Systems" }],
   pagination: { page: 1, pageSize: 30, total: 1 },
   refreshedAt: "2027-01-01T12:00:00.000Z",
+  recommendations: [
+    {
+      category: "reviewer_assignment",
+      actionLabel: "Assign reviewers",
+      reason: "Submitted proposals have no active reviewer assignment.",
+      affectedRecordCount: 1,
+      actionUrl: "/app/events/event-1/reviews",
+    },
+  ],
   lifecycle: [
     {
       number: 1,
@@ -97,12 +116,13 @@ describe("EventControlRoom", () => {
       "href",
       "/app/events/event-1/reviews?submission=submission-1",
     );
+    const recommendation = screen.getByRole("region", {
+      name: "Assign reviewers",
+    });
     expect(
-      screen.getByRole("link", { name: "Next: Assign reviewers" }),
-    ).toHaveAttribute(
-      "href",
-      "/app/events/event-1/reviews?submission=submission-1",
-    );
+      within(recommendation).getByRole("link", { name: "Assign reviewers" }),
+    ).toHaveAttribute("href", "/app/events/event-1/reviews");
+    expect(screen.getByText("1 affected record")).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Collect proposals" }),
     ).toBeVisible();
@@ -132,6 +152,49 @@ describe("EventControlRoom", () => {
     await waitFor(() =>
       expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(3),
     );
+  });
+
+  it("refreshes the persisted recommendation when the window regains focus", async () => {
+    let blockerResolved = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return Response.json(
+          !blockerResolved
+            ? baseOverview
+            : {
+                ...baseOverview,
+                recommendations: [
+                  {
+                    category: "decisions_uncommunicated",
+                    actionLabel: "Send decisions",
+                    reason: "Staged decisions have not been communicated.",
+                    affectedRecordCount: 2,
+                    actionUrl: "/app/events/event-1/communications",
+                  },
+                ],
+              },
+        );
+      }),
+    );
+    const view = renderPage();
+    expect(
+      await within(view.container).findByRole("heading", {
+        name: "Assign reviewers",
+      }),
+    ).toBeVisible();
+
+    blockerResolved = true;
+    fireEvent.focus(window);
+
+    expect(
+      await within(view.container).findByRole("heading", {
+        name: "Send decisions",
+      }),
+    ).toBeVisible();
+    expect(
+      within(view.container).getByText("2 affected records"),
+    ).toBeVisible();
   });
 
   it("explains a clear filtered category", async () => {

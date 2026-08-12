@@ -51,6 +51,13 @@ type Overview = {
   pagination: { page: number; pageSize: number; total: number };
   refreshedAt: string;
   lifecycle: LifecycleStageView[];
+  recommendations: Array<{
+    category: string;
+    actionLabel: string;
+    reason: string;
+    affectedRecordCount: number;
+    actionUrl: string;
+  }>;
 };
 
 const categories = [
@@ -260,7 +267,12 @@ export function EventControlRoom({ user }: { user: User }) {
   useEffect(() => {
     void load();
     const interval = window.setInterval(() => void load(true), 30_000);
-    return () => window.clearInterval(interval);
+    const refreshOnFocus = () => void load(true);
+    window.addEventListener("focus", refreshOnFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
   }, [load]);
 
   async function assignOwner(issue: Issue, ownerUserId: string) {
@@ -291,7 +303,7 @@ export function EventControlRoom({ user }: { user: User }) {
   }
 
   const blocking = overview?.severityCounts.blocking ?? 0;
-  const nextIssue = overview?.items[0];
+  const [recommended, ...lowerPriority] = overview?.recommendations ?? [];
   return (
     <div className="workspace-shell event-workspace">
       <aside className="workspace-sidebar event-sidebar">
@@ -332,6 +344,52 @@ export function EventControlRoom({ user }: { user: User }) {
             <button onClick={() => void load()}>Try again</button>
           </div>
         )}
+        <section
+          className="control-recommendation"
+          aria-labelledby="recommended-action-title"
+          aria-live="polite"
+          aria-busy={loading || refreshing}
+        >
+          <div className="control-recommendation-primary">
+            <p className="kicker">Recommended next action</p>
+            <h2 id="recommended-action-title">
+              {recommended?.actionLabel ?? "Program is clear"}
+            </h2>
+            <p>
+              {recommended?.reason ??
+                "No persisted program blocker currently needs organizer action."}
+            </p>
+            {recommended && (
+              <div className="control-recommendation-meta">
+                <strong>
+                  {recommended.affectedRecordCount} affected record
+                  {recommended.affectedRecordCount === 1 ? "" : "s"}
+                </strong>
+                <a className="button" href={recommended.actionUrl}>
+                  {recommended.actionLabel}
+                </a>
+              </div>
+            )}
+          </div>
+          <div className="control-recommendation-secondary">
+            <h3>Next three lower-priority actions</h3>
+            {lowerPriority.length ? (
+              <ol>
+                {lowerPriority.slice(0, 3).map((item) => (
+                  <li key={item.category}>
+                    <a href={item.actionUrl}>{item.actionLabel}</a>
+                    <span>
+                      {item.affectedRecordCount} affected record
+                      {item.affectedRecordCount === 1 ? "" : "s"}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p>No additional lower-priority action is open.</p>
+            )}
+          </div>
+        </section>
         <section className="control-room-story" aria-label="Program lifecycle">
           <div>
             <p className="kicker">One connected program</p>
@@ -344,22 +402,6 @@ export function EventControlRoom({ user }: { user: User }) {
               accepted proposal safely through communication, onboarding,
               scheduling, publication, and follow-up.
             </p>
-          </div>
-          <div className="control-next-action">
-            <strong>
-              {nextIssue ? "Next highest-priority action" : "Program is clear"}
-            </strong>
-            <span>
-              {nextIssue
-                ? `${issueTitle(nextIssue)} · ${nextIssue.detail}`
-                : "No open work matches the current filters."}
-            </span>
-            {nextIssue && (
-              <a className="button button-small" href={nextIssue.actionUrl}>
-                Next:{" "}
-                {issueActionLabels[nextIssue.category] ?? "Resolve blocker"}
-              </a>
-            )}
           </div>
         </section>
         <EventLifecycleGuide eventId={eventId} stages={overview?.lifecycle} />

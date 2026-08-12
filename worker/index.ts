@@ -123,6 +123,7 @@ app.use(
       styleSrc: ["'self'", "'unsafe-inline'"],
       fontSrc: ["'self'", "data:"],
       frameSrc: [
+        "'self'",
         "https://challenges.cloudflare.com",
         "https://www.youtube.com",
         "https://player.vimeo.com",
@@ -218,6 +219,7 @@ app.get("/help", (context) => context.redirect("/help/", 308));
 
 app.get("/assets/*", async (context) => {
   const asset = await context.env.ASSETS.fetch(context.req.raw);
+  if (asset.status === 304) return asset;
   if (!asset.ok || asset.headers.get("content-type")?.includes("text/html")) {
     return new Response("Asset not found.", {
       status: 404,
@@ -243,6 +245,8 @@ function isKnownClientRoute(pathname: string) {
       "/terms",
       "/developers",
       "/guide",
+      "/program",
+      "/evaluate",
       "/oauth/authorize",
       "/action/submission-edit",
       "/app",
@@ -266,9 +270,15 @@ function isKnownClientRoute(pathname: string) {
 export function isIndexableClientRoute(pathname: string) {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   return (
-    new Set(["/", "/cfp", "/privacy", "/terms", "/developers", "/guide"]).has(
-      path,
-    ) ||
+    new Set([
+      "/",
+      "/cfp",
+      "/privacy",
+      "/terms",
+      "/developers",
+      "/guide",
+      "/program",
+    ]).has(path) ||
     /^\/(?:c|cfp)\/[^/]+\/[^/]+\/[^/]+$/.test(path) ||
     /^\/interest\/[^/]+\/[^/]+$/.test(path) ||
     /^\/embed\/[^/]+$/.test(path)
@@ -289,6 +299,7 @@ app.notFound(async (context) => {
     );
   }
   let asset = await context.env.ASSETS.fetch(context.req.raw);
+  if (asset.status === 304) return asset;
   if (context.req.path.startsWith("/help/") && !asset.ok) {
     const path = context.req.path;
     const cleanHelpAssetPath = path.endsWith("/")

@@ -104,6 +104,36 @@ test("capture the current Control Room for public product documentation", async 
           primaryAction,
           actionUrl: `/app/events/${eventId}/${key === "collect-proposals" ? "cfp" : key === "decisions" ? "submissions" : key === "publish" ? "agenda" : key}`,
         })),
+        recommendations: [
+          {
+            category: "decisions_uncommunicated",
+            actionLabel: "Send decisions",
+            reason: "Staged decisions have not been communicated.",
+            affectedRecordCount: 1,
+            actionUrl: `/app/events/${eventId}/communications?category=decisions`,
+          },
+          {
+            category: "onboarding",
+            actionLabel: "Complete onboarding",
+            reason: "Speaker onboarding tasks remain incomplete.",
+            affectedRecordCount: 3,
+            actionUrl: `/app/events/${eventId}/speakers?tasks=incomplete`,
+          },
+          {
+            category: "content_review",
+            actionLabel: "Approve content",
+            reason: "Session content is waiting for approval.",
+            affectedRecordCount: 1,
+            actionUrl: `/app/events/${eventId}/content?status=pending`,
+          },
+          {
+            category: "agenda_unpublished",
+            actionLabel: "Publish agenda",
+            reason: "Agenda changes have not been published.",
+            affectedRecordCount: 1,
+            actionUrl: `/app/events/${eventId}/agenda?status=unpublished`,
+          },
+        ],
         items: [
           {
             category: "decisions_uncommunicated",

@@ -288,6 +288,8 @@ export function titleForPath(pathname: string) {
   if (pathname === "/register") return "Create your account — ProgramLoom";
   if (pathname === "/invite") return "Accept your invitation — ProgramLoom";
   if (pathname === "/guide") return "How ProgramLoom works";
+  if (pathname === "/program") return "Explore ProgramLoom Summit 2027";
+  if (pathname === "/evaluate") return "Choose a ProgramLoom persona";
   if (pathname === "/developers") return "Developer platform — ProgramLoom";
   if (pathname === "/oauth/authorize")
     return "Authorize application — ProgramLoom";
@@ -334,6 +336,10 @@ export function descriptionForPath(pathname: string) {
     return "Accept a ProgramLoom invitation to join an event as a reviewer, speaker, or organizer.";
   if (pathname === "/guide")
     return "Follow a proposal from an open call through review, decision communication, speaker preparation, scheduling, and publication.";
+  if (pathname === "/program")
+    return "Explore the live multi-day ProgramLoom Summit 2027 agenda, speakers, itinerary, and machine-readable public feeds.";
+  if (pathname === "/evaluate")
+    return "Choose the normal Organizer, Reviewer, Speaker, or Attendee entry route for ProgramLoom.";
   if (pathname === "/developers")
     return "Connect trusted event tools to ProgramLoom with scoped API tokens, webhooks, OAuth, query access, and an authorized MCP server.";
   if (
@@ -359,6 +365,7 @@ export function shouldIndexPath(pathname: string) {
   return (
     pathname === "/" ||
     pathname === "/guide" ||
+    pathname === "/program" ||
     pathname === "/developers" ||
     pathname === "/privacy" ||
     pathname === "/terms" ||
@@ -376,6 +383,7 @@ export function canonicalUrlForPath(pathname: string, currentOrigin: string) {
   const usesMarketingOrigin =
     pathname === "/" ||
     pathname === "/guide" ||
+    pathname === "/program" ||
     pathname === "/developers" ||
     pathname === "/privacy" ||
     pathname === "/terms" ||
@@ -522,6 +530,124 @@ function NotFoundPage() {
   );
 }
 
+const summitEventId = "5c33f61d-3af6-41ff-8b2e-6268181001f8";
+const summitWidgets = {
+  agenda: "agenda-8b0020bb6481415f864a",
+  sessions: "sessions-bfdfc1515f0d4bf8aea4",
+  speakers: "speakers-675b59dd225f4152acf3",
+  gallery: "gallery-f0410c5463644a2fbae0",
+  itinerary: "itinerary-2508fc81fad24cb591fc",
+} as const;
+
+export const evaluatorPersonas = [
+  {
+    name: "Organizer",
+    note: "Organizers can access the Control Room and manage proposals, reviews, decisions, speakers, content, communications, and publication for events they are authorized to manage.",
+    path: `/login?returnTo=/app/events/${summitEventId}/control-room`,
+  },
+  {
+    name: "Reviewer",
+    note: "Reviewers can access only assigned review work and the proposal information permitted by the event's review settings.",
+    path: `/login?returnTo=/app/events/${summitEventId}/reviews`,
+  },
+  {
+    name: "Speaker",
+    note: "Speakers can access only their connected portal records, onboarding tasks, files, profile, and sessions.",
+    path: `/login?returnTo=/app/events/${summitEventId}/speaker`,
+  },
+  {
+    name: "Attendee",
+    note: "Attendees can explore the published agenda, speakers, sessions, and personal itinerary without authentication.",
+    path: "/program",
+  },
+] as const;
+
+function EvaluatorEntryPage() {
+  return (
+    <main className="persona-entry" id="main-content">
+      <Link to="/" className="brand" aria-label="ProgramLoom home">
+        <Wordmark />
+      </Link>
+      <p className="kicker">Controlled evaluator entry</p>
+      <h1>Choose the perspective you want to inspect.</h1>
+      <p className="persona-intro">
+        Every privileged route uses ProgramLoom's normal authentication and
+        authorization. No public privileged session is created here.
+      </p>
+      <div className="persona-grid">
+        {evaluatorPersonas.map((persona) => (
+          <article key={persona.name}>
+            <h2>{persona.name}</h2>
+            <p>{persona.note}</p>
+            <a
+              className="button"
+              href={
+                persona.name === "Attendee"
+                  ? persona.path
+                  : applicationHref(persona.path)
+              }
+            >
+              Continue as {persona.name}
+            </a>
+          </article>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+function ProgramExplorePage() {
+  const agendaKey = summitWidgets.agenda;
+  const publicLinks = [
+    [
+      "Public CFP",
+      applicationHref("/c/devflow-programs/programloom-summit-2027/cfp"),
+    ],
+    ["Agenda", `/embed/${agendaKey}`],
+    ["Speakers", `/embed/${summitWidgets.speakers}`],
+    ["Itinerary", `/embed/${summitWidgets.itinerary}`],
+    ["JSON", `/api/widgets/public/${agendaKey}/feed.json`],
+    ["XML", `/api/widgets/public/${agendaKey}/feed.xml`],
+    ["ICS", `/api/widgets/public/${agendaKey}/agenda.ics`],
+    ["Embed", `/api/widgets/public/${agendaKey}/embed.js`],
+  ] as const;
+  return (
+    <div className="public-program-page">
+      <header>
+        <Link to="/" className="brand" aria-label="ProgramLoom home">
+          <Wordmark />
+        </Link>
+        <a href="/help/attendees">Attendee help</a>
+      </header>
+      <main id="main-content">
+        <p className="kicker">Explore the program</p>
+        <h1>ProgramLoom Summit 2027</h1>
+        <p>
+          A polished, multi-day program for teams building calm, inclusive,
+          reliable technical events. All records below come from the current
+          published production program.
+        </p>
+        <nav
+          className="public-program-links"
+          aria-label="Public program outputs"
+        >
+          {publicLinks.map(([label, href]) => (
+            <a key={label} href={href} className="button button-ghost">
+              {label}
+            </a>
+          ))}
+        </nav>
+        <iframe
+          className="public-program-frame"
+          title="Live ProgramLoom Summit 2027 agenda"
+          src={`/embed/${agendaKey}`}
+          loading="eager"
+        />
+      </main>
+    </div>
+  );
+}
+
 function MarketingPage() {
   return (
     <div className="site-shell">
@@ -642,6 +768,30 @@ function MarketingPage() {
               gives every item a clear next action.
             </figcaption>
           </figure>
+        </section>
+        <section
+          className="marketing-live-program"
+          aria-labelledby="live-program-title"
+        >
+          <div>
+            <p className="kicker">Live production program</p>
+            <h2 id="live-program-title">
+              Explore a real multi-speaker session.
+            </h2>
+            <p>
+              This interactive preview reads the current persisted public
+              records for ProgramLoom Summit 2027. Search, open the session, and
+              inspect its speakers without leaving this page.
+            </p>
+            <Link className="button button-ghost" to="/program">
+              Explore the full program <ArrowRight size={18} />
+            </Link>
+          </div>
+          <iframe
+            title="Live multi-speaker ProgramLoom Summit session"
+            src={`/embed/${summitWidgets.sessions}?search=${encodeURIComponent("Building Sustainable Review Panels")}`}
+            loading="eager"
+          />
         </section>
         <section
           id="product"
@@ -949,6 +1099,8 @@ export function App() {
       <Suspense fallback={<LoadingRoute label="Loading ProgramLoom…" />}>
         <Routes>
           <Route path="/" element={<MarketingPage />} />
+          <Route path="/program" element={<ProgramExplorePage />} />
+          <Route path="/evaluate" element={<EvaluatorEntryPage />} />
           <Route path="/login" element={<EntryPage mode="login" />} />
           <Route path="/register" element={<EntryPage mode="register" />} />
           <Route path="/invite" element={<InvitePage />} />

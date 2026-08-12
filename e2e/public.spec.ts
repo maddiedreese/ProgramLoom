@@ -14,6 +14,8 @@ for (const route of [
   "/privacy",
   "/terms",
   "/cfp",
+  "/program",
+  "/evaluate",
 ]) {
   test(`${route} is responsive and accessible`, async ({ page }) => {
     const response = await page.goto(route);
@@ -27,6 +29,36 @@ for (const route of [
     await expectAccessible(page);
   });
 }
+
+test("evaluator persona notes retain normal authorization routes", async ({
+  page,
+}) => {
+  await page.goto("/evaluate");
+  const expected = [
+    [
+      "Organizer",
+      `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/control-room`,
+    ],
+    [
+      "Reviewer",
+      `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/reviews`,
+    ],
+    [
+      "Speaker",
+      `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/speaker`,
+    ],
+    ["Attendee", "/program"],
+  ] as const;
+  for (const [persona, href] of expected) {
+    await expect(page.getByRole("heading", { name: persona })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: `Continue as ${persona}` }),
+    ).toHaveAttribute("href", href);
+  }
+  await expect(
+    page.getByText(/no public privileged session is created/i),
+  ).toBeVisible();
+});
 
 test("developer machine-readable references are public and versioned", async ({
   request,

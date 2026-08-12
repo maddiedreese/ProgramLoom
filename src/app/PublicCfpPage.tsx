@@ -108,6 +108,57 @@ function conditionMatches(
   return false;
 }
 
+export function validateCfpFieldValue(field: Field, value: unknown) {
+  const missing =
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    value === false ||
+    (Array.isArray(value) && value.length === 0);
+  if (missing) return undefined;
+  if (
+    field.fieldType === "email" &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value))
+  )
+    return "Enter a valid email address.";
+  if (field.fieldType === "url") {
+    try {
+      new URL(String(value));
+    } catch {
+      return "Enter a complete URL.";
+    }
+  }
+  if (field.fieldType === "number" && !Number.isFinite(Number(value)))
+    return "Enter a valid number.";
+  if (
+    field.fieldType === "select" &&
+    field.options &&
+    !field.options.includes(String(value))
+  )
+    return "Choose one of the available options.";
+  if (
+    field.fieldType === "multiselect" &&
+    field.options &&
+    (!Array.isArray(value) ||
+      value.some((item) => !field.options?.includes(String(item))))
+  )
+    return "Choose only available options.";
+  return undefined;
+}
+
+function fieldGuidance(field: Field) {
+  if (field.description) return field.description;
+  if (field.fieldType === "url")
+    return "Include the complete link, beginning with https://.";
+  if (field.fieldType === "multiselect")
+    return "Choose every option that applies to this proposal.";
+  if (field.fieldType === "select")
+    return "Choose the single option that best fits this proposal.";
+  if (field.fieldType === "textarea")
+    return "Give reviewers enough specific context to evaluate this response.";
+  return "This answer helps the program team review and prepare your proposal.";
+}
+
 export function PublicCfpPage() {
   const params = useParams();
   const location = useLocation();
@@ -145,6 +196,7 @@ export function PublicCfpPage() {
     message: string;
   }>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [currentSection, setCurrentSection] = useState(0);
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string;
 
   useEffect(() => {
@@ -174,6 +226,7 @@ export function PublicCfpPage() {
     setStatus(undefined);
     setAnswers({});
     setCoSubmitters([]);
+    setCurrentSection(0);
     setLocked(false);
     api<{
       form: PublicForm;
@@ -345,6 +398,13 @@ export function PublicCfpPage() {
           (Array.isArray(value) && value.length === 0)
         )
           errors[field.fieldKey] = `${field.label} is required.`;
+      }
+      for (const field of fields.filter((candidate) => isVisible(candidate))) {
+        const validationError = validateCfpFieldValue(
+          field,
+          answers[field.fieldKey],
+        );
+        if (validationError) errors[field.fieldKey] = validationError;
       }
       if (Object.keys(errors).length) {
         setFieldErrors(errors);
@@ -535,6 +595,101 @@ export function PublicCfpPage() {
       </main>
     );
   const unavailable = form.availability !== "open";
+  const formSections = (["welcome", "session", "speaker", "custom"] as const)
+    .map((key) => ({
+      key,
+      fields: fields.filter(
+        (field) => field.section === key && isVisible(field),
+      ),
+    }))
+    .filter((section) => section.fields.length > 0);
+  const sectionCount = 2 + formSections.length;
+  const requiredFieldItems = fields.filter(
+    (field) => isVisible(field) && isRequired(field),
+  );
+  const pairedCoSubmitters = coSubmitters.filter(
+    (person) => person.name.trim() || person.email.trim(),
+  );
+  const totalRequiredItems =
+    2 + requiredFieldItems.length + pairedCoSubmitters.length * 2;
+  const completedRequiredItems =
+    (submitter.name.trim().length >= 2 ? 1 : 0) +
+    (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submitter.email.trim()) ? 1 : 0) +
+    requiredFieldItems.filter((field) => {
+      const value = answers[field.fieldKey];
+      return (
+        value !== undefined &&
+        value !== null &&
+        value !== "" &&
+        value !== false &&
+        (!Array.isArray(value) || value.length > 0) &&
+        !validateCfpFieldValue(field, value)
+      );
+    }).length +
+    pairedCoSubmitters.reduce(
+      (count, person) =>
+        count +
+        (person.name.trim().length >= 2 ? 1 : 0) +
+        (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email.trim()) ? 1 : 0),
+      0,
+    );
+
+  function validateCurrentSection() {
+    const errors: Record<string, string> = {};
+    if (currentSection === 0) {
+      if (submitter.name.trim().length < 2)
+        errors["submitter-name"] = "Enter your full name.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(submitter.email.trim()))
+        errors["submitter-email"] = "Enter a valid email address.";
+    } else if (currentSection === 1) {
+      coSubmitters.forEach((person, index) => {
+        if (!person.name.trim() && !person.email.trim()) return;
+        if (person.name.trim().length < 2)
+          errors[`co-presenter-name-${index}`] =
+            "Enter the co-presenter's full name.";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email.trim()))
+          errors[`co-presenter-email-${index}`] =
+            "Enter a valid co-presenter email address.";
+      });
+    } else {
+      for (const field of formSections[currentSection - 2]?.fields ?? []) {
+        const value = answers[field.fieldKey];
+        const missing =
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          value === false ||
+          (Array.isArray(value) && value.length === 0);
+        if (isRequired(field) && missing)
+          errors[field.fieldKey] = `${field.label} is required.`;
+        else {
+          const validationError = validateCfpFieldValue(field, value);
+          if (validationError) errors[field.fieldKey] = validationError;
+        }
+      }
+    }
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      setFeedback({
+        kind: "error",
+        message: "Complete this section before continuing.",
+      });
+      window.requestAnimationFrame(() =>
+        document.getElementById(Object.keys(errors)[0])?.focus(),
+      );
+      return false;
+    }
+    setFeedback(undefined);
+    return true;
+  }
+
+  function continueToNextSection() {
+    if (!validateCurrentSection()) return;
+    setCurrentSection((section) => Math.min(section + 1, sectionCount - 1));
+    window.requestAnimationFrame(() =>
+      document.getElementById("cfp-section-progress")?.scrollIntoView?.(),
+    );
+  }
   return (
     <div
       className="public-cfp-shell"
@@ -568,6 +723,7 @@ export function PublicCfpPage() {
                 : form.closesAt
                   ? `Submit by ${new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeStyle: "short", timeZone: form.timezone }).format(new Date(form.closesAt))}`
                   : "Submissions are open"}
+            <strong>{form.timezone}</strong>
           </div>
         </section>
         {feedback && (
@@ -687,7 +843,29 @@ export function PublicCfpPage() {
             noValidate
             onSubmit={(event) => save(event, "submit")}
           >
-            <section>
+            <div
+              className="cfp-section-progress"
+              id="cfp-section-progress"
+              aria-live="polite"
+            >
+              <div>
+                <strong>
+                  Section {currentSection + 1} of {sectionCount}
+                </strong>
+                <span>
+                  {completedRequiredItems} of {totalRequiredItems} required
+                  items completed
+                </span>
+              </div>
+              <progress value={currentSection + 1} max={sectionCount}>
+                Section {currentSection + 1} of {sectionCount}
+              </progress>
+              <progress value={completedRequiredItems} max={totalRequiredItems}>
+                {completedRequiredItems} of {totalRequiredItems} required items
+                completed
+              </progress>
+            </div>
+            <section hidden={currentSection !== 0}>
               <div className="public-section-title">
                 <span>01</span>
                 <div>
@@ -700,6 +878,10 @@ export function PublicCfpPage() {
               <div className="public-field-grid">
                 <label>
                   Full name
+                  <small>
+                    Use the name the program team should use when contacting
+                    you.
+                  </small>
                   <input
                     id="submitter-name"
                     aria-describedby={
@@ -725,6 +907,10 @@ export function PublicCfpPage() {
                 </label>
                 <label>
                   Email address
+                  <small>
+                    Your confirmation and private proposal edit link are sent
+                    here.
+                  </small>
                   <input
                     id="submitter-email"
                     aria-describedby={
@@ -751,6 +937,10 @@ export function PublicCfpPage() {
                 </label>
                 <label className="wide">
                   Organization <small>Optional</small>
+                  <small>
+                    Share the company, community, or independent affiliation you
+                    want associated with this proposal.
+                  </small>
                   <input
                     value={submitter.organization}
                     onChange={(event) =>
@@ -763,7 +953,7 @@ export function PublicCfpPage() {
                 </label>
               </div>
             </section>
-            <section>
+            <section hidden={currentSection !== 1}>
               <div className="public-section-title">
                 <span>02</span>
                 <div>
@@ -779,6 +969,10 @@ export function PublicCfpPage() {
                   <div className="wide co-presenter-row" key={index}>
                     <label>
                       Participant role
+                      <small>
+                        Choose how this person contributes to the proposed
+                        session.
+                      </small>
                       <select
                         value={person.participantRole ?? "coauthor"}
                         onChange={(event) =>
@@ -807,6 +1001,15 @@ export function PublicCfpPage() {
                     <label>
                       Co-presenter name
                       <input
+                        id={`co-presenter-name-${index}`}
+                        aria-describedby={
+                          fieldErrors[`co-presenter-name-${index}`]
+                            ? `co-presenter-name-${index}-error`
+                            : undefined
+                        }
+                        aria-invalid={Boolean(
+                          fieldErrors[`co-presenter-name-${index}`],
+                        )}
                         value={person.name}
                         onChange={(event) =>
                           setCoSubmitters((current) =>
@@ -819,10 +1022,30 @@ export function PublicCfpPage() {
                         }
                         required={Boolean(person.email)}
                       />
+                      <small>
+                        Use the name the event should display and contact.
+                      </small>
+                      {fieldErrors[`co-presenter-name-${index}`] && (
+                        <span
+                          id={`co-presenter-name-${index}-error`}
+                          className="field-error"
+                        >
+                          {fieldErrors[`co-presenter-name-${index}`]}
+                        </span>
+                      )}
                     </label>
                     <label>
                       Co-presenter email
                       <input
+                        id={`co-presenter-email-${index}`}
+                        aria-describedby={
+                          fieldErrors[`co-presenter-email-${index}`]
+                            ? `co-presenter-email-${index}-error`
+                            : undefined
+                        }
+                        aria-invalid={Boolean(
+                          fieldErrors[`co-presenter-email-${index}`],
+                        )}
                         type="email"
                         value={person.email}
                         onChange={(event) =>
@@ -836,6 +1059,18 @@ export function PublicCfpPage() {
                         }
                         required={Boolean(person.name)}
                       />
+                      <small>
+                        This address is used only for proposal and speaker
+                        communication.
+                      </small>
+                      {fieldErrors[`co-presenter-email-${index}`] && (
+                        <span
+                          id={`co-presenter-email-${index}-error`}
+                          className="field-error"
+                        >
+                          {fieldErrors[`co-presenter-email-${index}`]}
+                        </span>
+                      )}
                     </label>
                     <button
                       type="button"
@@ -868,16 +1103,12 @@ export function PublicCfpPage() {
                 </button>
               </div>
             </section>
-            {(["welcome", "session", "speaker", "custom"] as const).map(
-              (section, index) => {
-                const sectionFields = fields.filter(
-                  (field) => field.section === section && isVisible(field),
-                );
-                if (!sectionFields.length) return null;
+            {formSections.map(
+              ({ key: section, fields: sectionFields }, index) => {
                 return (
-                  <section key={section}>
+                  <section key={section} hidden={currentSection !== index + 2}>
                     <div className="public-section-title">
-                      <span>{String(index + 2).padStart(2, "0")}</span>
+                      <span>{String(index + 3).padStart(2, "0")}</span>
                       <div>
                         <h2>
                           {section === "session"
@@ -905,9 +1136,7 @@ export function PublicCfpPage() {
                         >
                           {field.label}
                           {isRequired(field) && <em>Required</em>}
-                          {field.description && (
-                            <small>{field.description}</small>
-                          )}
+                          <small>{fieldGuidance(field)}</small>
                           {renderField(field)}
                           {fieldErrors[field.fieldKey] && (
                             <span
@@ -924,7 +1153,27 @@ export function PublicCfpPage() {
                 );
               },
             )}
-            {requiresSecurityCheck && (
+            <div className="cfp-section-actions">
+              {currentSection > 0 && (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => setCurrentSection((section) => section - 1)}
+                >
+                  Previous section
+                </button>
+              )}
+              {currentSection < sectionCount - 1 && (
+                <button
+                  type="button"
+                  className="button"
+                  onClick={continueToNextSection}
+                >
+                  Continue to next section <ArrowRight size={18} />
+                </button>
+              )}
+            </div>
+            {currentSection === sectionCount - 1 && requiresSecurityCheck && (
               <Turnstile
                 siteKey={siteKey}
                 onSuccess={setTurnstileToken}
@@ -932,48 +1181,82 @@ export function PublicCfpPage() {
                 options={{ theme: "light" }}
               />
             )}
-            {requiresSecurityCheck && !turnstileToken && (
-              <p className="security-check-status" role="status">
-                Complete the security check above to enable Save draft and
-                Submit proposal. Signed-in contributors skip this check.
-              </p>
-            )}
-            <div className="public-form-actions">
-              {(submissionId || editToken) && (
-                <button
-                  type="button"
-                  className="button button-ghost button-large"
-                  onClick={startAnotherProposal}
-                >
-                  Start another proposal
-                </button>
+            {currentSection === sectionCount - 1 &&
+              requiresSecurityCheck &&
+              !turnstileToken && (
+                <p className="security-check-status" role="status">
+                  Complete the security check above to enable Save draft and
+                  Submit proposal. Signed-in contributors skip this check.
+                </p>
               )}
-              {form.allowDrafts && status !== "pending" && (
+            {currentSection === sectionCount - 1 && (
+              <aside
+                className="cfp-after-submit"
+                aria-labelledby="after-submit-title"
+              >
+                <h2 id="after-submit-title">What happens after you submit</h2>
+                <ol>
+                  <li>
+                    Your proposal is saved as submitted and the organizer can
+                    review it.
+                  </li>
+                  <li>
+                    You receive a confirmation and a private link for allowed
+                    edits.
+                  </li>
+                  <li>
+                    A decision can be staged later, but it is not communicated
+                    until the organizer chooses Send decision.
+                  </li>
+                  <li>
+                    If accepted, connected speaker and session records are
+                    activated for onboarding and scheduling.
+                  </li>
+                </ol>
+              </aside>
+            )}
+            {currentSection === sectionCount - 1 && (
+              <div className="public-form-actions">
+                {(submissionId || editToken) && (
+                  <button
+                    type="button"
+                    className="button button-ghost button-large"
+                    onClick={startAnotherProposal}
+                  >
+                    Start another proposal
+                  </button>
+                )}
+                {form.allowDrafts && status !== "pending" && (
+                  <button
+                    type="button"
+                    className="button button-ghost button-large"
+                    onClick={(event) => save(event, "draft")}
+                    disabled={
+                      busy || (requiresSecurityCheck && !turnstileToken)
+                    }
+                  >
+                    <Save size={17} /> Save draft
+                  </button>
+                )}
                 <button
-                  type="button"
-                  className="button button-ghost button-large"
-                  onClick={(event) => save(event, "draft")}
+                  className="button button-large"
                   disabled={busy || (requiresSecurityCheck && !turnstileToken)}
                 >
-                  <Save size={17} /> Save draft
+                  {busy
+                    ? "Saving…"
+                    : status === "pending"
+                      ? "Update proposal"
+                      : "Submit proposal"}
+                  <ArrowRight size={18} />
                 </button>
-              )}
-              <button
-                className="button button-large"
-                disabled={busy || (requiresSecurityCheck && !turnstileToken)}
-              >
-                {busy
-                  ? "Saving…"
-                  : status === "pending"
-                    ? "Update proposal"
-                    : "Submit proposal"}
-                <ArrowRight size={18} />
-              </button>
-            </div>
-            <p className="privacy-note">
-              <LockKeyhole size={13} /> Your answers are shared only with this
-              event’s authorized program team and assigned reviewers.
-            </p>
+              </div>
+            )}
+            {currentSection === sectionCount - 1 && (
+              <p className="privacy-note">
+                <LockKeyhole size={13} /> Your answers are shared only with this
+                event’s authorized program team and assigned reviewers.
+              </p>
+            )}
           </form>
         )}
         {status === "pending" && (

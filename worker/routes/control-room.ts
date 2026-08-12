@@ -27,6 +27,156 @@ type IssueRow = {
   ownerName: string | null;
 };
 
+export type ControlRoomRecommendation = {
+  category: string;
+  actionLabel: string;
+  reason: string;
+  affectedRecordCount: number;
+  actionUrl: string;
+};
+
+export const recommendationCategories = [
+  [
+    "submissions_new",
+    "Open proposals",
+    "New proposals are waiting for organizer triage.",
+    "submissions",
+  ],
+  [
+    "routing_unmatched",
+    "Run routing",
+    "Submitted proposals do not match an active reviewer-routing rule.",
+    "reviews?routing=1",
+  ],
+  [
+    "reviewer_assignment",
+    "Assign reviewers",
+    "Submitted proposals have no active reviewer assignment.",
+    "reviews",
+  ],
+  [
+    "review_conflicts",
+    "Resolve reviewer conflicts",
+    "Reviewer conflicts or recusals need organizer action.",
+    "reviews?conflicts=1",
+  ],
+  [
+    "reviews_incomplete",
+    "Complete reviews",
+    "Assigned reviews remain incomplete.",
+    "reviews?status=incomplete",
+  ],
+  [
+    "decisions_pending",
+    "Stage decisions",
+    "Reviewed proposals are waiting for a staged decision.",
+    "submissions?decision=none",
+  ],
+  [
+    "decisions_uncommunicated",
+    "Send decisions",
+    "Staged decisions have not been communicated.",
+    "communications?category=decisions",
+  ],
+  [
+    "deliveries",
+    "Retry delivery",
+    "Program messages are pending or need delivery intervention.",
+    "communications?status=failed",
+  ],
+  [
+    "portal_access",
+    "Invite speakers",
+    "Accepted speakers do not have active portal access.",
+    "speakers?portal=missing",
+  ],
+  [
+    "onboarding",
+    "Complete onboarding",
+    "Speaker onboarding tasks remain incomplete.",
+    "speakers?tasks=incomplete",
+  ],
+  [
+    "assets",
+    "Review files",
+    "Speaker files or headshots are missing or need changes.",
+    "content?status=missing",
+  ],
+  [
+    "content_review",
+    "Approve content",
+    "Session content is waiting for approval.",
+    "content?status=pending",
+  ],
+  [
+    "public_exclusions",
+    "Resolve public exclusions",
+    "Accepted sessions are held from public surfaces until content is approved.",
+    "content?status=excluded",
+  ],
+  [
+    "agenda_missing",
+    "Schedule sessions",
+    "Accepted sessions do not have an agenda placement.",
+    "agenda?status=unplaced",
+  ],
+  [
+    "schedule_conflicts",
+    "Resolve conflicts",
+    "Room or speaker scheduling conflicts are open.",
+    "agenda?conflicts=1",
+  ],
+  [
+    "agenda_unpublished",
+    "Publish agenda",
+    "Agenda changes have not been published.",
+    "agenda?status=unpublished",
+  ],
+  [
+    "queue_failures",
+    "Retry queue jobs",
+    "Background jobs are retrying or exhausted.",
+    "control-room?category=queue_failures",
+  ],
+  [
+    "airtable_sync",
+    "Recover Airtable",
+    "Airtable work is pending, failed, or conflicted.",
+    "control-room?category=airtable_sync",
+  ],
+  [
+    "integration_failures",
+    "Recover integration",
+    "An external integration incident needs attention.",
+    "control-room?category=integration_failures",
+  ],
+  [
+    "webhook_failures",
+    "Retry webhook delivery",
+    "A signed developer webhook exhausted its retries.",
+    "../settings?tab=webhooks",
+  ],
+] as const;
+
+export function buildControlRoomRecommendations(
+  counts: Record<string, number>,
+  eventId: string,
+): ControlRoomRecommendation[] {
+  const eventBase = `/app/events/${eventId}`;
+  return recommendationCategories
+    .filter(([category]) => (counts[category] ?? 0) > 0)
+    .slice(0, 4)
+    .map(([category, actionLabel, reason, suffix]) => ({
+      category,
+      actionLabel,
+      reason,
+      affectedRecordCount: counts[category] ?? 0,
+      actionUrl: suffix.startsWith("../")
+        ? `/app/${suffix.slice(3)}`
+        : `${eventBase}/${suffix}`,
+    }));
+}
+
 export const issuesSql = `
   SELECT 'submissions_new' category,'submission' entityType,s.id entityId,s.title title,
     CASE WHEN s.status='draft' THEN 'Draft proposal' ELSE 'New proposal awaiting triage' END detail,
@@ -241,7 +391,7 @@ router.get("/events/:eventId", async (context) => {
     issueGroups.map(async (group) => {
       const cte = `WITH issues(category,entityType,entityId,title,detail,severity,status,deadline,occurredAt,actionUrl,trackId) AS (${group.join("\nUNION ALL\n")})`;
       const itemBindings = [...bindings, windowSize];
-      const [counts, items] = await Promise.all([
+      const [counts, recommendationCounts, items] = await Promise.all([
         db
           .prepare(
             `${cte} SELECT i.category,i.severity,COUNT(*) count ${from} GROUP BY i.category,i.severity`,
@@ -254,6 +404,12 @@ router.get("/events/:eventId", async (context) => {
           }>(),
         db
           .prepare(
+            `${cte} SELECT i.category,COUNT(*) count FROM issues i GROUP BY i.category`,
+          )
+          .bind(eventId)
+          .all<{ category: string; count: number }>(),
+        db
+          .prepare(
             `${cte} SELECT i.*,cro.owner_user_id ownerUserId,owner_user.name ownerName ${from}
              ORDER BY CASE i.severity WHEN 'blocking' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END,
                CASE WHEN i.deadline IS NOT NULL AND i.deadline<CURRENT_TIMESTAMP THEN 0 ELSE 1 END,
@@ -263,7 +419,11 @@ router.get("/events/:eventId", async (context) => {
           .bind(...itemBindings)
           .all<IssueRow>(),
       ]);
-      return { counts: counts.results, items: items.results };
+      return {
+        counts: counts.results,
+        recommendationCounts: recommendationCounts.results,
+        items: items.results,
+      };
     }),
   );
   const countMap = new Map<string, number>();
@@ -272,9 +432,18 @@ router.get("/events/:eventId", async (context) => {
     warning: 0,
     info: 0,
   };
+  const recommendationCountMap = new Map<string, number>();
   for (const row of groupResults.flatMap((result) => result.counts)) {
     countMap.set(row.category, (countMap.get(row.category) ?? 0) + row.count);
     severityCounts[row.severity] += row.count;
+  }
+  for (const row of groupResults.flatMap(
+    (result) => result.recommendationCounts,
+  )) {
+    recommendationCountMap.set(
+      row.category,
+      (recommendationCountMap.get(row.category) ?? 0) + row.count,
+    );
   }
   const severityRank = { blocking: 0, warning: 1, info: 2 } as const;
   const now = Date.now();
@@ -321,6 +490,10 @@ router.get("/events/:eventId", async (context) => {
     pagination: { page, pageSize, total },
     refreshedAt: new Date().toISOString(),
     lifecycle: buildLifecycleStages(lifecycleSnapshot, eventId),
+    recommendations: buildControlRoomRecommendations(
+      Object.fromEntries(recommendationCountMap),
+      eventId,
+    ),
   });
 });
 
