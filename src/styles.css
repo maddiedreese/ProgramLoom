@@ -175,6 +175,34 @@ input:focus-visible {
   border-color: var(--moss-dark);
   color: white;
 }
+.text-button {
+  min-height: 38px;
+  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  color: #4f574f;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+.text-button:hover,
+.text-button:focus-visible {
+  border-color: var(--moss);
+  color: var(--moss-dark);
+  background: #f5f8f5;
+}
+.text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 .hero {
   max-width: 1060px;
   margin: 92px auto 120px;
@@ -1943,6 +1971,9 @@ input {
   font-weight: 700;
   font-size: 14px;
   text-underline-offset: 3px;
+}
+.event-card > .text-button {
+  margin-top: 10px;
 }
 .archived-events {
   margin-top: 24px;
