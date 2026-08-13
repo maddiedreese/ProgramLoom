@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   cfpAvailability,
   deriveProgramMetadata,
@@ -160,5 +161,33 @@ describe("public CFP validation", () => {
     expect(input.coSubmitters[0].email).toBe("marcus@example.com");
     expect(input.coSubmitters[0].participantRole).toBe("panelist");
     expect(input.submissionId).toBe("10000000-0000-4000-8000-000000000001");
+  });
+
+  it("persists every participant role accepted by the public CFP API", () => {
+    const migration = readFileSync(
+      "migrations/0027_submission_participant_roles.sql",
+      "utf8",
+    );
+    for (const participantRole of [
+      "coauthor",
+      "presenter",
+      "panelist",
+      "discussant",
+    ] as const) {
+      const parsed = submissionSchema.parse({
+        submitter: { name: "Priya Raman", email: "priya@example.com" },
+        coSubmitters: [
+          {
+            name: "Leila Okafor",
+            email: "leila@example.com",
+            participantRole,
+          },
+        ],
+        answers: { title: "Trustworthy agent operations" },
+        action: "submit",
+      });
+      expect(parsed.coSubmitters[0].participantRole).toBe(participantRole);
+      expect(migration).toContain(`'${participantRole}'`);
+    }
   });
 });
