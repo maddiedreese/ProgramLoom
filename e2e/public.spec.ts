@@ -53,20 +53,56 @@ test("evaluator persona notes retain normal authorization routes", async ({
       "Speaker",
       `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/speaker`,
     ],
-    ["Attendee", "/program"],
+    ["Public Program", "/program"],
   ] as const;
   for (const [persona, href] of expected) {
     await expect(page.getByRole("heading", { name: persona })).toBeVisible();
     await expect(
-      page.getByRole("link", { name: `Continue as ${persona}` }),
+      page.getByRole("link", {
+        name:
+          persona === "Public Program"
+            ? "Open Public Program"
+            : `Continue as ${persona}`,
+      }),
     ).toHaveAttribute(
       "href",
-      persona === "Attendee" ? href : `${applicationOrigin}${href}`,
+      persona === "Public Program" ? href : `${applicationOrigin}${href}`,
     );
   }
   await expect(
-    page.getByText(/no public privileged session is created/i),
+    page.getByText(/no public privileged session exists/i),
   ).toBeVisible();
+  const exactProofRoutes = [
+    [
+      "Control Room blockers",
+      `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/control-room`,
+    ],
+    ["Published CFP", "/c/devflow-programs/programloom-summit-2027/cfp"],
+    [
+      "Review workspace",
+      `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/reviews`,
+    ],
+    [
+      "Outstanding speaker work",
+      `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/speakers?taskProgress=incomplete`,
+    ],
+    [
+      "Schedule conflict lab",
+      `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/agenda`,
+    ],
+    [
+      "Failed delivery recovery",
+      `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/communications?status=failed`,
+    ],
+    ["Public program outputs", "/program"],
+  ] as const;
+  for (const [label, href] of exactProofRoutes)
+    await expect(
+      page.getByRole("link", { name: new RegExp(label, "i") }),
+    ).toHaveAttribute(
+      "href",
+      href.startsWith("/login") ? `${applicationOrigin}${href}` : href,
+    );
 });
 
 test("developer machine-readable references are public and versioned", async ({

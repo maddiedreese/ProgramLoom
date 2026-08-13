@@ -72,7 +72,6 @@ requireValue(
   JSON.stringify(manifest.calendarClients) ===
     JSON.stringify({
       tested: ["Gmail", "Apple Calendar"],
-      waived: ["Outlook"],
     }),
   "Unsupported calendar-client claim.",
 );
@@ -113,7 +112,9 @@ if (final) {
         "Runtime source changed after the deployed source commit.",
       );
     } catch {
-      errors.push("Deployed source commit is not an ancestor of the evidence commit.");
+      errors.push(
+        "Deployed source commit is not an ancestor of the evidence commit.",
+      );
     }
   }
   requireValue(

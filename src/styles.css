@@ -621,6 +621,126 @@ footer nav a,
   font-size: 18px;
   line-height: 1.6;
 }
+.judge-start {
+  margin: 38px 0 20px;
+  padding: clamp(22px, 4vw, 42px);
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(420px, 1.2fr);
+  gap: 34px;
+  align-items: center;
+  border-radius: 20px;
+  color: #f7f5ee;
+  background: #10241d;
+}
+.judge-start h2 {
+  margin: 8px 0 16px;
+  font-size: clamp(28px, 3.5vw, 46px);
+  line-height: 1.05;
+}
+.judge-start p:not(.kicker) {
+  color: #d9e1dc;
+  line-height: 1.55;
+}
+.judge-start video {
+  width: 100%;
+  max-height: 430px;
+  border-radius: 14px;
+  background: #07110d;
+}
+.production-proof {
+  margin: 20px 0;
+  padding: 18px 20px;
+  border: 1px solid #a8c0b4;
+  border-radius: 14px;
+  background: #edf6f0;
+}
+.production-proof > strong {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 18px;
+}
+.production-proof ul {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  list-style: none;
+}
+.production-proof li {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  font-weight: 650;
+}
+.production-proof li svg {
+  flex: 0 0 auto;
+  color: var(--green);
+}
+.judge-decisions,
+.seeded-proof {
+  margin: 54px 0;
+}
+.judge-decisions > h2,
+.seeded-proof > h2,
+.persona-heading {
+  margin: 6px 0 22px;
+  font-size: clamp(28px, 4vw, 42px);
+}
+.judge-decisions > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.judge-decisions article {
+  padding: 22px;
+  border: 1px solid #d5d9d0;
+  border-radius: 14px;
+  background: white;
+}
+.judge-decisions article strong {
+  font-size: 18px;
+}
+.judge-decisions article p {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.persona-heading {
+  margin-top: 58px;
+}
+.seeded-proof > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.seeded-proof a {
+  min-height: 96px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 14px;
+  align-items: center;
+  border: 1px solid #d5d9d0;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+  background: white;
+}
+.seeded-proof a:hover,
+.seeded-proof a:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(32, 93, 68, 0.14);
+}
+.seeded-proof a span {
+  grid-column: 1;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.seeded-proof a svg {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
 .persona-grid {
   margin-top: 34px;
   display: grid;
@@ -942,6 +1062,61 @@ input {
 }
 .integration-alert p {
   font-size: 13px;
+}
+.airtable-proof-loop {
+  grid-column: 1 / -1;
+  padding-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(320px, 1.15fr);
+  gap: 24px;
+  border-top: 1px solid var(--line);
+}
+.airtable-proof-loop h3 {
+  margin: 4px 0 10px;
+  font-size: 22px;
+}
+.airtable-proof-loop ol {
+  margin: 0;
+  padding-left: 22px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.airtable-proof-loop li + li {
+  margin-top: 8px;
+}
+.airtable-proof-loop li span {
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.airtable-recent-records {
+  padding: 16px;
+  border: 1px solid #cfd9d2;
+  border-radius: 12px;
+  background: white;
+}
+.airtable-recent-records ul {
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+.airtable-recent-records li {
+  padding: 9px 0;
+  display: grid;
+  grid-template-columns: minmax(80px, 0.55fr) minmax(160px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid #e5e8e3;
+}
+.airtable-recent-records code {
+  overflow-wrap: anywhere;
+}
+.airtable-recent-records time {
+  color: var(--muted);
+  font-size: 12px;
 }
 .content-main {
   max-width: 1440px;
@@ -10102,6 +10277,29 @@ input {
   }
 }
 @media (max-width: 760px) {
+  .judge-start,
+  .judge-decisions > div,
+  .seeded-proof > div,
+  .persona-grid {
+    grid-template-columns: 1fr;
+  }
+  .judge-start {
+    gap: 22px;
+  }
+  .persona-entry {
+    width: min(100% - 28px, 1180px);
+    padding-top: 28px;
+  }
+  .persona-entry > .brand {
+    margin-bottom: 34px;
+  }
+  .production-proof ul {
+    display: grid;
+  }
+  .airtable-proof-loop,
+  .airtable-recent-records li {
+    grid-template-columns: 1fr;
+  }
   .crm-shell {
     width: 100%;
     grid-template-columns: minmax(0, 1fr);

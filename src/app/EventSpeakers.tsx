@@ -949,8 +949,21 @@ function OrganizerSpeakers({ eventId }: { eventId: string }) {
     message: string;
   }>();
   const [busy, setBusy] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [taskProgressFilter, setTaskProgressFilter] = useState("all");
+  const initialFilters = new URLSearchParams(window.location.search);
+  const requestedStatus = initialFilters.get("status");
+  const requestedTaskProgress = initialFilters.get("taskProgress");
+  const [statusFilter, setStatusFilter] = useState(
+    ["proposed", "invited", "confirmed", "withdrawn"].includes(
+      requestedStatus ?? "",
+    )
+      ? (requestedStatus ?? "all")
+      : "all",
+  );
+  const [taskProgressFilter, setTaskProgressFilter] = useState(
+    ["incomplete", "complete"].includes(requestedTaskProgress ?? "")
+      ? (requestedTaskProgress ?? "all")
+      : "all",
+  );
   const [speakerSearch, setSpeakerSearch] = useState("");
   async function load() {
     const result = await api<{

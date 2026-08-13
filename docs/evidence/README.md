@@ -9,7 +9,7 @@ Control Room evidence must reconcile the displayed total to the persisted catego
 | Area           | Nonsensitive committed evidence                                               | Restricted final evidence kept outside source                                       |
 | -------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | Communications | Idempotency, monotonic webhook, retry, authorization and structured-log tests | Controlled inbox receipt, provider state transitions, failure/retry screenshots     |
-| Calendar       | Sanitized ICS bytes under `production-journey/calendar/`                      | Gmail and Apple Calendar captures; Outlook waiver record                            |
+| Calendar       | Sanitized ICS bytes under `production-journey/calendar/`                      | Gmail and Apple Calendar captures                                                    |
 | Airtable       | Sync/reconciliation tests and architecture/runbook                            | Final zero pending/failed/conflict response and base captures                       |
 | R2/content     | Fictional headshot, sanitized product captures, file/version tests            | Authenticated byte/download and private upload traces                               |
 | PostHog        | Privacy-bounded capture code/tests                                            | Ingestion receipt and project capture without user/query data                       |
@@ -22,7 +22,7 @@ Control Room evidence must reconcile the displayed total to the persisted catego
 ## Claim rules
 
 - Prepared, queued, processing, sent, delivered, bounced, failed and cancelled are distinct communication states. A provider acceptance is not called delivery.
-- Calendar client claims name only Gmail and Apple Calendar. Outlook is explicitly waived and untested.
+- Calendar client claims name only Gmail and Apple Calendar.
 - Historical Worker identifiers in the traceability matrix describe past evidence only. The manifest is the sole current-release identifier.
 - Counts must be captured from or reconciled against the same production state described by the evidence timestamp.
 - Performance results must include route, environment, region, device, sample size and measurement method.

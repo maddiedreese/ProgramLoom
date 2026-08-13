@@ -238,6 +238,14 @@ describe("organizer onboarding", () => {
               pending: 0,
               failed: 0,
               lastSyncedAt: "2027-01-02T00:00:00.000Z",
+              recentRecords: [
+                {
+                  entityType: "speaker",
+                  entityId: "speaker-1",
+                  externalId: "recProgramLoomSpeaker",
+                  syncedAt: "2027-01-02T00:00:00.000Z",
+                },
+              ],
               conflicts: [],
               resources: [],
             }),
@@ -305,6 +313,19 @@ describe("organizer onboarding", () => {
     expect(screen.getByText("0 pending")).toBeInTheDocument();
     expect(screen.getByText("0 failed")).toBeInTheDocument();
     expect(screen.getByText("0 open conflicts")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: /change it here\. verify it in airtable/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("recProgramLoomSpeaker")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open proposals" }),
+    ).toHaveAttribute("href", "/app/events/event-1/submissions");
+    expect(screen.getByRole("link", { name: "Open speakers" })).toHaveAttribute(
+      "href",
+      "/app/events/event-1/speakers",
+    );
 
     fireEvent.click(
       screen.getByRole("button", { name: /edit event details/i }),

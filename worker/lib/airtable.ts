@@ -1374,39 +1374,49 @@ export async function refreshAirtableWebhook(env: Env) {
 
 export async function integrationStatus(env: Env, organizationId: string) {
   const db = database(env);
-  const [outbox, conflicts, states, external] = await Promise.all([
-    db
-      .prepare(
-        `SELECT SUM(CASE WHEN completed_at IS NULL THEN 1 ELSE 0 END) AS pending,
+  const [outbox, conflicts, states, external, recentRecords] =
+    await Promise.all([
+      db
+        .prepare(
+          `SELECT SUM(CASE WHEN completed_at IS NULL THEN 1 ELSE 0 END) AS pending,
                 SUM(CASE WHEN completed_at IS NULL AND last_error IS NOT NULL THEN 1 ELSE 0 END) AS failed,
                 MAX(completed_at) AS lastCompletedAt
          FROM integration_outbox WHERE organization_id=? AND integration='airtable'`,
-      )
-      .bind(organizationId)
-      .first<Record<string, unknown>>(),
-    db
-      .prepare(
-        `SELECT id,entity_type AS entityType,entity_id AS entityId,direction,reason,created_at AS createdAt
+        )
+        .bind(organizationId)
+        .first<Record<string, unknown>>(),
+      db
+        .prepare(
+          `SELECT id,entity_type AS entityType,entity_id AS entityId,direction,reason,created_at AS createdAt
          FROM integration_conflicts WHERE organization_id=? AND integration='airtable' AND status='open'
          ORDER BY created_at DESC LIMIT 50`,
-      )
-      .bind(organizationId)
-      .all(),
-    db
-      .prepare(
-        `SELECT resource,last_started_at AS lastStartedAt,last_success_at AS lastSuccessAt,last_error AS lastError
+        )
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(
+          `SELECT resource,last_started_at AS lastStartedAt,last_success_at AS lastSuccessAt,last_error AS lastError
          FROM integration_sync_state WHERE organization_id=? AND integration='airtable' ORDER BY resource`,
-      )
-      .bind(organizationId)
-      .all(),
-    db
-      .prepare(
-        `SELECT COUNT(*) AS count,MAX(synced_at) AS lastSyncedAt FROM external_records
+        )
+        .bind(organizationId)
+        .all(),
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count,MAX(synced_at) AS lastSyncedAt FROM external_records
          WHERE organization_id=? AND integration='airtable'`,
-      )
-      .bind(organizationId)
-      .first<Record<string, unknown>>(),
-  ]);
+        )
+        .bind(organizationId)
+        .first<Record<string, unknown>>(),
+      db
+        .prepare(
+          `SELECT entity_type AS entityType,entity_id AS entityId,external_id AS externalId,synced_at AS syncedAt
+         FROM external_records
+         WHERE organization_id=? AND integration='airtable'
+         ORDER BY synced_at DESC LIMIT 8`,
+        )
+        .bind(organizationId)
+        .all(),
+    ]);
   return {
     configured: Boolean(env.AIRTABLE_ACCESS_TOKEN && env.AIRTABLE_BASE_ID),
     pending: Number(outbox?.pending ?? 0),
@@ -1414,6 +1424,7 @@ export async function integrationStatus(env: Env, organizationId: string) {
     lastCompletedAt: outbox?.lastCompletedAt ?? null,
     externalRecords: Number(external?.count ?? 0),
     lastSyncedAt: external?.lastSyncedAt ?? null,
+    recentRecords: recentRecords.results,
     conflicts: conflicts.results,
     resources: states.results,
   };

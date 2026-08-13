@@ -542,6 +542,15 @@ const walkthroughReleaseUrl =
   "https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12";
 const walkthroughVideoUrl =
   "/programloom-walkthrough.mp4?v=programloom-final-2026-08-12";
+const judgeTourVideoUrl = "/programloom-judge-tour.mp4?v=judge-first-final";
+
+const productionProof = [
+  "Real Resend delivery",
+  "Gmail + Apple Calendar lifecycle",
+  "Airtable healthy",
+  "77 production browser scenarios",
+  "237 unit and API tests",
+] as const;
 
 export const evaluatorPersonas = [
   {
@@ -560,11 +569,70 @@ export const evaluatorPersonas = [
     path: `/login?returnTo=/app/events/${summitEventId}/speaker`,
   },
   {
-    name: "Attendee",
+    name: "Public Program",
     note: "Attendees can explore the published agenda, speakers, sessions, and personal itinerary without authentication.",
     path: "/program",
   },
 ] as const;
+
+const seededProofRoutes = [
+  {
+    label: "Control Room blockers",
+    detail: "Persisted next actions and live affected-record counts.",
+    path: `/login?returnTo=/app/events/${summitEventId}/control-room`,
+  },
+  {
+    label: "Published CFP",
+    detail:
+      "Public, multi-section proposal form with server-equivalent validation.",
+    path: "/c/devflow-programs/programloom-summit-2027/cfp",
+    public: true,
+  },
+  {
+    label: "Review workspace",
+    detail:
+      "Assigned, incomplete, conflicted, recused, and completed review states.",
+    path: `/login?returnTo=/app/events/${summitEventId}/reviews`,
+  },
+  {
+    label: "Outstanding speaker work",
+    detail: "Onboarding tasks, requested files, and content approval blockers.",
+    path: `/login?returnTo=/app/events/${summitEventId}/speakers?taskProgress=incomplete`,
+  },
+  {
+    label: "Schedule conflict lab",
+    detail:
+      "Reserved sessions demonstrate conflict detection and explicit resolution.",
+    path: `/login?returnTo=/app/events/${summitEventId}/agenda`,
+  },
+  {
+    label: "Failed delivery recovery",
+    detail:
+      "Retryable failure, Retry delivery, durable state, audit, and notification.",
+    path: `/login?returnTo=/app/events/${summitEventId}/communications?status=failed`,
+  },
+  {
+    label: "Public program outputs",
+    detail: "Agenda, speakers, itinerary, JSON, XML, ICS, and embed output.",
+    path: "/program",
+    public: true,
+  },
+] as const;
+
+function ProductionProof() {
+  return (
+    <aside className="production-proof" aria-label="Verified in production">
+      <strong>Verified in production</strong>
+      <ul>
+        {productionProof.map((claim) => (
+          <li key={claim}>
+            <Check size={15} aria-hidden="true" /> {claim}
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
 
 function EvaluatorEntryPage() {
   return (
@@ -572,12 +640,63 @@ function EvaluatorEntryPage() {
       <Link to="/" className="brand" aria-label="ProgramLoom home">
         <Wordmark />
       </Link>
-      <p className="kicker">Controlled evaluator entry</p>
-      <h1>Choose the perspective you want to inspect.</h1>
+      <p className="kicker">Judge ProgramLoom</p>
+      <h1>See the differentiator first. Verify the depth next.</h1>
       <p className="persona-intro">
-        Every privileged route uses ProgramLoom's normal authentication and
-        authorization. No public privileged session is created here.
+        Watch the 90-second Control Room tour, then open Organizer, Reviewer,
+        Speaker, and Public Program. Every privileged route uses normal
+        authentication and authorization; no public privileged session exists.
       </p>
+      <section className="judge-start" aria-labelledby="judge-start-title">
+        <div>
+          <p className="kicker">Start here · 90 seconds</p>
+          <h2 id="judge-start-title">
+            You do not manage a conference by navigating CRUD pages. You manage
+            blockers.
+          </h2>
+          <p>
+            The tour starts in the Control Room with an incomplete review, an
+            unsent decision, a missing speaker asset, and an accepted talk
+            without a slot—then opens their direct resolution paths from
+            persisted next actions.
+          </p>
+        </div>
+        <video
+          controls
+          playsInline
+          preload="metadata"
+          poster="/programloom-control-room.jpg?v=programloom-summit-2027"
+          aria-label="90-second Judge ProgramLoom tour"
+        >
+          <source src={judgeTourVideoUrl} type="video/mp4" />
+        </video>
+      </section>
+      <ProductionProof />
+      <section className="judge-decisions" aria-labelledby="decisions-title">
+        <p className="kicker">Three intentional product decisions</p>
+        <h2 id="decisions-title">Built for consequences, not checkboxes.</h2>
+        <div>
+          <article>
+            <strong>Stage decision ≠ Send decision</strong>
+            <p>Organizers cannot accidentally email hundreds of speakers.</p>
+          </article>
+          <article>
+            <strong>Next actions come from persisted facts</strong>
+            <p>
+              The Control Room never depends on a manually maintained progress
+              flag.
+            </p>
+          </article>
+          <article>
+            <strong>Calendars update and cancel correctly</strong>
+            <p>
+              Stable UID and increasing sequence prevent stale participant
+              calendars.
+            </p>
+          </article>
+        </div>
+      </section>
+      <h2 className="persona-heading">Open each production perspective</h2>
       <div className="persona-grid">
         {evaluatorPersonas.map((persona) => (
           <article key={persona.name}>
@@ -586,16 +705,38 @@ function EvaluatorEntryPage() {
             <a
               className="button"
               href={
-                persona.name === "Attendee"
+                persona.name === "Public Program"
                   ? persona.path
                   : applicationHref(persona.path)
               }
             >
-              Continue as {persona.name}
+              {persona.name === "Public Program"
+                ? "Open Public Program"
+                : `Continue as ${persona.name}`}
             </a>
           </article>
         ))}
       </div>
+      <section className="seeded-proof" aria-labelledby="seeded-proof-title">
+        <p className="kicker">Exact seeded proof routes</p>
+        <h2 id="seeded-proof-title">No scavenger hunt required.</h2>
+        <div>
+          {seededProofRoutes.map((route) => (
+            <a
+              key={route.label}
+              href={
+                "public" in route && route.public
+                  ? route.path
+                  : applicationHref(route.path)
+              }
+            >
+              <strong>{route.label}</strong>
+              <span>{route.detail}</span>
+              <ArrowRight size={17} aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
@@ -703,8 +844,11 @@ function MarketingPage() {
               one connected record.
             </p>
             <div className="hero-actions">
+              <Link className="button button-large" to="/evaluate">
+                Judge ProgramLoom <ArrowRight size={18} />
+              </Link>
               <a
-                className="button button-large"
+                className="button button-large button-ghost"
                 href={applicationHref("/register")}
               >
                 Create your first event. <ArrowRight size={18} />
@@ -727,6 +871,7 @@ function MarketingPage() {
                 <Check size={16} /> Free and open source
               </span>
             </div>
+            <ProductionProof />
           </div>
           <figure className="hero-control-room">
             <video

@@ -67,6 +67,12 @@ type AirtableStatus = {
   failed: number;
   lastCompletedAt: string | null;
   lastSyncedAt: string | null;
+  recentRecords: Array<{
+    entityType: string;
+    entityId: string;
+    externalId: string;
+    syncedAt: string;
+  }>;
   conflicts: Array<{
     id: string;
     entityType: string;
@@ -675,6 +681,66 @@ export function Dashboard({ user }: { user: User }) {
                 </div>
               </div>
             )}
+            <section
+              className="airtable-proof-loop"
+              aria-labelledby="airtable-proof-loop-title"
+            >
+              <div>
+                <p className="kicker">Live proof loop</p>
+                <h3 id="airtable-proof-loop-title">
+                  Change it here. Verify it in Airtable.
+                </h3>
+                <ol>
+                  <li>
+                    Change one proposal or speaker in ProgramLoom.
+                    {visibleEvents[0] && (
+                      <span>
+                        <a
+                          href={`/app/events/${visibleEvents[0].id}/submissions`}
+                        >
+                          Open proposals
+                        </a>
+                        <a href={`/app/events/${visibleEvents[0].id}/speakers`}>
+                          Open speakers
+                        </a>
+                      </span>
+                    )}
+                  </li>
+                  <li>
+                    Select <strong>Sync now</strong>; the matching external
+                    record appears below.
+                  </li>
+                  <li>
+                    A supported change made in Airtable returns on the next
+                    sync. Conflicts remain isolated and recoverable.
+                  </li>
+                </ol>
+              </div>
+              <div className="airtable-recent-records">
+                <strong>Most recently matched records</strong>
+                {(airtableStatus.recentRecords ?? []).length ? (
+                  <ul>
+                    {airtableStatus.recentRecords.map((record) => (
+                      <li key={`${record.entityType}-${record.entityId}`}>
+                        <span>{record.entityType}</span>
+                        <code>{record.externalId}</code>
+                        <time dateTime={record.syncedAt}>
+                          {new Intl.DateTimeFormat("en-US", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          }).format(new Date(record.syncedAt))}
+                        </time>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>
+                    No matched records yet. Change a proposal or speaker, then
+                    select Sync now.
+                  </p>
+                )}
+              </div>
+            </section>
           </section>
         )}
         {canOrganize && currentSubmissions.length > 0 && (

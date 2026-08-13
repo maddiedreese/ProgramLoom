@@ -11,6 +11,20 @@ The **Control Room** shows what is keeping the program from being ready and take
 - Live multi-day program: [programloom.com/program](https://programloom.com/program)
 - Evaluator entry: [programloom.com/evaluate](https://programloom.com/evaluate)
 
+> **Verified in production:** real Resend delivery ✓ · Gmail + Apple Calendar lifecycle ✓ · Airtable healthy at 0 pending / 0 failed / 0 conflicts ✓ · 77 production browser scenarios ✓ · 237 unit and API tests ✓
+
+## Judge ProgramLoom in the first five minutes
+
+1. **[Watch the 90-second Control Room tour](https://programloom.com/evaluate).** It begins with real persisted blockers and opens their direct resolution paths from the recommended next action.
+2. **Open Organizer, Reviewer, Speaker, and Public Program** from the same page. Each card explains its authorization boundary and links to the exact seeded production state.
+3. **Use the direct proof routes** there for the published CFP, incomplete review, outstanding speaker work, schedule conflict, retryable communication, and public outputs—no scavenger hunt required.
+
+Three product decisions explain why ProgramLoom is safe to operate:
+
+- **Stage decision ≠ Send decision.** Recording an outcome cannot accidentally email hundreds of speakers.
+- **Control Room actions come from persisted facts.** Organizers never maintain a decorative “complete” flag.
+- **Calendar updates and cancellations have lifecycle semantics.** Stable UID and increasing sequence prevent stale participant calendars.
+
 ## Watch the complete production walkthrough
 
 [![Watch ProgramLoom's continuous 30-step production walkthrough](public/programloom-control-room.jpg)](https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12)
@@ -23,11 +37,11 @@ The walkthrough creates a fresh production event and follows one connected propo
 
 Everything below is backed by persisted production records rather than browser-only demo state.
 
-1. **Start with the [continuous walkthrough](https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12).** It demonstrates the complete proposal-to-program lifecycle in one narrative.
+1. **Start with the [90-second judge tour](https://programloom.com/evaluate).** It demonstrates the Control Room differentiator before the complete lifecycle.
 2. **Open the [controlled evaluator entry](https://programloom.com/evaluate).** Organizer, Reviewer, Speaker, and Attendee cards explain the boundaries of each persona and route through normal authentication or anonymous access.
 3. **Inspect [ProgramLoom Summit 2027](https://programloom.com/program).** The polished multi-day production event links its public CFP, agenda, speakers, itinerary, JSON, XML, ICS, and JavaScript embed outputs in one place.
 4. **Read the [help center](https://programloom.com/help/).** It documents the complete lifecycle, integrations, recovery paths, search, developer platform, and role-specific workflows.
-5. **Review the [sanitized production evidence](docs/evidence/production-manifest.json).** It locks the deployed source and Worker identity, exact test totals, evidence states, public routes, and manual-environment waiver.
+5. **Review the [sanitized production evidence](docs/evidence/production-manifest.json).** It locks the deployed source and Worker identity, exact test totals, evidence states, public routes, and tested environments.
 
 ## Complete capability checklist
 
@@ -112,7 +126,7 @@ Everything below is backed by persisted production records rather than browser-o
 - [x] Automated desktop, tablet, and mobile screenshots for primary organizer and public routes.
 - [x] Authorization matrix covers anonymous, same-event organizer, cross-organization organizer, cross-event organizer, assigned/unassigned reviewer, connected/unconnected speaker, revoked token, and missing token scope.
 - [x] Reliability coverage includes email idempotency, retry deduplication, monotonic webhooks, calendar identity, Airtable recovery, stale assets, and integration isolation.
-- [x] Clean-checkout gates: 236/236 unit and API tests, 77 production public browser scenarios, 132 help/crawler scenarios, and 92/92 visual comparisons.
+- [x] Clean-checkout gates: 237/237 unit and API tests, 77 production public browser scenarios, 132 help/crawler scenarios, and 92/92 visual comparisons.
 - [x] Zero serious or critical automated accessibility violations, zero high or critical production dependency vulnerabilities, zero committed secrets, and zero broken help links.
 
 ## What you can do with ProgramLoom

@@ -64,7 +64,7 @@ Speaker-task external IDs are composite (`task ID:speaker ID`). A retrying confl
 
 Use the session cancellation action when an invitation is no longer valid. It records agenda cancellation, removes the item from public widgets, stores a higher-sequence `CANCEL` revision, and queues the participant-addressed message. Ordinary placement changes are rejected while cancelled. To restore a cancelled session, use the explicit reschedule action; confirm the same UID, a higher sequence, a new `REQUEST`, and renewed public visibility only after publication. Calendar resend, update, cancellation, and reschedule actions are organizer/admin-only and must be verified in the Communications outbox before retrying.
 
-For evidence, retain the downloaded bytes for the initial `REQUEST`, a material update, and final `CANCEL`. Verify identical UID, strictly increasing sequence, correct method, organizer/attendee/timezone fields, and provider delivery attempts. Test imports in Gmail and Apple Calendar with a disposable session; remove the disposable calendar item after evidence is recorded. Outlook is not part of the current submission protocol because the account owner explicitly waived it when no test account was available; never imply that it was tested.
+For evidence, retain the downloaded bytes for the initial `REQUEST`, a material update, and final `CANCEL`. Verify identical UID, strictly increasing sequence, correct method, organizer/attendee/timezone fields, and provider delivery attempts. Test imports in Gmail and Apple Calendar with a disposable session; remove the disposable calendar item after evidence is recorded.
 
 ## Control Room operations
 

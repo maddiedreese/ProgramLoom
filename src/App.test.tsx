@@ -74,7 +74,7 @@ describe("ProgramLoom application", () => {
           name: "Speaker",
           path: "/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/speaker",
         },
-        { name: "Attendee", path: "/program" },
+        { name: "Public Program", path: "/program" },
       ],
     );
     render(
@@ -84,16 +84,57 @@ describe("ProgramLoom application", () => {
     );
     expect(
       await screen.findByRole("heading", {
-        name: /choose the perspective you want to inspect/i,
+        name: /see the differentiator first/i,
       }),
     ).toBeVisible();
     for (const persona of evaluatorPersonas) {
       expect(screen.getByRole("heading", { name: persona.name })).toBeVisible();
       expect(screen.getByText(persona.note)).toBeVisible();
       expect(
-        screen.getByRole("link", { name: `Continue as ${persona.name}` }),
+        screen.getByRole("link", {
+          name:
+            persona.name === "Public Program"
+              ? "Open Public Program"
+              : `Continue as ${persona.name}`,
+        }),
       ).toHaveAttribute("href", persona.path);
     }
+    expect(
+      screen.getByRole("heading", {
+        name: /you do not manage a conference by navigating crud pages/i,
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByLabelText("90-second Judge ProgramLoom tour"),
+    ).toContainHTML("programloom-judge-tour.mp4");
+    for (const claim of [
+      "Real Resend delivery",
+      "Gmail + Apple Calendar lifecycle",
+      "Airtable healthy",
+      "77 production browser scenarios",
+      "237 unit and API tests",
+    ])
+      expect(screen.getByText(claim)).toBeVisible();
+    for (const decision of [
+      "Stage decision ≠ Send decision",
+      "Next actions come from persisted facts",
+      "Calendars update and cancel correctly",
+    ])
+      expect(screen.getByText(decision)).toBeVisible();
+
+    const exactRoutes = {
+      "Control Room blockers": `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/control-room`,
+      "Published CFP": "/c/devflow-programs/programloom-summit-2027/cfp",
+      "Review workspace": `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/reviews`,
+      "Outstanding speaker work": `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/speakers?taskProgress=incomplete`,
+      "Schedule conflict lab": `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/agenda`,
+      "Failed delivery recovery": `/login?returnTo=/app/events/5c33f61d-3af6-41ff-8b2e-6268181001f8/communications?status=failed`,
+      "Public program outputs": "/program",
+    };
+    for (const [name, href] of Object.entries(exactRoutes))
+      expect(
+        screen.getByRole("link", { name: new RegExp(name, "i") }),
+      ).toHaveAttribute("href", href);
   });
 
   it("publishes the exact production program outputs and live agenda", async () => {

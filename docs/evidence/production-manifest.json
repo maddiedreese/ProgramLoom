@@ -22,8 +22,7 @@
   },
   "paidEvaluator": { "status": "not_run", "count": 0 },
   "calendarClients": {
-    "tested": ["Gmail", "Apple Calendar"],
-    "waived": ["Outlook"]
+    "tested": ["Gmail", "Apple Calendar"]
   },
   "airtable": { "pending": 0, "failed": 0, "openConflicts": 0 },
   "controlRoom": {
@@ -44,7 +43,7 @@
     ]
   },
   "tests": {
-    "unit": { "files": 61, "executed": 236, "passed": 236 },
+    "unit": { "files": 61, "executed": 237, "passed": 237 },
     "desktop": { "executed": 57, "passed": 57 },
     "mobile": { "executed": 20, "passed": 20 },
     "accessibility": { "serious": 0, "critical": 0 },
