@@ -89,7 +89,33 @@ if (final) {
     encoding: "utf8",
   }).trim();
   requireValue(manifest.status === "final", "Manifest status is not final.");
-  requireValue(release.sourceCommit === head, "Wrong source commit.");
+  requireValue(
+    /^[0-9a-f]{40}$/i.test(release.sourceCommit ?? ""),
+    "Wrong source commit.",
+  );
+  if (/^[0-9a-f]{40}$/i.test(release.sourceCommit ?? "")) {
+    try {
+      execFileSync(
+        "git",
+        ["merge-base", "--is-ancestor", release.sourceCommit, head],
+        { cwd: new URL(".", root), stdio: "ignore" },
+      );
+      const postReleaseFiles = execFileSync(
+        "git",
+        ["diff", "--name-only", `${release.sourceCommit}..${head}`],
+        { cwd: new URL(".", root), encoding: "utf8" },
+      )
+        .trim()
+        .split("\n")
+        .filter(Boolean);
+      requireValue(
+        postReleaseFiles.every((path) => path.startsWith("docs/evidence/")),
+        "Runtime source changed after the deployed source commit.",
+      );
+    } catch {
+      errors.push("Deployed source commit is not an ancestor of the evidence commit.");
+    }
+  }
   requireValue(
     /^[0-9a-f-]{36}$/i.test(release.workerVersion ?? ""),
     "Wrong Worker version.",
