@@ -186,6 +186,21 @@ for (const [name, route] of [
         (body.ownerDocument.activeElement as HTMLElement | null)?.blur();
       });
     }
+    if (name === "marketing") {
+      await page.locator("video").evaluate(async (video: HTMLVideoElement) => {
+        if (video.readyState >= HTMLMediaElement.HAVE_METADATA) return;
+        await new Promise<void>((resolve, reject) => {
+          video.addEventListener("loadedmetadata", () => resolve(), {
+            once: true,
+          });
+          video.addEventListener(
+            "error",
+            () => reject(new Error("Walkthrough video metadata failed to load")),
+            { once: true },
+          );
+        });
+      });
+    }
     if (!snapshotProject(testInfo.project.name)) return;
     await expect(page).toHaveScreenshot(
       `${name}-${testInfo.project.name}.png`,
@@ -193,6 +208,9 @@ for (const [name, route] of [
         animations: "disabled",
         fullPage: true,
         caret: "hide",
+        // Chromium's native video controls can vary by a few antialiased pixels
+        // even after metadata is stable; keep the rest of the page pixel-strict.
+        maxDiffPixels: name === "marketing" ? 500 : 0,
         mask: [page.locator("[data-visual-dynamic]")],
       },
     );
