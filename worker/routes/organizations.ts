@@ -278,7 +278,8 @@ router.get("/:organizationId/members", async (context) => {
     .prepare(
       `SELECT em.user_id AS userId, em.event_id AS eventId, e.name AS eventName, em.role
      FROM event_members em JOIN events e ON e.id = em.event_id
-     WHERE e.organization_id = ? ORDER BY e.starts_at, e.name`,
+     WHERE e.organization_id = ? AND e.status != 'archived'
+     ORDER BY e.starts_at, e.name`,
     )
     .bind(organizationId)
     .all();
@@ -287,6 +288,7 @@ router.get("/:organizationId/members", async (context) => {
       `SELECT i.id, i.email, i.role, i.event_id AS eventId, e.name AS eventName, i.expires_at AS expiresAt, i.created_at AS createdAt
      FROM invitations i LEFT JOIN events e ON e.id = i.event_id
      WHERE i.organization_id = ? AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > ?
+       AND (i.event_id IS NULL OR e.status != 'archived')
      ORDER BY i.created_at DESC`,
     )
     .bind(organizationId, new Date().toISOString())

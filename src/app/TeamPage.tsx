@@ -3,7 +3,11 @@ import { type FormEvent, useEffect, useState } from "react";
 
 type User = { id: string; email: string; name: string };
 type Organization = { id: string; name: string; role: string };
-type EventRecord = { id: string; name: string };
+type EventRecord = {
+  id: string;
+  name: string;
+  status: "draft" | "active" | "archived";
+};
 type Member = {
   id: string;
   email: string;
@@ -35,6 +39,10 @@ export function invitationDeliveryMessage(
   if (deliveryStatus === "prepared")
     return `Invitation created for ${email}, but delivery is only prepared. Open Communications to retry or inspect it.`;
   return `The email provider accepted the workspace invitation for ${email}. Delivery is not claimed without provider evidence.`;
+}
+
+export function currentEvents(events: EventRecord[]) {
+  return events.filter((event) => event.status !== "archived");
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -105,7 +113,7 @@ export function TeamPage({ user }: { user: User }) {
       }>(`/api/organizations/${organizationId}/members`),
     ])
       .then(([eventResult, teamResult]) => {
-        setEvents(eventResult.events);
+        setEvents(currentEvents(eventResult.events));
         setMembers(teamResult.members);
         setEventRoles(teamResult.eventRoles);
         setInvitations(teamResult.invitations);

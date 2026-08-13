@@ -98,8 +98,8 @@ export function EventLifecycleGuide({
                 </div>
               </div>
               <a className="button button-small" href={stage.actionUrl}>
-                <span className="primary-action-label">Primary action:</span>{" "}
-                {stage.primaryAction}
+                <span className="primary-action-label">Primary action:</span>
+                <span>{stage.primaryAction}</span>
               </a>
             </li>
           ))}

@@ -32,6 +32,7 @@ function environment(role: "owner" | "member") {
           async all() {
             if (role === "member") {
               expect(sql).toContain("JOIN event_members");
+              expect(sql).toContain("e.status");
               expect(values).toEqual([userId, organizationId]);
             } else {
               expect(sql).not.toContain("JOIN event_members");

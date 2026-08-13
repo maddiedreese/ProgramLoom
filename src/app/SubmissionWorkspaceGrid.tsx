@@ -898,13 +898,16 @@ export function SubmissionWorkspaceGrid({
       )}
       {showColumns && meta && (
         <div className="column-config" aria-label="Column configuration">
-          <p>
-            Use the arrow buttons for an accessible alternative to drag
-            ordering.
-          </p>
+          <div className="column-config-heading">
+            <div>
+              <strong>Choose and arrange columns</strong>
+              <p>Show only the proposal details this view needs.</p>
+            </div>
+            <p>Use Move earlier and Move later instead of dragging.</p>
+          </div>
           {config.columns.map((column, index) => (
-            <div key={column.id}>
-              <label>
+            <div className="column-config-row" key={column.id}>
+              <label className="column-config-toggle">
                 <input
                   type="checkbox"
                   checked={column.visible}
@@ -934,8 +937,8 @@ export function SubmissionWorkspaceGrid({
                     ?.label ??
                   column.id}
               </label>
-              <label>
-                Width
+              <label className="column-config-width">
+                <span>Width</span>
                 <input
                   type="number"
                   min="80"
@@ -956,14 +959,16 @@ export function SubmissionWorkspaceGrid({
               <button
                 onClick={() => moveColumn(index, -1)}
                 disabled={index === 0}
-                aria-label={`Move ${column.id} left`}
+                aria-label={`Move ${labels[column.id] ?? column.id} earlier`}
+                title="Move earlier"
               >
                 <ArrowUp />
               </button>
               <button
                 onClick={() => moveColumn(index, 1)}
                 disabled={index === config.columns.length - 1}
-                aria-label={`Move ${column.id} right`}
+                aria-label={`Move ${labels[column.id] ?? column.id} later`}
+                title="Move later"
               >
                 <ArrowDown />
               </button>
