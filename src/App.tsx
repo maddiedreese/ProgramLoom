@@ -541,7 +541,7 @@ const summitWidgets = {
 const walkthroughReleaseUrl =
   "https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12";
 const walkthroughVideoUrl =
-  "/programloom-walkthrough.mp4?v=programloom-final-2026-08-12";
+  "/programloom-walkthrough.mp4?v=judge-first-2026-08-12";
 const judgeTourVideoUrl = "/programloom-judge-tour.mp4?v=judge-first-final";
 
 const productionProof = [
@@ -886,10 +886,10 @@ function MarketingPage() {
               walkthrough using the link below.
             </video>
             <figcaption>
-              <strong>Complete production walkthrough · 4:26 · 30 steps</strong>
+              <strong>Complete production walkthrough · 3:33 · 30 steps</strong>
               <span>
-                One continuous journey from event creation to review, decisions,
-                speaker preparation, publication, and cancellation.
+                Silent on-screen guidance through event creation, review,
+                decisions, speaker preparation, publication, and cancellation.
               </span>
               <span className="walkthrough-hero-links">
                 <a href={walkthroughReleaseUrl}>

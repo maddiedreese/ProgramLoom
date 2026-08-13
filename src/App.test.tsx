@@ -245,7 +245,7 @@ describe("ProgramLoom application", () => {
     );
     expect(document.querySelector('source[type="video/mp4"]')).toHaveAttribute(
       "src",
-      "/programloom-walkthrough.mp4?v=programloom-final-2026-08-12",
+      "/programloom-walkthrough.mp4?v=judge-first-2026-08-12",
     );
   });
 

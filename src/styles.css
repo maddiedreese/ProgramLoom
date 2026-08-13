@@ -637,6 +637,9 @@ footer nav a,
   font-size: clamp(28px, 3.5vw, 46px);
   line-height: 1.05;
 }
+.judge-start .kicker {
+  color: #f4a186;
+}
 .judge-start p:not(.kicker) {
   color: #d9e1dc;
   line-height: 1.55;
