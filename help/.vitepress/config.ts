@@ -5,6 +5,7 @@ export default defineConfig({
   description:
     "Plain-language guidance for planning proposals, reviews, speakers, schedules, and public event programs with ProgramLoom.",
   lang: "en-US",
+  appearance: false,
   base: "/help/",
   cleanUrls: true,
   outDir: "../dist/client/help",

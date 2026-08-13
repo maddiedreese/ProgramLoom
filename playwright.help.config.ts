@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:5176";
+const baseURL =
+  process.env.PROGRAMLOOM_HELP_E2E_URL ?? "http://127.0.0.1:5176";
+const host = new URL(baseURL).hostname;
+const local = host === "127.0.0.1" || host === "localhost";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -12,12 +15,14 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  webServer: {
-    command:
-      "WRANGLER_LOG_PATH=.wrangler.log npx wrangler dev --local --port 5176",
-    url: baseURL,
-    timeout: 120_000,
-  },
+  webServer: local
+    ? {
+        command:
+          "WRANGLER_LOG_PATH=.wrangler.log npx wrangler dev --local --port 5176",
+        url: baseURL,
+        timeout: 120_000,
+      }
+    : undefined,
   projects: [
     {
       name: "desktop-1440x900",

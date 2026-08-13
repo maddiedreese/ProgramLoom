@@ -34,9 +34,12 @@ test("evaluator persona notes retain normal authorization routes", async ({
   page,
 }) => {
   await page.goto("/evaluate");
-  const applicationOrigin = process.env.PROGRAMLOOM_E2E_EXTERNAL_SERVER
-    ? "https://app.programloom.com"
-    : "";
+  const pageUrl = new URL(page.url());
+  const applicationOrigin = ["127.0.0.1", "localhost"].includes(
+    pageUrl.hostname,
+  )
+    ? ""
+    : "https://app.programloom.com";
   const expected = [
     [
       "Organizer",
