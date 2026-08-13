@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import type { Env } from "./env";
-import { HttpError } from "./lib/authz";
+import { HttpError, requireUser } from "./lib/authz";
 import authRoutes from "./routes/auth";
 import organizationRoutes from "./routes/organizations";
 import eventRoutes from "./routes/events";
@@ -176,6 +176,39 @@ app.get("/api/meta", (context) =>
     },
   }),
 );
+
+const sessionProtectedApiRoutePatterns = [
+  /^\/api\/organizations(?:\/|$)/,
+  /^\/api\/events(?:\/|$)/,
+  /^\/api\/reviews(?:\/|$)/,
+  /^\/api\/speakers(?:\/|$)/,
+  /^\/api\/agenda\/admin(?:\/|$)/,
+  /^\/api\/widgets\/admin(?:\/|$)/,
+  /^\/api\/crm\/organizations(?:\/|$)/,
+  /^\/api\/integrations\/organizations(?:\/|$)/,
+  /^\/api\/content\/admin(?:\/|$)/,
+  /^\/api\/communications\/events(?:\/|$)/,
+  /^\/api\/calendar\/admin(?:\/|$)/,
+  /^\/api\/control-room(?:\/|$)/,
+  /^\/api\/submission-workspace(?:\/|$)/,
+  /^\/api\/event-templates(?:\/|$)/,
+  /^\/api\/search(?:\/|$)/,
+  /^\/api\/notifications(?:\/|$)/,
+  /^\/api\/review-routing(?:\/|$)/,
+  /^\/api\/developer\/organizations(?:\/|$)/,
+];
+
+export function isSessionProtectedApiRoute(path: string) {
+  return sessionProtectedApiRoutePatterns.some((pattern) => pattern.test(path));
+}
+
+// Authenticate every session-backed API before route-local validation. This
+// keeps malformed anonymous mutations from revealing schemas through a 400
+// response and guarantees the authorization matrix's required 401 boundary.
+app.use("/api/*", async (context, next) => {
+  if (isSessionProtectedApiRoute(context.req.path)) await requireUser(context);
+  await next();
+});
 
 app.route("/api/auth", authRoutes);
 app.route("/api/organizations", organizationRoutes);

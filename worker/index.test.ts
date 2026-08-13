@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { app, isIndexableClientRoute } from "./index";
+import {
+  app,
+  isIndexableClientRoute,
+  isSessionProtectedApiRoute,
+} from "./index";
 
 const env = {
   APP_ENV: "test",
@@ -311,6 +315,101 @@ describe("ProgramLoom Worker", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: { code: "authentication_required" },
     });
+  });
+
+  it("returns 401 before validation on every session-protected API route", async () => {
+    const routes = [
+      ...new Map(
+        app.routes
+          .filter(
+            (route) =>
+              route.method !== "ALL" &&
+              route.path.startsWith("/api/") &&
+              isSessionProtectedApiRoute(route.path),
+          )
+          .map((route) => [`${route.method} ${route.path}`, route]),
+      ).values(),
+    ];
+    expect(routes.length).toBeGreaterThan(100);
+
+    for (const route of routes) {
+      const path = route.path.replace(
+        /:[A-Za-z0-9_]+/g,
+        "00000000-0000-4000-8000-000000000001",
+      );
+      const hasBody = ["POST", "PUT", "PATCH"].includes(route.method);
+      const response = await app.request(
+        path,
+        {
+          method: route.method,
+          ...(hasBody
+            ? {
+                headers: { "content-type": "application/json" },
+                body: "{}",
+              }
+            : {}),
+        },
+        env,
+      );
+      expect(
+        response.status,
+        `${route.method} ${route.path} must authenticate before validation`,
+      ).toBe(401);
+      const body = await response.text();
+      expect(body).toContain("authentication_required");
+      expect(body).not.toMatch(/ProgramLoom Summit|DevFlow|@/i);
+    }
+  });
+
+  it("returns 401 before validation on every token-protected developer API route", async () => {
+    const publicDeveloperPaths = new Set([
+      "/api/v1/openapi.json",
+      "/api/v1/docs",
+      "/api/v1/changelog",
+      "/api/v1/collection.json",
+    ]);
+    const routes = [
+      ...new Map(
+        app.routes
+          .filter(
+            (route) =>
+              route.method !== "ALL" &&
+              route.path.startsWith("/api/v1/") &&
+              !route.path.startsWith("/api/v1/downloads/") &&
+              !publicDeveloperPaths.has(route.path),
+          )
+          .map((route) => [`${route.method} ${route.path}`, route]),
+      ).values(),
+    ];
+    expect(routes.length).toBeGreaterThan(20);
+
+    for (const route of routes) {
+      const path = route.path.replace(
+        /:[A-Za-z0-9_]+/g,
+        "00000000-0000-4000-8000-000000000001",
+      );
+      const hasBody = ["POST", "PUT", "PATCH"].includes(route.method);
+      const response = await app.request(
+        path,
+        {
+          method: route.method,
+          ...(hasBody
+            ? {
+                headers: { "content-type": "application/json" },
+                body: "{}",
+              }
+            : {}),
+        },
+        env,
+      );
+      expect(
+        response.status,
+        `${route.method} ${route.path} must authenticate before validation`,
+      ).toBe(401);
+      const body = await response.text();
+      expect(body).toContain("authentication_required");
+      expect(body).not.toMatch(/ProgramLoom Summit|DevFlow|@/i);
+    }
   });
 
   it("protects speaker CRM routes before database access", async () => {

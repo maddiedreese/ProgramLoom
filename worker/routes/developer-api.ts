@@ -195,7 +195,7 @@ async function requireEvent(
   return row;
 }
 
-function requireScope(token: ApiTokenContext, scope: DeveloperScope) {
+export function requireScope(token: ApiTokenContext, scope: DeveloperScope) {
   if (!token.scopes.includes(scope))
     throw new HttpError(
       403,
@@ -203,6 +203,10 @@ function requireScope(token: ApiTokenContext, scope: DeveloperScope) {
       `This request requires ${scope}.`,
     );
 }
+
+export const activeApiTokenLookupSql = `SELECT id,organization_id organizationId,name,scopes_json scopesJson,event_ids_json eventIdsJson,
+              hide_pii hidePii,created_by createdBy FROM api_tokens WHERE token_hash=? AND revoked_at IS NULL
+       AND (expires_at IS NULL OR expires_at>CURRENT_TIMESTAMP)`;
 
 async function recordApiUsage(context: ApiContext, next: () => Promise<void>) {
   const started = Date.now();
@@ -272,11 +276,7 @@ router.use("*", async (context, next) => {
     );
   const db = database(context.env);
   const row = await db
-    .prepare(
-      `SELECT id,organization_id organizationId,name,scopes_json scopesJson,event_ids_json eventIdsJson,
-              hide_pii hidePii,created_by createdBy FROM api_tokens WHERE token_hash=? AND revoked_at IS NULL
-       AND (expires_at IS NULL OR expires_at>CURRENT_TIMESTAMP)`,
-    )
+    .prepare(activeApiTokenLookupSql)
     .bind(await sha256(raw))
     .first<Record<string, unknown>>();
   if (!row)
