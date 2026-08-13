@@ -423,7 +423,7 @@ export function EventControlRoom({ user }: { user: User }) {
           <article>
             <RefreshCw size={20} />
             <span>Last refreshed</span>
-            <strong>
+            <strong data-dynamic-time>
               {overview ? formatDate(overview.refreshedAt) : "Loading…"}
             </strong>
           </article>

@@ -22,6 +22,7 @@ for (const [name, route] of [
   ["sign-in", "/login"],
 ] as const) {
   test(`${name} visual baseline`, async ({ page }, testInfo) => {
+    if (name === "sign-in") await page.context().clearCookies();
     if (name === "published-cfp") {
       await page.route("**/api/auth/session", (route) =>
         route.fulfill({ json: { user: null } }),
@@ -213,7 +214,14 @@ if (authenticated) {
   ]) {
     test(`organizer ${route} visual baseline`, async ({ page }, testInfo) => {
       await page.goto(`/app/events/${eventId}/${route}`);
+      await page
+        .locator(".loading-page")
+        .waitFor({ state: "detached", timeout: 10_000 })
+        .catch(() => undefined);
+      await expect(page.getByText("Loading ProgramLoom…")).toHaveCount(0);
       await expect(page.locator("main")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expect(page.locator("main").getByText(/^Loading/i)).toHaveCount(0);
       if (!snapshotProject(testInfo.project.name)) return;
       await expect(page).toHaveScreenshot(
         `organizer-${route}-${testInfo.project.name}.png`,
@@ -221,7 +229,13 @@ if (authenticated) {
           animations: "disabled",
           fullPage: true,
           caret: "hide",
-          mask: page.locator("time, [data-dynamic-time]"),
+          mask: [
+            page.locator("time, [data-dynamic-time]"),
+            page
+              .locator("article")
+              .filter({ hasText: "Last refreshed" })
+              .locator("strong"),
+          ],
         },
       );
     });
@@ -234,7 +248,13 @@ if (widgetKeys.length === 5) {
       page,
     }, testInfo) => {
       await page.goto(`/embed/${key}`);
+      await page
+        .locator(".loading-page")
+        .waitFor({ state: "detached", timeout: 10_000 })
+        .catch(() => undefined);
       await expect(page.locator("main")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByText(/^Loading/i)).toHaveCount(0);
       if (!snapshotProject(testInfo.project.name)) return;
       await expect(page).toHaveScreenshot(
         `widget-${key.split("-")[0]}-${testInfo.project.name}.png`,
