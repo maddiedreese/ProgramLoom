@@ -357,8 +357,10 @@ test.describe("five production public widgets", () => {
   }) => {
     const key = widgetKeys.find((value) => value.startsWith("itinerary-"))!;
     await page.goto(`/embed/${key}`);
-    const add = page.getByRole("button", { name: /^Add / }).first();
+    const addButtons = page.getByRole("button", { name: "Add to itinerary" });
+    const add = addButtons.first();
     await expect(add).toBeVisible();
+    const initialAddCount = await addButtons.count();
     const label = await add.getAttribute("aria-label");
     await add.click();
     await page.reload();
@@ -370,6 +372,7 @@ test.describe("five production public widgets", () => {
       page.getByRole("button", { name: "Export my ICS" }),
     ).toBeEnabled();
     await remove.click();
-    await expect(page.getByRole("button", { name: label! })).toBeVisible();
+    await expect(remove).toHaveCount(0);
+    await expect(addButtons).toHaveCount(initialAddCount);
   });
 });
