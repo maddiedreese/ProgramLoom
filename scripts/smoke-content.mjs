@@ -256,6 +256,12 @@ await api(
   },
 );
 
+// Content approval and agenda publication are deliberately separate durable
+// actions. Publish the eligible placement before asserting public visibility.
+await api(`/api/agenda/admin/events/${eventId}/publish`, organizerSession, {
+  method: "POST",
+});
+
 let widgetAdmin = await api(
   `/api/widgets/admin/events/${eventId}`,
   organizerSession,
@@ -300,7 +306,9 @@ assert(
   "Unapproved session leaked into public output.",
 );
 
-const ada = admin.speakers.find((item) => item.email === "ada@example.test");
+const ada = admin.speakers.find(
+  (item) => item.firstName === "Ada" && item.lastName === "Lovelace",
+);
 assert(ada, "Speaker content fixture is unavailable.");
 await api(
   `/api/content/admin/events/${eventId}/speakers/${ada.id}`,
