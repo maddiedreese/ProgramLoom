@@ -2,8 +2,9 @@
 
 - Release page: <https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12>
 - Asset: `programloom-walkthrough.webm`
-- Deployed source: `12097c7e34c56d919c12ef15c98487d134645513`
-- Worker version: `5c02c0aa-733b-490f-9a38-01473a4eabf5`
+- Walkthrough capture source: `12097c7e34c56d919c12ef15c98487d134645513`
+- Current walkthrough-hosting source: `42e313534f855a6b5e2f88c932393e6cdf5895c7`
+- Current Worker version: `e5a081f1-2864-4445-9524-981f64f98e06`
 - Capture: one uninterrupted 1440×900 WebM, 266.48 seconds, 23,039,600 bytes
 - Result: all prescribed steps 1–30 completed in order
 

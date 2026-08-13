@@ -16,9 +16,9 @@
     ]
   },
   "release": {
-    "sourceCommit": "12097c7e34c56d919c12ef15c98487d134645513",
-    "workerVersion": "5c02c0aa-733b-490f-9a38-01473a4eabf5",
-    "verifiedAt": "2026-08-13T04:12:57.000Z"
+    "sourceCommit": "42e313534f855a6b5e2f88c932393e6cdf5895c7",
+    "workerVersion": "e5a081f1-2864-4445-9524-981f64f98e06",
+    "verifiedAt": "2026-08-13T04:36:47.486Z"
   },
   "paidEvaluator": { "status": "not_run", "count": 0 },
   "calendarClients": {
@@ -97,7 +97,7 @@
   },
   "controlRoomScreenshot": {
     "path": "../../public/programloom-control-room.jpg",
-    "sourceCommit": "12097c7e34c56d919c12ef15c98487d134645513"
+    "sourceCommit": "42e313534f855a6b5e2f88c932393e6cdf5895c7"
   },
   "evidencePaths": [
     "production-journey/authorization-summary.md",
