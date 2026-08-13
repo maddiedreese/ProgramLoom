@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "status": "draft",
+  "status": "final",
   "production": {
     "marketingUrl": "https://programloom.com",
     "applicationUrl": "https://app.programloom.com",
@@ -18,7 +18,7 @@
   "release": {
     "sourceCommit": "12097c7e34c56d919c12ef15c98487d134645513",
     "workerVersion": "5c02c0aa-733b-490f-9a38-01473a4eabf5",
-    "verifiedAt": "2026-08-13T02:41:30.401Z"
+    "verifiedAt": "2026-08-13T04:12:57.000Z"
   },
   "paidEvaluator": { "status": "not_run", "count": 0 },
   "calendarClients": {
@@ -66,6 +66,9 @@
     { "command": "production public Playwright matrix", "exitStatus": 0 },
     { "command": "production help Playwright matrix", "exitStatus": 0 },
     { "command": "production visual Playwright matrix", "exitStatus": 0 },
+    { "command": "continuous production lifecycle walkthrough (steps 1-30)", "exitStatus": 0 },
+    { "command": "walkthrough publication and public-link verification", "exitStatus": 0 },
+    { "command": "npm run verify:consistency", "exitStatus": 0 },
     { "command": "npm audit --omit=dev --audit-level=high", "exitStatus": 0 },
     { "command": "gitleaks detect --source . --no-banner --redact --exit-code 1", "exitStatus": 0 }
   ],
@@ -79,7 +82,10 @@
     "dependencies": { "status": "pass", "high": 0, "critical": 0 },
     "helpCrawler": { "status": "pass", "brokenLinks": 0 }
   },
-  "walkthrough": { "url": null, "continuous": false },
+  "walkthrough": {
+    "url": "https://github.com/maddiedreese/SaaS/releases/tag/programloom-final-walkthrough-2026-08-12",
+    "continuous": true
+  },
   "controlRoomScreenshot": {
     "path": "../../public/programloom-control-room.jpg",
     "sourceCommit": "12097c7e34c56d919c12ef15c98487d134645513"
@@ -90,6 +96,7 @@
     "production-journey/public-verification-summary.md",
     "production-journey/reliability-summary.md",
     "production-journey/verification-commands.md",
+    "production-journey/walkthrough-summary.md",
     "production-journey/calendar/main-sequence-0-request.ics",
     "production-journey/calendar/main-sequence-1-request.ics",
     "production-journey/calendar/disposable-sequence-0-request.ics",

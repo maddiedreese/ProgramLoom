@@ -23,5 +23,9 @@ Verified on 2026-08-12 (America/Los_Angeles). Exit statuses are the process exit
 | `npm run test:e2e:public` (new checkout) | 0 | 65 passed; 3 viewport-inapplicable cases and 12 production-widget cases skipped locally. Those 12 required widget cases passed separately against production at all four viewports. |
 | `npm run test:e2e:help` (new checkout) | 0 | Build plus 132/132 help browser and crawler tests passed. |
 | `npm run check` (new checkout) | 0 | Typecheck, 236 tests, production builds, terminology, and evidence schema all passed again. |
+| Continuous production lifecycle walkthrough | 0 | One uninterrupted 1440×900 recording completed all prescribed steps 1–30 using a newly created isolated event, normally authorized organizer/reviewer/speaker personas, five live widgets, and a disposable cancellation record. The temporary event was archived after capture. |
+| `gh release create programloom-final-walkthrough-2026-08-12 …` | 0 | The sanitized 4:26 WebM (23,039,600 bytes) was published against deployed source `12097c7e34c56d919c12ef15c98487d134645513`; the public release page returned HTTP 200 without redirect. |
+| `npm run verify:summit -- --remote` (post-walkthrough) | 0 | The retained Summit remained unchanged after temporary-event archival: all 33 record/state checks passed and forbidden public titles remained 0. |
+| `npm run verify:consistency` | 0 | Final production identity, evidence files, canonical URLs, public links, walkthrough link, test totals, and paid-evaluator not-run status all reconciled. |
 
-The final ledger will add authenticated lifecycle smoke, walkthrough publication, and the final consistency verifier. The paid evaluator remains unrun.
+The paid evaluator remains unrun. Gmail and Apple Calendar are the tested manual calendar environments; Outlook remains explicitly waived and untested.
