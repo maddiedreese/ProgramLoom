@@ -7466,7 +7466,7 @@ input {
   margin-bottom: 26px;
 }
 .widget-header small {
-  color: var(--widget-color);
+  color: currentColor;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -7482,11 +7482,10 @@ input {
 .widget-timezone {
   display: block;
   margin-top: 4px;
-  opacity: 0.7;
   font-size: 12px;
 }
 .widget-header > a {
-  opacity: 0.55;
+  color: currentColor;
   font-size: 12px;
   font-weight: 700;
 }

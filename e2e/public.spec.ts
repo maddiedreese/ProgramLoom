@@ -34,6 +34,9 @@ test("evaluator persona notes retain normal authorization routes", async ({
   page,
 }) => {
   await page.goto("/evaluate");
+  const applicationOrigin = process.env.PROGRAMLOOM_E2E_EXTERNAL_SERVER
+    ? "https://app.programloom.com"
+    : "";
   const expected = [
     [
       "Organizer",
@@ -53,7 +56,10 @@ test("evaluator persona notes retain normal authorization routes", async ({
     await expect(page.getByRole("heading", { name: persona })).toBeVisible();
     await expect(
       page.getByRole("link", { name: `Continue as ${persona}` }),
-    ).toHaveAttribute("href", href);
+    ).toHaveAttribute(
+      "href",
+      persona === "Attendee" ? href : `${applicationOrigin}${href}`,
+    );
   }
   await expect(
     page.getByText(/no public privileged session is created/i),
@@ -357,7 +363,7 @@ test.describe("five production public widgets", () => {
     await add.click();
     await page.reload();
     const remove = page.getByRole("button", {
-      name: label!.replace(/^Add /, "Remove "),
+      name: label!.replace(/^Add to /, "Remove from "),
     });
     await expect(remove).toBeVisible();
     await expect(
