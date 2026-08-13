@@ -16,9 +16,9 @@
     ]
   },
   "release": {
-    "sourceCommit": "95643c1cb2b3da02fd31d1d5eaf64179424e9fdb",
-    "workerVersion": "d69550d9-7b7e-42ec-822c-714c4ae1cac4",
-    "verifiedAt": "2026-08-13T02:11:10.866Z"
+    "sourceCommit": "12097c7e34c56d919c12ef15c98487d134645513",
+    "workerVersion": "5c02c0aa-733b-490f-9a38-01473a4eabf5",
+    "verifiedAt": "2026-08-13T02:41:30.401Z"
   },
   "paidEvaluator": { "status": "not_run", "count": 0 },
   "calendarClients": {
@@ -65,6 +65,7 @@
     { "command": "npm run db:migrate:remote", "exitStatus": 0 },
     { "command": "production public Playwright matrix", "exitStatus": 0 },
     { "command": "production help Playwright matrix", "exitStatus": 0 },
+    { "command": "production visual Playwright matrix", "exitStatus": 0 },
     { "command": "npm audit --omit=dev --audit-level=high", "exitStatus": 0 },
     { "command": "gitleaks detect --source . --no-banner --redact --exit-code 1", "exitStatus": 0 }
   ],
@@ -81,7 +82,7 @@
   "walkthrough": { "url": null, "continuous": false },
   "controlRoomScreenshot": {
     "path": "../../public/programloom-control-room.jpg",
-    "sourceCommit": "95643c1cb2b3da02fd31d1d5eaf64179424e9fdb"
+    "sourceCommit": "12097c7e34c56d919c12ef15c98487d134645513"
   },
   "evidencePaths": [
     "production-journey/authorization-summary.md",

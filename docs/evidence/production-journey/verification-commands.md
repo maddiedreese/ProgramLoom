@@ -7,12 +7,13 @@ Verified on 2026-08-12 (America/Los_Angeles). Exit statuses are the process exit
 | `npm run check` | 0 | Typecheck, 61 unit/integration files with 236/236 tests, production build, 218-file terminology scan, and draft evidence schema all passed. |
 | `npm run verify:summit -- --remote` | 0 | Every retained ProgramLoom Summit 2027 record threshold and reserved-record invariant passed; 0 forbidden public titles. |
 | `npm run db:migrate:remote` | 0 | Remote D1 reported no migrations to apply through migration 0027. |
-| `curl --fail --silent --show-error https://app.programloom.com/api/health` | 0 | Health reported source `95643c1cb2b3da02fd31d1d5eaf64179424e9fdb` and Worker `d69550d9-7b7e-42ec-822c-714c4ae1cac4`. |
+| `curl --fail --silent --show-error https://app.programloom.com/api/health` | 0 | Health reported source `12097c7e34c56d919c12ef15c98487d134645513` and Worker `5c02c0aa-733b-490f-9a38-01473a4eabf5`. |
 | `PROGRAMLOOM_E2E_URL=https://app.programloom.com PROGRAMLOOM_E2E_EXTERNAL_SERVER=1 PROGRAMLOOM_E2E_WIDGET_KEYS=<five published keys> npx playwright test e2e/public.spec.ts` | 0 | 77 passed; 3 viewport-inapplicable mobile-navigation cases skipped; all five production widgets covered at four viewports. |
 | `PROGRAMLOOM_HELP_E2E_URL=https://programloom.com npx playwright test --config=playwright.help.config.ts` | 0 | 132 passed; crawler found no broken links, unexpected redirects, 404s, or incomplete canonical/title/description metadata. |
+| `PROGRAMLOOM_E2E_URL=https://app.programloom.com PROGRAMLOOM_E2E_EVENT_ID=<isolated archived event> PROGRAMLOOM_E2E_STORAGE_STATE=<private organizer state> PROGRAMLOOM_E2E_WIDGET_KEYS=<five published keys> npx playwright test e2e/visual.spec.ts` | 0 | 92/92 organizer, public, and widget comparisons passed at the four required viewport sizes; all baselines were manually reviewed. |
 | `npm audit --omit=dev --audit-level=high` | 0 | 0 vulnerabilities. |
 | `gitleaks detect --source . --no-banner --redact --exit-code 1` | 0 | 150 commits and approximately 3.74 MB scanned; no leaks found. |
-| `git clone --no-local <workspace> /private/tmp/programloom-final-gqk6O1/repo` | 0 | New checkout resolved to the locked source commit. |
+| `git clone --no-hardlinks <workspace> /private/tmp/programloom-final-mbUuz6/repo` | 0 | New checkout resolved to source `12097c7e34c56d919c12ef15c98487d134645513`. |
 | `npm install` (new checkout) | 0 | 334 packages installed; audit reported 0 vulnerabilities. |
 | `cp .env.example .env.local` (new checkout) | 0 | Documented non-secret environment template copied without adding provider values. |
 | `npm run db:migrate:local` (new checkout) | 0 | All 27 migrations applied to a fresh local D1 database. The first sandboxed attempt could not bind localhost (`EPERM`); the authorized localhost rerun passed and is the recorded gate. |
