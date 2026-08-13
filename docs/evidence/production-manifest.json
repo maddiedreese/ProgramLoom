@@ -16,9 +16,9 @@
     ]
   },
   "release": {
-    "sourceCommit": "42e313534f855a6b5e2f88c932393e6cdf5895c7",
-    "workerVersion": "e5a081f1-2864-4445-9524-981f64f98e06",
-    "verifiedAt": "2026-08-13T04:36:47.486Z"
+    "sourceCommit": "369ee61a61385214266852e4341f4c52220feb3c",
+    "workerVersion": "1a06f233-4195-4ee6-a758-1210b29e8243",
+    "verifiedAt": "2026-08-13T05:41:41Z"
   },
   "paidEvaluator": { "status": "not_run", "count": 0 },
   "calendarClients": {
@@ -26,9 +26,9 @@
   },
   "airtable": { "pending": 0, "failed": 0, "openConflicts": 0 },
   "controlRoom": {
-    "openItems": 37,
+    "openItems": 132,
     "reconciled": true,
-    "explanation": "The isolated production-readiness evidence event intentionally retains 37 open items across blocker categories so recovery interfaces remain demonstrable; its displayed total was reconciled to persisted category counts. The polished public Summit remains separately verified."
+    "explanation": "The retained ProgramLoom Summit 2027 intentionally preserves 132 persisted blocker records across review, decision, speaker, content, agenda, and communication categories so every Control Room recommendation remains demonstrable; the displayed total was reconciled to the authorized event response."
   },
   "communications": {
     "states": [
@@ -96,7 +96,7 @@
   },
   "controlRoomScreenshot": {
     "path": "../../public/programloom-control-room.jpg",
-    "sourceCommit": "42e313534f855a6b5e2f88c932393e6cdf5895c7"
+    "sourceCommit": "369ee61a61385214266852e4341f4c52220feb3c"
   },
   "evidencePaths": [
     "production-journey/authorization-summary.md",
