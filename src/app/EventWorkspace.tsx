@@ -616,18 +616,26 @@ export function EventWorkspace({ user }: { user: User }) {
                     <CalendarClock size={16} /> Close submissions now
                   </button>
                 )}
+              {selected.publishedAt && (
+                <button
+                  className="button button-ghost"
+                  disabled={busy}
+                  onClick={togglePublished}
+                >
+                  Unpublish
+                </button>
+              )}
               <button
-                className={`button ${selected.publishedAt ? "button-ghost" : ""}`}
-                disabled={busy}
+                className="button"
+                disabled={busy || Boolean(selected.publishedAt)}
                 onClick={togglePublished}
+                title={
+                  selected.publishedAt
+                    ? "This CFP is already published. Unpublish it before publishing a new revision."
+                    : undefined
+                }
               >
-                {selected.publishedAt ? (
-                  "Unpublish"
-                ) : (
-                  <>
-                    <Send size={16} /> Publish CFP
-                  </>
-                )}
+                <Send size={16} /> Publish CFP
               </button>
             </div>
           )}
