@@ -1,6 +1,6 @@
 # Continuous production walkthrough
 
-- Release page: <https://github.com/maddiedreese/SaaS/releases/tag/programloom-final-walkthrough-2026-08-12>
+- Release page: <https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12>
 - Asset: `programloom-walkthrough.webm`
 - Deployed source: `12097c7e34c56d919c12ef15c98487d134645513`
 - Worker version: `5c02c0aa-733b-490f-9a38-01473a4eabf5`

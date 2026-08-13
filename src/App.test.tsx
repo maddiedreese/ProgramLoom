@@ -190,6 +190,22 @@ describe("ProgramLoom application", () => {
     expect(
       screen.getByText(/staging a decision does not communicate it/i),
     ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/continuous production walkthrough/i),
+    ).toHaveAttribute(
+      "poster",
+      "/programloom-control-room.jpg?v=programloom-summit-2027",
+    );
+    expect(
+      screen.getByRole("link", { name: /open walkthrough and evidence/i }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12",
+    );
+    expect(document.querySelector('source[type="video/mp4"]')).toHaveAttribute(
+      "src",
+      "/programloom-walkthrough.mp4?v=programloom-final-2026-08-12",
+    );
   });
 
   it("publishes the privacy notice", async () => {

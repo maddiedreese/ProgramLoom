@@ -66,11 +66,20 @@
     { "command": "production public Playwright matrix", "exitStatus": 0 },
     { "command": "production help Playwright matrix", "exitStatus": 0 },
     { "command": "production visual Playwright matrix", "exitStatus": 0 },
-    { "command": "continuous production lifecycle walkthrough (steps 1-30)", "exitStatus": 0 },
-    { "command": "walkthrough publication and public-link verification", "exitStatus": 0 },
+    {
+      "command": "continuous production lifecycle walkthrough (steps 1-30)",
+      "exitStatus": 0
+    },
+    {
+      "command": "walkthrough publication and public-link verification",
+      "exitStatus": 0
+    },
     { "command": "npm run verify:consistency", "exitStatus": 0 },
     { "command": "npm audit --omit=dev --audit-level=high", "exitStatus": 0 },
-    { "command": "gitleaks detect --source . --no-banner --redact --exit-code 1", "exitStatus": 0 }
+    {
+      "command": "gitleaks detect --source . --no-banner --redact --exit-code 1",
+      "exitStatus": 0
+    }
   ],
   "evidence": {
     "resend": { "status": "pass" },
@@ -83,7 +92,7 @@
     "helpCrawler": { "status": "pass", "brokenLinks": 0 }
   },
   "walkthrough": {
-    "url": "https://github.com/maddiedreese/SaaS/releases/tag/programloom-final-walkthrough-2026-08-12",
+    "url": "https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12",
     "continuous": true
   },
   "controlRoomScreenshot": {

@@ -285,17 +285,39 @@ blockquote {
   box-shadow: 0 24px 60px rgba(35, 40, 34, 0.14);
   transform: rotate(0.4deg);
 }
-.hero-control-room img {
+.hero-control-room img,
+.hero-control-room video {
   width: 100%;
   display: block;
   border-radius: 11px;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
 }
 .hero-control-room figcaption {
   padding: 9px 4px 2px;
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 12px;
   text-align: left;
+  line-height: 1.5;
+}
+.hero-control-room figcaption > strong,
+.hero-control-room figcaption > span {
+  display: block;
+}
+.hero-control-room figcaption > strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+.walkthrough-hero-links {
+  margin-top: 7px;
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.walkthrough-hero-links a {
+  color: var(--moss);
+  font-weight: 750;
+  text-underline-offset: 3px;
 }
 .text-link {
   color: var(--moss);

@@ -8,8 +8,112 @@ The **Control Room** shows what is keeping the program from being ready and take
 - Application: [app.programloom.com](https://app.programloom.com)
 - Help center: [programloom.com/help](https://programloom.com/help/)
 - Public CFP directory: [app.programloom.com/cfp](https://app.programloom.com/cfp)
+- Live multi-day program: [programloom.com/program](https://programloom.com/program)
+- Evaluator entry: [programloom.com/evaluate](https://programloom.com/evaluate)
 
-![ProgramLoom Control Room showing an event team's next actions](public/programloom-control-room.jpg)
+## Watch the complete production walkthrough
+
+[![Watch ProgramLoom's continuous 30-step production walkthrough](public/programloom-control-room.jpg)](https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12)
+
+**[Play the walkthrough on ProgramLoom](https://programloom.com/#walkthrough)** · [Open the walkthrough evidence](https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12) · [Download the full-quality WebM](https://github.com/maddiedreese/ProgramLoom/releases/download/programloom-final-walkthrough-2026-08-12/programloom-walkthrough.webm) · [Explore the live public program](https://programloom.com/program) · [Choose an evaluator persona](https://programloom.com/evaluate)
+
+The walkthrough creates a fresh production event and follows one connected proposal through CFP publication, submission, reviewer routing, completed review, staged acceptance, recipient preview, decision delivery, speaker onboarding, uploads, content approval, scheduling, calendar delivery, a real conflict and resolution, agenda publication, all five public widgets, itinerary persistence and export, Command+K, Airtable health, cancellation, and final Control Room reconciliation. Organizer, reviewer, and speaker access use ProgramLoom's normal authorization flow throughout.
+
+## Judge's fast evaluation path
+
+Everything below is backed by persisted production records rather than browser-only demo state.
+
+1. **Start with the [continuous walkthrough](https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12).** It demonstrates the complete proposal-to-program lifecycle in one narrative.
+2. **Open the [controlled evaluator entry](https://programloom.com/evaluate).** Organizer, Reviewer, Speaker, and Attendee cards explain the boundaries of each persona and route through normal authentication or anonymous access.
+3. **Inspect [ProgramLoom Summit 2027](https://programloom.com/program).** The polished multi-day production event links its public CFP, agenda, speakers, itinerary, JSON, XML, ICS, and JavaScript embed outputs in one place.
+4. **Read the [help center](https://programloom.com/help/).** It documents the complete lifecycle, integrations, recovery paths, search, developer platform, and role-specific workflows.
+5. **Review the [sanitized production evidence](docs/evidence/production-manifest.json).** It locks the deployed source and Worker identity, exact test totals, evidence states, public routes, and manual-environment waiver.
+
+## Complete capability checklist
+
+### Control Room and lifecycle guidance
+
+- [x] Seven persisted lifecycle stages: Collect proposals, Review proposals, Make decisions, Prepare speakers, Approve content, Build the agenda, and Publish the program.
+- [x] Server-derived Not started, In progress, Blocked, and Complete states with the live record count behind each state.
+- [x] One deterministic **Recommended next action** showing its label, reason, affected-record count, and direct filtered-workspace link.
+- [x] The next three lower-priority actions, stable priority ties, and live recommendation updates as blockers clear.
+- [x] Full Control Room plus compact event-page lifecycle guidance, responsive and keyboard accessible.
+- [x] Persistent mutation results explain what changed, the durable new state, the recommended next action, and its direct link.
+
+### CFP and proposal collection
+
+- [x] Reusable event templates and duplication with explicit configuration preview.
+- [x] Public CFP builder, publication controls, discoverable CFP directory, custom questions, tracks, formats, deadlines, and event timezone.
+- [x] Visible section progress and required-items-completed progress.
+- [x] Server-equivalent validation before advancing between CFP sections, field-level error associations, and explanatory copy for non-obvious fields.
+- [x] A clear post-submission explanation plus saved confirmation and organizer-side proposal discovery.
+- [x] Searchable, filterable, configurable submission workspace with saved personal and shared organization views.
+
+### Reviews and decisions
+
+- [x] Multiple review rounds, routing rules, eligible-reviewer assignment, review-readiness views, and explicit **Run routing** and **Assign reviewers** actions.
+- [x] Reviewer-only queues and scorecards with complete, incomplete, conflicted, and recused states.
+- [x] Blind-review identity protection across API responses, exports, search destinations, logs, analytics, and URLs.
+- [x] Acceptance, waitlist, and rejection staging with proposal-level eligibility controls.
+- [x] **Stage decision** never sends email; **Send decision** is a separate, explicit Communications action.
+- [x] Recipient and rendered-message preview before delivery.
+
+### Communications and reliability
+
+- [x] Queue-backed transactional communication with prepared, queued, processing, sent, delivered, bounced, failed, and cancelled states.
+- [x] Idempotent requests and retries prevent duplicate email.
+- [x] Monotonic webhook handling prevents late events from downgrading terminal delivery state.
+- [x] Visible retry for recoverable failures, cancellation, audit history, notifications, and structured correlation identifiers.
+- [x] Resend or Airtable failure remains isolated from unrelated product areas.
+- [x] Controlled fictional identities and reserved email aliases; no personal addresses appear on public surfaces.
+
+### Speakers, onboarding, and content
+
+- [x] Acceptance creates or activates the connected speaker and session records.
+- [x] Event-scoped speaker invitations and a private speaker portal protected by normal authorization.
+- [x] Speaker profiles, biographies, job title, company, persisted headshots, graceful fallbacks, and linked sessions.
+- [x] Completed and incomplete onboarding tasks with organizer readiness consequences.
+- [x] Content requests, real R2 uploads/downloads, file versions, comments, requested changes, approval, and missing-content states.
+- [x] Explicit Close, Back, or Return controls, Escape handling, focus containment, and focus restoration on detail surfaces.
+
+### Agenda and calendar lifecycle
+
+- [x] Rooms, tracks, formats, agenda placements, assisted scheduling, keyboard scheduling alternatives, and conflict-free previews.
+- [x] Real room and shared-speaker conflict detection with explicit **Resolve conflict** actions wherever a conflict is shown.
+- [x] Draft versus published agenda state and explicit **Publish agenda** action.
+- [x] Participant-addressed calendar invitations kept separate from public itinerary ICS.
+- [x] Stable calendar UID with increasing sequence across time and room changes.
+- [x] Standards-compliant `METHOD:CANCEL`, safe explicit rescheduling after cancellation, participant communication, and public removal.
+
+### Public attendee experience
+
+- [x] Five live widgets: agenda, session directory, speaker directory, speaker gallery, and personal itinerary.
+- [x] Current event-local dates and time ranges, rooms, tracks, formats, every attached speaker, biographies, and linked sessions.
+- [x] Expandable descriptions, explicit detail Close/Back controls, accurate search/filter counts, and unmistakable selected-day state.
+- [x] Itinerary add, reload persistence, removal, and valid ICS export.
+- [x] Direct and embedded views stay consistent; configuration changes propagate without regenerating embed code.
+- [x] JSON, XML, ICS, HTML, iframe, and JavaScript embed outputs.
+- [x] Anonymous responsive behavior across desktop, tablet, and mobile.
+
+### Platform, integrations, and operations
+
+- [x] Organization and event isolation enforced server-side across organizers, reviewers, speakers, anonymous users, and scoped API tokens.
+- [x] Search and Command+K across speakers, sessions, files, communications, and safe quick actions.
+- [x] Notification center, audit trail, API tokens, OAuth authorization, webhooks, and developer documentation.
+- [x] Airtable outbox synchronization, stable external IDs, deduplicated recovery, and visible pending/failed/conflict health.
+- [x] PostHog product events without personal data, query text, message bodies, or tokens.
+- [x] Cloudflare Workers, D1, R2, Queues, stale-asset 404 protection, asset-version recovery, migrations, and production health identity.
+- [x] AGPL-3.0-only source with documented local setup, testing, deployment, architecture, data model, and recovery procedures.
+
+### Quality bar
+
+- [x] WCAG 2.1 AA behavior: keyboard traversal, visible focus, accessible names, dialog containment, Escape, focus restoration, semantic forms/tables, live regions, contrast, reduced motion, zoom, and 320px reflow.
+- [x] No color-only status communication and 44×44 CSS-pixel interaction targets on mobile.
+- [x] Automated desktop, tablet, and mobile screenshots for primary organizer and public routes.
+- [x] Authorization matrix covers anonymous, same-event organizer, cross-organization organizer, cross-event organizer, assigned/unassigned reviewer, connected/unconnected speaker, revoked token, and missing token scope.
+- [x] Reliability coverage includes email idempotency, retry deduplication, monotonic webhooks, calendar identity, Airtable recovery, stale assets, and integration isolation.
+- [x] Clean-checkout gates: 236/236 unit and API tests, 77 production public browser scenarios, 132 help/crawler scenarios, and 92/92 visual comparisons.
+- [x] Zero serious or critical automated accessibility violations, zero high or critical production dependency vulnerabilities, zero committed secrets, and zero broken help links.
 
 ## What you can do with ProgramLoom
 
@@ -43,7 +147,7 @@ New to the product? Start with [Create your first event](https://programloom.com
 
 ## Open source and self-hostable
 
-ProgramLoom is licensed under the [GNU Affero General Public License v3.0](LICENSE), and its [source code is available on GitHub](https://github.com/maddiedreese/SaaS). The production application uses Cloudflare Workers, D1, R2, and Queues, with Resend for transactional email and optional Airtable and PostHog connections.
+ProgramLoom is licensed under the [GNU Affero General Public License v3.0](LICENSE), and its [source code is available on GitHub](https://github.com/maddiedreese/ProgramLoom). The production application uses Cloudflare Workers, D1, R2, and Queues, with Resend for transactional email and optional Airtable and PostHog connections.
 
 The product is designed so required event workflows use real saved records, real file storage, real background jobs, and server-side permissions. It does not depend on browser-only demo state.
 

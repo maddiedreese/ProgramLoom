@@ -29,7 +29,7 @@ export function LegalPage({ kind }: { kind: LegalKind }) {
         <nav aria-label="Legal">
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
-          <a href="https://github.com/maddiedreese/SaaS">Source</a>
+          <a href="https://github.com/maddiedreese/ProgramLoom">Source</a>
         </nav>
       </footer>
     </div>
@@ -87,7 +87,7 @@ function PrivacyNotice() {
           the private contact method in our{" "}
           <a
             className="mobile-link-target"
-            href="https://github.com/maddiedreese/SaaS/security/policy"
+            href="https://github.com/maddiedreese/ProgramLoom/security/policy"
           >
             security policy
           </a>
@@ -183,7 +183,7 @@ function Terms() {
           the contact method in the project’s{" "}
           <a
             className="mobile-link-target"
-            href="https://github.com/maddiedreese/SaaS/security/policy"
+            href="https://github.com/maddiedreese/ProgramLoom/security/policy"
           >
             security policy
           </a>

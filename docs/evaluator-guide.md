@@ -5,7 +5,7 @@ ProgramLoom shows organizers exactly what is blocking their program, gives them 
 - Product: ProgramLoom
 - Marketing: <https://programloom.com>
 - Application: <https://app.programloom.com>
-- Source: <https://github.com/maddiedreese/SaaS>
+- Source: <https://github.com/maddiedreese/ProgramLoom>
 - License: GNU AGPL-3.0-only
 - Transactional sender: `ProgramLoom <notifications@mail.programloom.com>`
 

@@ -538,6 +538,10 @@ const summitWidgets = {
   gallery: "gallery-f0410c5463644a2fbae0",
   itinerary: "itinerary-2508fc81fad24cb591fc",
 } as const;
+const walkthroughReleaseUrl =
+  "https://github.com/maddiedreese/ProgramLoom/releases/tag/programloom-final-walkthrough-2026-08-12";
+const walkthroughVideoUrl =
+  "/programloom-walkthrough.mp4?v=programloom-final-2026-08-12";
 
 export const evaluatorPersonas = [
   {
@@ -680,7 +684,7 @@ function MarketingPage() {
         </nav>
       </header>
       <main id="main-content">
-        <section className="hero">
+        <section className="hero" id="walkthrough">
           <div className="hero-message">
             <div className="eyebrow">
               <Sparkles size={15} /> Speaker programs, without the spreadsheet
@@ -725,15 +729,34 @@ function MarketingPage() {
             </div>
           </div>
           <figure className="hero-control-room">
-            <img
-              src="/programloom-control-room.jpg?v=programloom-summit-2027"
-              alt="ProgramLoom Control Room showing live program blockers and next actions"
-            />
-            <figcaption>Control Room · persisted program readiness</figcaption>
+            <video
+              aria-label="ProgramLoom continuous production walkthrough"
+              controls
+              playsInline
+              poster="/programloom-control-room.jpg?v=programloom-summit-2027"
+              preload="metadata"
+            >
+              <source src={walkthroughVideoUrl} type="video/mp4" />
+              Your browser cannot play the walkthrough video. Open the full
+              walkthrough using the link below.
+            </video>
+            <figcaption>
+              <strong>Complete production walkthrough · 4:26 · 30 steps</strong>
+              <span>
+                One continuous journey from event creation to review, decisions,
+                speaker preparation, publication, and cancellation.
+              </span>
+              <span className="walkthrough-hero-links">
+                <a href={walkthroughReleaseUrl}>
+                  Open walkthrough and evidence
+                </a>
+                <Link to="/program">Explore the live program</Link>
+              </span>
+            </figcaption>
           </figure>
         </section>
         <section
-          id="walkthrough"
+          id="control-room"
           className="product-preview"
           aria-labelledby="product-preview-title"
         >
@@ -838,7 +861,7 @@ function MarketingPage() {
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
           <a href="/help/">Help center</a>
-          <a href="https://github.com/maddiedreese/SaaS">Source</a>
+          <a href="https://github.com/maddiedreese/ProgramLoom">Source</a>
         </nav>
       </footer>
     </div>

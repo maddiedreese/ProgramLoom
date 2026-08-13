@@ -172,7 +172,7 @@ app.get("/api/meta", (context) =>
     links: {
       application: context.env.APP_URL,
       marketing: context.env.MARKETING_URL,
-      source: "https://github.com/maddiedreese/SaaS",
+      source: "https://github.com/maddiedreese/ProgramLoom",
     },
   }),
 );
